@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}What-If Simulator — Policy Ledger{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>What-If Simulator</h1>
+    <p>Describe something you're considering doing — get a clear verdict, not just a paragraph to interpret yourself.</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{{ url_for('what_if.history') }}" class="btn btn-secondary">My history</a>
+  </div>
+</div>
+
+<div class="card mb2">
+  <form method="POST">
+    <label class="card-label" style="display:block;margin-bottom:.5rem">DESCRIBE YOUR SCENARIO</label>
+    <textarea name="scenario" rows="3" maxlength="800" placeholder='e.g. "I want to work remotely from another country for 6 weeks" or "Can I expense a personal laptop under $500?"'
+      style="width:100%;padding:.7rem .85rem;border:1px solid var(--rule2);border-radius:4px;font-size:14.5px;font-family:var(--font-sans);background:var(--paper);resize:vertical">{{ scenario }}</textarea>
+    <div style="display:flex;justify-content:flex-end;margin-top:.75rem">
+      <button type="submit" class="btn btn-primary">Check against policy →</button>
+    </div>
+  </form>
+</div>
+
+{% if result %}
+{% set verdict_meta = {
+  'compliant':     {'label': 'Compliant',      'bg': 'var(--green2)',  'fg': 'var(--green)'},
+  'not_compliant': {'label': 'Not Compliant',  'bg': 'var(--red2)',    'fg': 'var(--red)'},
+  'depends':       {'label': 'Depends',        'bg': 'var(--amber2)',  'fg': 'var(--amber)'},
+  'unclear':       {'label': 'Unclear',        'bg': 'var(--blue2)',   'fg': 'var(--blue)'},
+} %}
+{% set vm = verdict_meta.get(result.verdict, verdict_meta['unclear']) %}
+<div class="card mb2" style="border-left:3px solid {{ vm.fg }}">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+    <div style="display:flex;align-items:center;gap:.75rem">
+      <span style="background:{{ vm.bg }};color:{{ vm.fg }};font-weight:700;font-size:13px;padding:.35rem .8rem;border-radius:20px">{{ vm.label }}</span>
+      <span class="text-mono" style="font-size:11.5px;color:var(--faint)">Confidence: {{ result.confidence }}%</span>
+    </div>
+    {% if result.flagged_for_hr %}
+    <span class="pill pill-mandatory" title="Ambiguous or higher-risk scenarios are routed to HR for review">🚩 Flagged for HR review</span>
+    {% endif %}
+  </div>
+
+  <div style="margin-top:1rem;font-size:15px;line-height:1.6">{{ result.explanation }}</div>
+
+  {% if result.required_actions %}
+  <div style="margin-top:1rem">
+    <div class="card-label" style="margin-bottom:.4rem">REQUIRED NEXT STEPS</div>
+    <ul style="padding-left:1.2rem;font-size:13.5px;line-height:1.7">
+      {% for a in result.required_actions %}<li>{{ a }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if result.citations %}
+  <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--rule2)">
+    <div class="card-label" style="margin-bottom:.5rem">BASED ON</div>
+    <div style="display:flex;flex-direction:column;gap:.4rem">
+      {% for c in result.citations %}
+      <div style="font-size:12.5px;color:var(--ink2)">
+        {% if c.policy_id %}<a href="{{ url_for('employee.policy_view', policy_id=c.policy_id) }}" style="font-weight:600">{{ c.policy_name }}</a>{% else %}<span style="font-weight:600">{{ c.policy_name }}</span>{% endif %}
+        <span class="text-mono" style="color:var(--faint)">v{{ c.version }}</span> · Section: {{ c.section }}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:.75rem;font-size:11.5px;color:var(--faint)">
+    This is decision support, not a formal ruling — for anything with real consequences, confirm with HR before acting.
+  </div>
+</div>
+{% endif %}
+{% endblock %}
