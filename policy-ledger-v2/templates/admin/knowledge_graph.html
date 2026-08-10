@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}Policy Knowledge Graph — Policy Ledger{% endblock %}
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/standalone/umd/vis-network.min.js"></script>
+<style>
+  /* ---- layout ---- */
+  #kg-canvas{width:100%;height:64vh;border:1px solid var(--rule);border-radius:var(--r);background:var(--paper2)}
+  .kg-toolbar{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem}
+  .kg-toolbar input[type="text"]{flex:1;min-width:180px}
+  .kg-zoom{display:flex;gap:.3rem}
+  .kg-zoom button{width:32px;height:32px;font-size:15px}
+
+  /* ---- guide ---- */
+  .kg-guide-toggle{cursor:pointer;user-select:none;display:flex;align-items:center;gap:.4rem;font-size:12.5px;font-weight:600;color:var(--ink2)}
+  .kg-guide-toggle:hover{color:var(--ink)}
+  .kg-guide-arrow{transition:transform .15s;display:inline-block}
+  .kg-guide-open .kg-guide-arrow{transform:rotate(90deg)}
+  .kg-guide-body{display:none;margin-top:.9rem}
+  .kg-guide-open .kg-guide-body{display:block}
+  .kg-story{font-size:13.5px;color:var(--ink2);line-height:1.65;margin-bottom:1rem;padding:.85rem 1rem;background:var(--paper);border:1px solid var(--rule);border-radius:var(--r)}
+  .kg-story b{color:var(--ink)}
+
+  /* ---- legend as explainer cards ---- */
+  .kg-legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.6rem}
+  .kg-legend-item{display:flex;gap:.55rem;align-items:flex-start;padding:.6rem .7rem;background:var(--paper);border:1px solid var(--rule);border-radius:var(--r)}
+  .kg-dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-top:3px;flex-shrink:0}
+  .kg-legend-name{font-weight:600;font-size:13px;color:var(--ink);margin-bottom:.15rem}
+  .kg-legend-desc{font-size:12px;color:var(--ink2);line-height:1.4}
+
+  /* ---- detail panel ---- */
+  #kg-detail{font-size:13.5px;color:var(--ink2);line-height:1.6}
+  #kg-detail .kg-detail-empty{color:var(--faint)}
+  #kg-detail .kg-detail-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:.2rem}
+  #kg-detail .kg-detail-kind{font-family:var(--font-mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:.5rem}
+  #kg-detail a{color:var(--ink);font-weight:600}
+
+  .kg-empty-state{display:flex;align-items:center;justify-content:center;height:100%;color:var(--faint);text-align:center;padding:1rem;font-size:13px}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>Policy Knowledge Graph</h1>
+    <p>A map of how your company's policies actually came to be — built directly from real records, not guesses. It connects <b>Departments → Policies → Versions → Approvals</b>, and <b>Meetings → Decisions → Policies</b>, so you can trace any policy back to the meeting and decision that produced it, and forward to who signed off on it.</p>
+  </div>
+</div>
+
+<div class="card mb2">
+  <div class="kg-guide-toggle" id="kg-guide-toggle">
+    <span class="kg-guide-arrow">▶</span> How do I read this map? (start here)
+  </div>
+  <div class="kg-guide-body" id="kg-guide-body">
+    <div class="kg-story">
+      Think of this as a family tree for a policy. <b>Somebody had a meeting</b> (purple) →
+      in that meeting, <b>a decision was made</b> (red) → that decision <b>produced a policy</b> (blue) →
+      the policy belongs to a <b>department</b> (green) → over time the policy gets edited, creating new
+      <b>versions</b> (grey) → and each version needed someone to <b>approve</b> it (yellow) before it became official.
+      <br><br>
+      Every box and dot below is a real record from the database — nothing here is invented by AI.
+      <b>Click any shape</b> to read a plain-English explanation of what it is, on the right.
+      <b>Drag</b> to move things around, <b>scroll</b> to zoom, and use the search box to jump straight to a policy by name.
+    </div>
+    <div class="kg-legend">
+      <div class="kg-legend-item">
+        <span class="kg-dot" style="background:#7a2a8a"></span>
+        <div><div class="kg-legend-name">Meeting</div><div class="kg-legend-desc">A real meeting where a policy topic was discussed. This is where the trail begins.</div></div>
+      </div>
+      <div class="kg-legend-item">
+        <span class="kg-dot" style="background:#b1442e"></span>
+        <div><div class="kg-legend-name">Decision</div><div class="kg-legend-desc">The specific choice made in that meeting that led to a policy being created or changed.</div></div>
+      </div>
+      <div class="kg-legend-item">
+        <span class="kg-dot" style="background:#1d5c8a"></span>
+        <div><div class="kg-legend-name">Policy</div><div class="kg-legend-desc">The official rule employees have to follow. Shown as a box so it stands out.</div></div>
+      </div>
+      <div class="kg-legend-item">
+        <span class="kg-dot" style="background:#2a4a38"></span>
+        <div><div class="kg-legend-name">Department</div><div class="kg-legend-desc">The team responsible for a policy, such as HR or IT.</div></div>
+      </div>
+      <div class="kg-legend-item">
+        <span class="kg-dot" style="background:#6b7280"></span>
+        <div><div class="kg-legend-name">Version</div><div class="kg-legend-desc">A specific edition of a policy. New versions appear whenever a policy is edited.</div></div>
+      </div>
+      <div class="kg-legend-item">
+        <span class="kg-dot" style="background:#8a6d1d"></span>
+        <div><div class="kg-legend-name">Approval</div><div class="kg-legend-desc">A sign-off a version needed, and who gave it, before it became official.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb2">
+  <div class="kg-toolbar">
+    <input type="text" id="kg-search" placeholder="Find a policy, department, or meeting by name…">
+    <div class="seg">
+      <button class="seg-btn" id="kg-layout-tree" type="button">Tree view (easier to follow)</button>
+      <button class="seg-btn" id="kg-layout-free" type="button">Free view (see all connections)</button>
+    </div>
+    <div class="kg-zoom">
+      <button class="btn btn-secondary" id="kg-zoom-in" type="button" title="Zoom in">+</button>
+      <button class="btn btn-secondary" id="kg-zoom-out" type="button" title="Zoom out">−</button>
+      <button class="btn btn-secondary" id="kg-zoom-fit" type="button" title="Fit everything on screen">⤢</button>
+    </div>
+  </div>
+  <div id="kg-canvas"></div>
+</div>
+
+<div class="card">
+  <div class="card-label">Selected item — plain-English explanation</div>
+  <div id="kg-detail"><span class="kg-detail-empty">Click any shape in the map above to see what it means here.</span></div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('kg-canvas');
+  const detail = document.getElementById('kg-detail');
+  const searchBox = document.getElementById('kg-search');
+  const guideToggle = document.getElementById('kg-guide-toggle');
+  const guideCard = guideToggle.closest('.card');
+
+  guideToggle.addEventListener('click', function() {
+    guideCard.classList.toggle('kg-guide-open');
+  });
+  // Open the guide automatically the first time so nobody misses it.
+  guideCard.classList.add('kg-guide-open');
+
+  const HIERARCHICAL_OPTS = {
+    layout: {
+      hierarchical: {
+        enabled: true, direction: 'LR', sortMethod: 'directed',
+        levelSeparation: 190, nodeSpacing: 90, treeSpacing: 140,
+      },
+    },
+    physics: { enabled: false },
+  };
+  const FREE_OPTS = {
+    layout: { hierarchical: { enabled: false }, improvedLayout: true },
+    physics: { stabilization: true, barnesHut: { gravitationalConstant: -4000, springLength: 130 } },
+  };
+  const BASE_OPTS = {
+    interaction: { hover: true, tooltipDelay: 120 },
+    nodes: { borderWidth: 2, shadow: false },
+    edges: { smooth: { type: 'cubicBezier', roundness: .5 } },
+  };
+
+  let network = null;
+  let allNodesDS = null;
+  let allEdgesDS = null;
+
+  function renderEmpty(message) {
+    canvas.innerHTML = '<div class="kg-empty-state">' + message + '</div>';
+  }
+
+  function describeNode(node) {
+    const raw = node._raw || {};
+    let html = '<div class="kg-detail-title">' + node.label + '</div>';
+    html += '<div class="kg-detail-kind">' + (raw.kind_label || node.group) + '</div>';
+    if (raw.explains) { html += '<div style="margin-bottom:.5rem">' + raw.explains + '</div>'; }
+    if (raw.status) { html += '<div>Status: <b>' + raw.status + '</b></div>'; }
+    if (raw.meeting_code) { html += '<div>Reference code: <b>' + raw.meeting_code + '</b></div>'; }
+    if (raw.url) { html += '<div style="margin-top:.5rem"><a href="' + raw.url + '">Open this policy →</a></div>'; }
+    return html;
+  }
+
+  function buildNetwork(nodesData, edgesData) {
+    allNodesDS = new vis.DataSet(nodesData.map(n => ({
+      id: n.id, label: n.label, group: n.group,
+      color: { background: n.color, border: n.color },
+      font: { color: n.group === 'policy' ? '#fff' : '#fff', size: 13, face: 'inherit' },
+      shape: n.group === 'policy' ? 'box' : 'dot',
+      size: n.group === 'policy' ? 20 : 12,
+      title: (n.kind_label || n.group) + ': ' + n.label,
+      _raw: n,
+    })));
+    allEdgesDS = new vis.DataSet(edgesData.map((e, i) => ({
+      id: i, from: e.from, to: e.to, label: e.label || '',
+      arrows: 'to', font: { size: 10, color: '#6b6f68', strokeWidth: 4, strokeColor: 'var(--paper2)' },
+      color: { color: '#c2bba8', highlight: '#2a4a38' },
+    })));
+
+    network = new vis.Network(canvas, { nodes: allNodesDS, edges: allEdgesDS },
+      Object.assign({}, BASE_OPTS, HIERARCHICAL_OPTS));
+    setActiveLayoutButton('tree');
+
+    network.on('click', function(params) {
+      if (!params.nodes.length) { return; }
+      const node = allNodesDS.get(params.nodes[0]);
+      detail.innerHTML = describeNode(node);
+    });
+  }
+
+  function setActiveLayoutButton(which) {
+    document.getElementById('kg-layout-tree').style.borderColor = which === 'tree' ? 'var(--archive)' : '';
+    document.getElementById('kg-layout-tree').style.color = which === 'tree' ? 'var(--archive)' : '';
+    document.getElementById('kg-layout-free').style.borderColor = which === 'free' ? 'var(--archive)' : '';
+    document.getElementById('kg-layout-free').style.color = which === 'free' ? 'var(--archive)' : '';
+  }
+
+  document.getElementById('kg-layout-tree').addEventListener('click', function() {
+    if (!network) return;
+    network.setOptions(Object.assign({}, BASE_OPTS, HIERARCHICAL_OPTS));
+    setActiveLayoutButton('tree');
+  });
+  document.getElementById('kg-layout-free').addEventListener('click', function() {
+    if (!network) return;
+    network.setOptions(Object.assign({}, BASE_OPTS, FREE_OPTS));
+    setActiveLayoutButton('free');
+  });
+  document.getElementById('kg-zoom-in').addEventListener('click', function() {
+    if (!network) return;
+    network.moveTo({ scale: network.getScale() * 1.25 });
+  });
+  document.getElementById('kg-zoom-out').addEventListener('click', function() {
+    if (!network) return;
+    network.moveTo({ scale: network.getScale() * 0.8 });
+  });
+  document.getElementById('kg-zoom-fit').addEventListener('click', function() {
+    if (!network) return;
+    network.fit({ animation: true });
+  });
+
+  searchBox.addEventListener('input', function() {
+    if (!network || !allNodesDS) return;
+    const q = searchBox.value.trim().toLowerCase();
+    if (!q) { return; }
+    const match = allNodesDS.get({ filter: n => n.label.toLowerCase().includes(q) })[0];
+    if (match) {
+      network.focus(match.id, { scale: 1.1, animation: true });
+      network.selectNodes([match.id]);
+      detail.innerHTML = describeNode(match);
+    }
+  });
+
+  fetch("{{ url_for('knowledge_graph.graph_data') }}")
+    .then(r => r.json())
+    .then(data => {
+      if (!data.nodes.length) {
+        renderEmpty('There is nothing to map yet — once policies, meetings, and decisions exist in the system, they will show up here automatically.');
+        return;
+      }
+      buildNetwork(data.nodes, data.edges);
+    })
+    .catch(() => {
+      renderEmpty('Could not load the map data — please refresh the page, or contact an admin if this keeps happening.');
+    });
+})();
+</script>
+{% endblock %}

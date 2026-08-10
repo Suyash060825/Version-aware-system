@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}My Rewards — Policy Ledger{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>My Rewards</h1>
+    <p>Points and badges earned from staying on top of policies, quizzes, meetings, and onboarding.</p>
+  </div>
+</div>
+
+<div class="grid2 mb3">
+  <div class="card" style="text-align:center;padding:2rem">
+    <div class="card-label">Total points</div>
+    <div style="font-family:var(--font-serif);font-size:48px;font-weight:700;color:var(--archive)">{{ stats.points }}</div>
+    <div style="font-size:11.5px;color:var(--faint);margin-top:.5rem">
+      Rank #{{ rank }} of {{ total_users }}
+      {% if stats.streak %} · 🔥 {{ stats.streak }}-day streak{% endif %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">How you earned it</div>
+    <div style="display:flex;flex-direction:column;gap:.4rem;margin-top:.5rem;font-size:12.5px">
+      <div style="display:flex;justify-content:space-between"><span>Quizzes passed</span><span class="text-mono" style="font-weight:600">{{ stats.quizzes_passed }} × 10</span></div>
+      <div style="display:flex;justify-content:space-between"><span>On-time acknowledgements</span><span class="text-mono" style="font-weight:600">{{ stats.on_time_acks }} × 5</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Late acknowledgements</span><span class="text-mono" style="font-weight:600">{{ stats.late_acks }} × 2</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Comments posted</span><span class="text-mono" style="font-weight:600">{{ stats.comments }} × 3</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Onboarding steps done</span><span class="text-mono" style="font-weight:600">{{ stats.onboarding_done }} × 8</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Action items completed</span><span class="text-mono" style="font-weight:600">{{ stats.action_items_done }} × 5</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="stat-grid mb3">
+  <div class="stat-card"><div class="stat-val">{{ stats.ack_rate }}%</div><div class="stat-label">Mandatory policies acknowledged</div></div>
+  <div class="stat-card"><div class="stat-val">{{ stats.badge_count }}</div><div class="stat-label">Badges earned</div></div>
+  <div class="stat-card"><div class="stat-val">{{ stats.streak }}</div><div class="stat-label">Day activity streak</div></div>
+</div>
+
+<div class="card">
+  <div class="card-label">Badges</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.75rem;margin-top:.75rem">
+    {% for key, label, desc, icon in all_badges %}
+    {% set earned = key in (stats.badges|map('first')|list) %}
+    <div class="card" style="padding:.9rem;text-align:center;{% if not earned %}opacity:.35{% endif %}">
+      <div style="font-size:28px">{{ icon }}</div>
+      <div style="font-weight:600;font-size:12.5px;margin-top:.35rem">{{ label }}</div>
+      <div style="font-size:11px;color:var(--faint);margin-top:.2rem">{{ desc }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

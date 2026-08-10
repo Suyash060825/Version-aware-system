@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Flask Web Application (Dev Mode)
+  # ============================================================================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: policy_ledger_app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - SECRET_KEY=dev-secret-key-change-in-prod
+      - LLM_BACKEND=ollama
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LOCAL_LLM_MODEL=llama3.1:8b-instruct-q4_K_M
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    volumes:
+      - .:/app
+      - app_data:/app/data
+    depends_on:
+      ollama:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+
+  # ============================================================================
+  # Ollama Local LLM Inference Engine
+  # ============================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: policy_ledger_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    # GPU Passthrough configuration for NVIDIA GPUs (Uncomment if GPU available)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ============================================================================
+  # ChromaDB Vector Store Service
+  # ============================================================================
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: policy_ledger_chroma
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+
+volumes:
+  ollama_data:
+  chroma_data:
+  app_data:
