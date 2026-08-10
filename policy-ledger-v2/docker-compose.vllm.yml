@@ -1,0 +1,44 @@
+version: '3.8'
+
+# ==============================================================================
+# vLLM High-Throughput OpenAI-Compatible Inference Server Profile
+# Run with: docker-compose -f docker-compose.vllm.yml up -d
+# ==============================================================================
+
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: policy_ledger_vllm
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    # Command arguments for model serving & quantization:
+    # Use --quantization awq or gptq for reduced VRAM footprint:
+    #   --quantization awq
+    #   --quantization gptq
+    command: >
+      --model ${LOCAL_LLM_MODEL:-meta-llama/Meta-Llama-3.1-8B-Instruct}
+      --port 8000
+      --max-model-len 4096
+      --gpu-memory-utilization 0.90
+      --trust-remote-code
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/v1/models || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  hf_cache:
