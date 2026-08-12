@@ -33,6 +33,7 @@ html,body{min-height:100%;font-family:'Inter',sans-serif;background:var(--paper)
   </div>
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
   <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <div class="field"><label>Full name</label><input name="name" placeholder="Priya Sharma" required autofocus></div>
     <div class="field"><label>Work email</label><input type="email" name="email" placeholder="you@company.com" required></div>
     <div class="field"><label>Password</label><input type="password" name="password" placeholder="Min. 8 characters" required></div>

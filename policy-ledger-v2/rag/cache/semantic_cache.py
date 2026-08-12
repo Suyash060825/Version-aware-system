@@ -81,16 +81,16 @@ class SemanticCache:
                 # 2. Cosine similarity scan
                 keys = self.redis.keys("vssc:*")
                 for k in keys:
-                data = self.redis.get(k)
-                if data:
-                    entry = json.loads(data)
-                    if entry.get("allowed_depts") != dept_str or entry.get("is_diff_query") != is_diff_query:
-                        continue
-                    score = self._cosine_similarity(query_embedding, entry["embedding"])
-                    if score > best_score:
-                        best_score = score
-                        best_match = entry
-                        best_key = k
+                    data = self.redis.get(k)
+                    if data:
+                        entry = json.loads(data)
+                        if entry.get("allowed_depts") != dept_str or entry.get("is_diff_query") != is_diff_query:
+                            continue
+                        score = self._cosine_similarity(query_embedding, entry["embedding"])
+                        if score > best_score:
+                            best_score = score
+                            best_match = entry
+                            best_key = k
         else:
             for i, entry in enumerate(self.local_cache):
                 if entry.get("allowed_depts") != dept_str or entry.get("is_diff_query") != is_diff_query:

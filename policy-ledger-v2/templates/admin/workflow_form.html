@@ -9,6 +9,7 @@
 {% if error %}<div class="alert alert-danger mb2">{{ error }}</div>{% endif %}
 
 <form method="POST" id="templateForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
   <div class="card mb3">
     <div class="card-label">Template details</div>
     <div class="form-grid">

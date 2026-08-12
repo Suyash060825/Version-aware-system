@@ -13,6 +13,7 @@
     <div class="card-label">Step 2 — Verify code</div>
     <p style="font-size:13.5px;color:var(--ink2);margin-bottom:1rem">Enter the 6-digit code shown in your authenticator app to confirm setup:</p>
     <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="field"><label>Verification code</label><input type="text" name="code" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="off" autofocus style="font-family:var(--font-mono);font-size:22px;letter-spacing:.2em;text-align:center"></div>
       <button type="submit" class="btn btn-primary">Verify & Enable MFA</button>
     </form>

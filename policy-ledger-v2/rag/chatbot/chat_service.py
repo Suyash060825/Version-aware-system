@@ -71,9 +71,10 @@ def answer(
             "confidence": 100
         }
         if stream:
-            yield {"token": fallback_msg}
-            yield {"final": final_res}
-            return
+            def generate_guardrail():
+                yield {"token": fallback_msg}
+                yield {"final": final_res}
+            return generate_guardrail()
         return final_res
 
     # 1. Embed query (with dedup cache in memory)
@@ -115,9 +116,10 @@ def answer(
             "confidence": cached.get("confidence", 100)
         }
         if stream:
-            yield {"token": cached["answer"]}
-            yield {"final": final_res}
-            return
+            def generate_cache():
+                yield {"token": cached["answer"]}
+                yield {"final": final_res}
+            return generate_cache()
         return final_res
 
     # 2. Retrieve top-N semantic matches
@@ -148,9 +150,10 @@ def answer(
             "usage": {}
         }
         if stream:
-            yield {"token": answer_text}
-            yield {"final": final_res}
-            return
+            def generate_empty():
+                yield {"token": answer_text}
+                yield {"final": final_res}
+            return generate_empty()
         return final_res
 
     # 4. Rerank
@@ -310,12 +313,13 @@ def answer(
     }
     
     if stream:
-        # Simulate streaming for now by chunking the final answer.
-        # In a real setup, LLMProvider would yield partial LLMResponse chunks.
-        words = answer_text.split(" ")
-        for i, word in enumerate(words):
-            yield {"token": word + (" " if i < len(words) - 1 else "")}
-        yield {"final": final_result}
-        return
+        def generate():
+            # Simulate streaming for now by chunking the final answer.
+            # In a real setup, LLMProvider would yield partial LLMResponse chunks.
+            words = answer_text.split(" ")
+            for i, word in enumerate(words):
+                yield {"token": word + (" " if i < len(words) - 1 else "")}
+            yield {"final": final_result}
+        return generate()
 
     return final_result

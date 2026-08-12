@@ -19,15 +19,16 @@ class TestOllamaProvider(unittest.TestCase):
     def setUp(self):
         self.provider = OllamaProvider(base_url="http://localhost:11434", model="llama3.1:8b")
 
-    @patch("urllib.request.urlopen")
-    def test_ollama_generate_success(self, mock_urlopen):
+    @patch("requests.Session.post")
+    def test_ollama_generate_success(self, mock_post):
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps({
+        mock_response.json.return_value = {
             "message": {"content": "According to the remote work policy, employees may work 2 days remotely."},
             "prompt_eval_count": 120,
             "eval_count": 25
-        }).encode("utf-8")
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
 
         prompt = [{"role": "user", "content": "What is the remote work policy?"}]
         res = self.provider.generate(prompt)
@@ -37,9 +38,9 @@ class TestOllamaProvider(unittest.TestCase):
         self.assertFalse(res.fallback)
         self.assertEqual(res.usage["prompt_tokens"], 120)
 
-    @patch("urllib.request.urlopen")
-    def test_ollama_generate_failure_triggers_fallback(self, mock_urlopen):
-        mock_urlopen.side_effect = Exception("Connection refused")
+    @patch("requests.Session.post")
+    def test_ollama_generate_failure_triggers_fallback(self, mock_post):
+        mock_post.side_effect = Exception("Connection refused")
         prompt = "POLICY EXCERPTS:\n\n[Excerpt 1]\nPolicy: HR | Page: 1\nEmployees get 20 leave days.\n\nQUESTION: How many leave days?"
         res = self.provider.generate(prompt)
 
@@ -60,14 +61,15 @@ class TestVLLMProvider(unittest.TestCase):
     def setUp(self):
         self.provider = VLLMProvider(base_url="http://localhost:8000/v1", model="llama3-8b")
 
-    @patch("urllib.request.urlopen")
-    def test_vllm_generate_success(self, mock_urlopen):
+    @patch("requests.Session.post")
+    def test_vllm_generate_success(self, mock_post):
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps({
+        mock_response.json.return_value = {
             "choices": [{"message": {"content": "The travel policy covers up to $100 for meals."}}],
             "usage": {"prompt_tokens": 80, "completion_tokens": 15}
-        }).encode("utf-8")
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
 
         res = self.provider.generate("What is the meal allowance?")
         self.assertEqual(res.text, "The travel policy covers up to $100 for meals.")

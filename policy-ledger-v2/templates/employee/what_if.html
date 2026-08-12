@@ -13,6 +13,7 @@
 
 <div class="card mb2">
   <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <label class="card-label" style="display:block;margin-bottom:.5rem">DESCRIBE YOUR SCENARIO</label>
     <textarea name="scenario" rows="3" maxlength="800" placeholder='e.g. "I want to work remotely from another country for 6 weeks" or "Can I expense a personal laptop under $500?"'
       style="width:100%;padding:.7rem .85rem;border:1px solid var(--rule2);border-radius:4px;font-size:14.5px;font-family:var(--font-sans);background:var(--paper);resize:vertical">{{ scenario }}</textarea>

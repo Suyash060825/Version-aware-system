@@ -39,6 +39,7 @@
     </ul>
     {% endif %}
     <form method="POST" action="{{ url_for('what_if.resolve', query_id=q.id) }}" style="margin-top:.75rem">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <button type="submit" class="btn btn-sm btn-secondary">Mark reviewed</button>
     </form>
   </div>

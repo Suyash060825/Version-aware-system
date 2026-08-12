@@ -95,6 +95,7 @@
   <div style="margin-top:.5rem">
     {% for p in all_policies %}
     <form method="POST" action="{{ url_for('compliance.update_frameworks', policy_id=p.id) }}" style="padding:.6rem 0;border-bottom:1px solid var(--rule)">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
         <strong style="font-size:13px">{{ p.title }}</strong>
         <button type="submit" class="btn btn-sm btn-ghost">Save</button>

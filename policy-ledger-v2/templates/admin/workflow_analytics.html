@@ -5,6 +5,7 @@
   <div class="page-header-left"><h1>Workflow Analytics</h1><p>Bottlenecks, SLA health, and throughput across all approval workflows</p></div>
   <div class="page-header-actions">
     <form method="POST" action="{{ url_for('workflow.check_reminders') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <button class="btn btn-secondary" type="submit">↻ Check Reminders & Escalations Now</button>
     </form>
     <a href="{{ url_for('workflow.template_list') }}" class="btn btn-primary">Templates</a>

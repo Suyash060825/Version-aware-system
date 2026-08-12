@@ -74,36 +74,43 @@
         {% if policy.status == 'draft' %}
           {% if workflow_engine_active %}
           <form method="POST" action="{{ url_for('workflow.submit_workflow', policy_id=policy.id) }}" style="width:100%">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="btn btn-primary" style="width:100%">Submit for review (workflow)</button>
           </form>
           {% else %}
           <form method="POST" action="{{ url_for('admin.submit_for_review', policy_id=policy.id) }}" style="width:100%">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="btn btn-primary" style="width:100%">Submit for HR review</button>
           </form>
           {% endif %}
         {% endif %}
         {% if policy.status in ['draft','hr_review','legal_review','pending_approval'] %}
         <form method="POST" action="{{ url_for('admin.policy_publish', policy_id=policy.id) }}" style="width:100%">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <button type="submit" class="btn btn-amber" style="width:100%" onclick="return confirm('Publish this policy now?')">Publish directly</button>
         </form>
         {% endif %}
         {% if policy.status == 'active' %}
         <form method="POST" action="{{ url_for('admin.policy_archive', policy_id=policy.id) }}" style="width:100%">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <button type="submit" class="btn btn-secondary" style="width:100%">Archive policy</button>
         </form>
         {% endif %}
         {% if policy.status == 'archived' %}
         <form method="POST" action="{{ url_for('admin.policy_restore', policy_id=policy.id) }}" style="width:100%">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <button type="submit" class="btn btn-secondary" style="width:100%">Restore to draft</button>
         </form>
         {% endif %}
         <form method="POST" action="{{ url_for('admin.policy_duplicate', policy_id=policy.id) }}" style="width:100%">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <button type="submit" class="btn btn-ghost" style="width:100%">Duplicate policy</button>
         </form>
         {% if versions|length >= 2 %}
         <a href="{{ url_for('admin.version_compare', policy_id=policy.id) }}" class="btn btn-ghost" style="width:100%;text-align:center">Compare versions</a>
         {% endif %}
         <form method="POST" action="{{ url_for('admin.policy_delete', policy_id=policy.id) }}" style="width:100%">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <button type="submit" class="btn btn-danger" style="width:100%" onclick="return confirm('Permanently delete this policy and all its versions? This cannot be undone.')">Delete permanently</button>
         </form>
       </div>
@@ -123,10 +130,12 @@
         {% if a.status == 'pending' and current_user.can_manage_policies() %}
         <div style="display:flex;gap:.4rem">
           <form method="POST" action="{{ url_for('admin.approval_act', approval_id=a.id) }}" style="display:inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" name="action" value="approve">
             <button type="submit" class="btn btn-sm btn-primary">Approve</button>
           </form>
           <form method="POST" action="{{ url_for('admin.approval_act', approval_id=a.id) }}" style="display:inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" name="action" value="reject">
             <button type="submit" class="btn btn-sm btn-danger">Reject</button>
           </form>
@@ -158,10 +167,12 @@
         {% if s.status == 'pending' and s.can_user_act(current_user) %}
         <div style="display:flex;gap:.4rem;margin-top:.5rem">
           <form method="POST" action="{{ url_for('workflow.act_on_stage', stage_id=s.id) }}" style="display:inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" name="action" value="approve">
             <button type="submit" class="btn btn-sm btn-primary">Approve</button>
           </form>
           <form method="POST" action="{{ url_for('workflow.act_on_stage', stage_id=s.id) }}" style="display:inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" name="action" value="reject">
             <button type="submit" class="btn btn-sm btn-danger">Reject</button>
           </form>

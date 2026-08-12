@@ -8,6 +8,7 @@
 {% if error %}<div class="alert alert-danger mb2">{{ error }}</div>{% endif %}
 <div class="card" style="max-width:560px">
   <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <div class="field"><label>Full name *</label><input name="name" required autofocus></div>
     <div class="field"><label>Work email *</label><input type="email" name="email" required></div>
     <div class="field"><label>Employee ID</label><input name="employee_id" placeholder="EMP-001"></div>

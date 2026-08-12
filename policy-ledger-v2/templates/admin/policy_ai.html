@@ -41,6 +41,7 @@
       <div class="card-label">AI output <span id="writerStatus" class="text-faint" style="font-weight:400;font-size:11.5px"></span></div>
       <textarea id="writerResult" rows="18" style="font-size:12.5px" placeholder="AI output will appear here…" readonly></textarea>
       <form method="POST" action="{{ url_for('policy_ai.apply_writer_output', policy_id=policy.id) }}" class="mt2" id="applyForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="content" id="applyContent">
         <div class="gap-row">
           <input name="change_summary" placeholder="What changed? (for the new version)" style="flex:1;padding:.5rem .7rem;border:1px solid var(--rule2);border-radius:var(--r);font-size:13px" required>
