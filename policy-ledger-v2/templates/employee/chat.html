@@ -141,6 +141,11 @@ function addResponse(data) {
     citHtml = `<div class="citations-bar"><div class="cit-label">Sources (${data.citations.length})</div>${items}</div>`;
   }
 
+  let confidenceBanner = '';
+  if (data.confidence !== undefined && data.confidence < 60 && !data.fallback) {
+    confidenceBanner = `<div style="background:rgba(255,100,100,0.1); color:#d93025; padding: 0.5rem 1rem; font-size: 12px; font-weight: 500; border-bottom: 1px solid rgba(255,100,100,0.2);">Low confidence — please verify with HR</div>`;
+  }
+
   // Use the real ChatMessage id returned by the server, not a client-made-up
   // one — the feedback endpoint's message_id column is a foreign key, so a
   // fabricated id can never be saved correctly.
@@ -149,6 +154,7 @@ function addResponse(data) {
     <div class="avatar av-sys">§</div>
     <div class="response-wrap">
       <div class="response-card">
+        ${confidenceBanner}
         <div class="${answerClass}">${esc(data.answer)}</div>
         ${citHtml}
         <div class="feedback-bar">

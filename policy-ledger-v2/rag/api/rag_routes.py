@@ -41,17 +41,39 @@ def api_chat():
 
     from rag.chatbot.chat_service import answer as rag_answer
     dept = current_user.department.name if current_user.department else ""
+    
+    is_stream = data.get("stream", False)
+
+    if is_stream:
+        from flask import Response
+        import json
+        
+        def generate_stream():
+            for chunk in rag_answer(
+                query=query,
+                session_id=session_id,
+                user_role=current_user.role,
+                user_department=dept,
+                stream=True
+            ):
+                yield f"data: {json.dumps(chunk)}\n\n"
+        
+        return Response(generate_stream(), mimetype="text/event-stream")
+        
     result = rag_answer(
         query=query,
         session_id=session_id,
         user_role=current_user.role,
         user_department=dept,
+        stream=False
     )
 
     # Persist to DB with model traceability
     message_id = _save_message(
         session_id, query, result["answer"], result["citations"],
-        result["chunks_used"], model_name=result.get("model")
+        result["chunks_used"], model_name=result.get("model"),
+        cache_hit=result.get("cache_hit", False),
+        usage=result.get("usage", {})
     )
     _save_search_history(query, result)
 
@@ -163,6 +185,31 @@ def admin_rag_dashboard():
     ).group_by(SearchHistory.query_text).order_by(func.count(SearchHistory.id).desc()).limit(8).all()
 
     unread_count = _unread_count()
+    
+    # Observability Panel (Prometheus & Costs)
+    from prometheus_client import REGISTRY
+    cache_hits = REGISTRY.get_sample_value('rag_cache_hits_total') or 0
+    cache_misses = (REGISTRY.get_sample_value('rag_cache_misses_total', {'reason': 'version_drift'}) or 0) + \
+                   (REGISTRY.get_sample_value('rag_cache_misses_total', {'reason': 'not_found'}) or 0)
+    total_cache = cache_hits + cache_misses
+    cache_hit_rate = round(100 * cache_hits / total_cache, 1) if total_cache else 0
+    
+    invalidations = REGISTRY.get_sample_value('rag_cache_invalidations_total', {'reason': 'explicit_drift'}) or 0
+    
+    ollama_req = REGISTRY.get_sample_value('rag_llm_requests_total', {'backend': 'OllamaProvider'}) or 0
+    gemini_req = REGISTRY.get_sample_value('rag_llm_requests_total', {'backend': 'GeminiProvider'}) or 0
+    
+    grounding_rej = REGISTRY.get_sample_value('rag_grounding_rejections_total') or 0
+    
+    total_llm_sum = (REGISTRY.get_sample_value('rag_llm_latency_seconds_sum', {'backend': 'OllamaProvider'}) or 0) + \
+                    (REGISTRY.get_sample_value('rag_llm_latency_seconds_sum', {'backend': 'GeminiProvider'}) or 0)
+    total_llm_count = (REGISTRY.get_sample_value('rag_llm_latency_seconds_count', {'backend': 'OllamaProvider'}) or 0) + \
+                      (REGISTRY.get_sample_value('rag_llm_latency_seconds_count', {'backend': 'GeminiProvider'}) or 0)
+    llm_avg_ms = round((total_llm_sum / total_llm_count) * 1000) if total_llm_count else 0
+    
+    from blueprints.ai_analytics import _token_usage
+    token_stats = _token_usage()
+    cost_usd = token_stats.get("cost_est_usd", 0)
 
     return render_template("admin/rag_dashboard.html",
         vec_stats=vec_stats,
@@ -178,6 +225,13 @@ def admin_rag_dashboard():
         thumbs_down=thumbs_down,
         top_queries=top_queries,
         unread_count=unread_count,
+        cache_hit_rate=cache_hit_rate,
+        invalidations=invalidations,
+        ollama_req=ollama_req,
+        gemini_req=gemini_req,
+        grounding_rej=grounding_rej,
+        llm_avg_ms=llm_avg_ms,
+        cost_usd=cost_usd,
     )
 
 
@@ -186,9 +240,10 @@ def admin_rag_dashboard():
 def admin_index_policy(policy_id, version_id):
     if not current_user.can_manage_policies():
         return jsonify({"error": "Forbidden"}), 403
-    from rag.indexing.index_policy import index_policy_version
-    result = index_policy_version(policy_id, version_id)
-    return jsonify(result)
+    from tasks import index_policy_version_task
+    # Send to Celery queue, return immediate accepted status
+    index_policy_version_task.delay(policy_id, version_id)
+    return jsonify({"success": True, "message": "Indexing job queued"})
 
 
 @rag_bp.route("/admin/delete/<int:policy_id>", methods=["POST"])
@@ -260,8 +315,9 @@ def _get_or_create_session() -> str:
     return session[key]
 
 
-def _save_message(session_id, query, answer, citations, chunks_used, model_name=None):
+def _save_message(session_id, query, answer, citations, chunks_used, model_name=None, cache_hit=False, usage=None):
     import json
+    usage = usage or {}
     try:
         msg_user = ChatMessage(
             session_id=session_id, role="user", content=query,
@@ -275,6 +331,10 @@ def _save_message(session_id, query, answer, citations, chunks_used, model_name=
             citations_json=json.dumps(citations),
             chunks_used=chunks_used,
             model_name=model_name,
+            model_used=model_name,
+            cache_hit=cache_hit,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
             created_at=datetime.utcnow(),
         )
         db.session.add(msg_asst)

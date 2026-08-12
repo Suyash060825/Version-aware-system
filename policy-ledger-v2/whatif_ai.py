@@ -26,7 +26,7 @@ import re
 from rag.embeddings.embedder import get_embedder
 from rag.vectordb.chroma import get_store
 from rag.reranker.reranker import get_reranker
-from rag.llm.gemini import get_llm
+from rag.llm_provider import get_llm_provider
 
 RELEVANCE_THRESHOLD = 0.10
 
@@ -119,7 +119,7 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
     embedder = get_embedder()
     store = get_store()
     reranker = get_reranker()
-    llm = get_llm()
+    llm = get_llm_provider()
 
     allowed_depts = None
     if user_role == "employee" and user_department:
@@ -157,10 +157,18 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
         user_prompt = f"SCENARIO: {scenario}\n\nRELEVANT POLICY EXCERPTS:\n\n{excerpts}\n\nProduce the JSON verdict now."
         raw = ""
         try:
-            raw = llm.complete([
+            prompt_msgs = [
                 {"role": "system", "content": VERDICT_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
-            ])
+            ]
+            raw_resp = llm.generate(prompt_msgs)
+            raw = raw_resp.text
+            parsed = _extract_json(raw)
+            if parsed and (int(parsed.get("confidence", 0) or 0) < 55 or parsed.get("verdict") in ("depends", "unclear")):
+                # Escalate to secondary model due to ambiguity
+                raw_resp = llm.generate(prompt_msgs, use_secondary=True)
+                raw = raw_resp.text
+                parsed = _extract_json(raw)
         except Exception:
             raw = ""
         parsed = _extract_json(raw)

@@ -16,6 +16,9 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-in-production-please")
     DEBUG = False
     TESTING = False
+    
+    # --- RAG Guardrails ---
+    PII_REDACTION_ENABLED = os.environ.get("PII_REDACTION_ENABLED", "True").lower() == "true"
 
     # --- Database ---
     SQLALCHEMY_DATABASE_URI = os.environ.get(

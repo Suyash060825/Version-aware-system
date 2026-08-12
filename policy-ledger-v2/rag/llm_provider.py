@@ -36,7 +36,8 @@ class LLMProvider(ABC):
         system: Optional[str] = None,
         max_tokens: int = 1024,
         temperature: float = 0.2,
-        stream: bool = False
+        stream: bool = False,
+        **kwargs
     ) -> LLMResponse:
         """
         Generate completion for a given prompt or list of chat messages.
@@ -93,7 +94,8 @@ class OllamaProvider(LLMProvider):
         system: Optional[str] = None,
         max_tokens: int = 1024,
         temperature: float = 0.2,
-        stream: bool = False
+        stream: bool = False,
+        **kwargs
     ) -> LLMResponse:
         endpoint = f"{self.base_url}/api/chat"
         
@@ -205,7 +207,8 @@ class VLLMProvider(LLMProvider):
         system: Optional[str] = None,
         max_tokens: int = 1024,
         temperature: float = 0.2,
-        stream: bool = False
+        stream: bool = False,
+        **kwargs
     ) -> LLMResponse:
         endpoint = f"{self.base_url}/chat/completions"
 
@@ -307,7 +310,8 @@ class GeminiProvider(LLMProvider):
         system: Optional[str] = None,
         max_tokens: int = 1024,
         temperature: float = 0.2,
-        stream: bool = False
+        stream: bool = False,
+        **kwargs
     ) -> LLMResponse:
         if not self.api_key:
             logger.warning("[GeminiProvider] No API key set. Falling back to ExtractiveProvider.")
@@ -376,7 +380,8 @@ class ExtractiveProvider(LLMProvider):
         system: Optional[str] = None,
         max_tokens: int = 1024,
         temperature: float = 0.2,
-        stream: bool = False
+        stream: bool = False,
+        **kwargs
     ) -> LLMResponse:
         import re
 
@@ -432,6 +437,56 @@ class ExtractiveProvider(LLMProvider):
         return True
 
 
+class CascadeProvider(LLMProvider):
+    def __init__(self, primary: LLMProvider, secondary: LLMProvider):
+        self.primary = primary
+        self.secondary = secondary
+        self.extractive = ExtractiveProvider()
+
+    def generate(
+        self,
+        prompt: str | List[Dict[str, str]],
+        *,
+        system: Optional[str] = None,
+        max_tokens: int = 1024,
+        temperature: float = 0.2,
+        stream: bool = False,
+        use_secondary: bool = False,
+        **kwargs
+    ) -> LLMResponse:
+        import time
+        from rag.metrics import LLM_REQUESTS, LLM_LATENCY
+        
+        logger.info(f"[CascadeProvider] Routing request: use_secondary={use_secondary}")
+        provider = self.secondary if use_secondary else self.primary
+        
+        backend_name = provider.__class__.__name__
+        LLM_REQUESTS.labels(backend=backend_name).inc()
+        start_time = time.time()
+        resp = provider.generate(prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
+        LLM_LATENCY.labels(backend=backend_name).observe(time.time() - start_time)
+        
+        if resp.fallback or resp.error:
+            logger.warning(f"[CascadeProvider] {provider.__class__.__name__} failed. Falling back.")
+            alt_provider = self.primary if use_secondary else self.secondary
+            resp = alt_provider.generate(prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
+            
+            if resp.fallback or resp.error:
+                logger.warning("[CascadeProvider] Both backends failed. Using Extractive.")
+                resp = self.extractive.generate(prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
+        return resp
+
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        res = self.primary.embed(texts)
+        if not res:
+            res = self.secondary.embed(texts)
+        return res
+
+    def health_check(self) -> bool:
+        return self.primary.health_check() or self.secondary.health_check()
+
+
+
 # Cache provider instance
 _provider_instance: Optional[LLMProvider] = None
 
@@ -445,9 +500,14 @@ def get_llm_provider(force_reload: bool = False) -> LLMProvider:
     if _provider_instance and not force_reload:
         return _provider_instance
 
-    backend = os.environ.get("LLM_BACKEND", os.environ.get("LLM_PROVIDER", "ollama")).lower().strip()
+    backend = os.environ.get("LLM_BACKEND", os.environ.get("LLM_PROVIDER", "cascade")).lower().strip()
 
-    if backend == "ollama":
+    if backend == "cascade":
+        logger.info("[LLMProvider] Initializing CascadeProvider (Ollama -> Gemini)")
+        primary = OllamaProvider()
+        secondary = GeminiProvider()
+        _provider_instance = CascadeProvider(primary, secondary)
+    elif backend == "ollama":
         logger.info("[LLMProvider] Initializing OllamaProvider")
         _provider_instance = OllamaProvider()
     elif backend == "vllm":

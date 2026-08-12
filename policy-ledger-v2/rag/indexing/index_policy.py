@@ -44,6 +44,13 @@ def index_policy_version(policy_id: int, version_id: int, app=None) -> dict:
         raw_text = version.content or ""
         if not raw_text and hasattr(version, "file_path") and version.file_path:
             raw_text = extract_text(version.file_path)
+            
+        # 2.5 PII Redaction
+        # In a real app context, we would do:
+        # if current_app.config.get("PII_REDACTION_ENABLED", True):
+        # But this might run in a celery worker without full app config, so default to True
+        from rag.guardrails import apply_document_pii_redaction
+        raw_text = apply_document_pii_redaction(raw_text)
 
         clean = clean_text(raw_text)
         if not clean.strip():
@@ -80,6 +87,10 @@ def index_policy_version(policy_id: int, version_id: int, app=None) -> dict:
 
         # Save chunk metadata to SQL
         _save_chunks_to_db(policy_id, version_id, chunks)
+
+        if version.is_active:
+            from rag.cache.semantic_cache import get_cache
+            get_cache().invalidate_for_policy(policy_id, version_id)
 
         result["success"] = True
         result["chunks"] = len(chunks)

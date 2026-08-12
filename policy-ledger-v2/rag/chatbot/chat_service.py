@@ -9,6 +9,7 @@ from rag.llm.prompt_builder import build_prompt
 from rag.llm_provider import get_llm_provider
 from rag.chatbot.citations import build_citations
 from rag.chatbot.memory import get_history, add_message
+from rag.cache.semantic_cache import get_cache
 
 RELEVANCE_THRESHOLD = 0.10
 
@@ -20,6 +21,7 @@ def answer(
     user_department: str = "",
     top_k_retrieve: int = 20,
     top_k_rerank: int = 5,
+    stream: bool = False,
 ) -> dict:
     """
     Full RAG pipeline. Returns:
@@ -44,15 +46,63 @@ def answer(
     elif user_role in ("hr", "admin"):
         allowed_depts = None  # no restriction
 
+    # Guardrails: Input check
+    from rag.guardrails import check_input_guardrails, apply_output_guardrails
+    is_allowed, fallback_msg = check_input_guardrails(query)
+    if not is_allowed:
+        add_message(session_id, "user", query)
+        add_message(session_id, "assistant", fallback_msg)
+        final_res = {
+            "answer": fallback_msg,
+            "citations": [],
+            "chunks_used": 0,
+            "session_id": session_id,
+            "fallback": True,
+            "model": "guardrails",
+            "cache_hit": False,
+            "usage": {},
+            "confidence": 100
+        }
+        if stream:
+            yield {"token": fallback_msg}
+            yield {"final": final_res}
+            return
+        return final_res
+
     # 1. Embed query
     q_vec = embedder.embed_query(query)
+
+    diff_keywords = ["changed", "used to", "previous version", "difference between", "compare", "diff"]
+    is_diff_query = any(k in query.lower() for k in diff_keywords)
+
+    # 1.5 Cache Lookup
+    cache = get_cache()
+    cached = cache.get(q_vec, allowed_depts, is_diff_query=is_diff_query)
+    if cached:
+        add_message(session_id, "user", query)
+        add_message(session_id, "assistant", cached["answer"])
+        final_res = {
+            "answer": cached["answer"],
+            "citations": cached["citations"],
+            "chunks_used": cached["chunks_used"],
+            "session_id": session_id,
+            "fallback": False,
+            "model": "cache",
+            "cache_hit": True,
+            "confidence": cached.get("confidence", 100)
+        }
+        if stream:
+            yield {"token": cached["answer"]}
+            yield {"final": final_res}
+            return
+        return final_res
 
     # 2. Retrieve top-N semantic matches
     hits = store.search(
         query_embedding=q_vec,
         query_text=query,
         top_k=top_k_retrieve,
-        active_only=True,
+        active_only=not is_diff_query,
         allowed_departments=allowed_depts,
     )
 
@@ -63,17 +113,44 @@ def answer(
         answer_text = "I couldn't find this information in the available policies."
         add_message(session_id, "user", query)
         add_message(session_id, "assistant", answer_text)
-        return {
+        final_res = {
             "answer": answer_text,
             "citations": [],
             "chunks_used": 0,
             "session_id": session_id,
             "fallback": True,
             "model": provider.get_model_name() if hasattr(provider, "get_model_name") else getattr(provider, "model", "none"),
+            "cache_hit": False,
+            "usage": {}
         }
+        if stream:
+            yield {"token": answer_text}
+            yield {"final": final_res}
+            return
+        return final_res
 
     # 4. Rerank
     top_chunks = reranker.rerank(query, hits, top_k=top_k_rerank)
+
+    # 4.5 Decide routing and confidence
+    top_score = top_chunks[0].get("rerank_score", 0) if top_chunks else 0
+    confidence_score = int(min(1.0, max(0.0, top_score)) * 100) if top_chunks else 0
+    use_secondary = confidence_score < 60 or is_diff_query
+
+    # 4.7 Version diff fetching
+    if is_diff_query and top_chunks:
+        try:
+            from models import PolicyVersion
+            policy_ids = list(set([int(c.get("policy_id")) for c in top_chunks if c.get("policy_id")]))
+            diffs = []
+            for pid in policy_ids:
+                versions = PolicyVersion.query.filter_by(policy_id=pid).order_by(PolicyVersion.version_num.desc()).limit(2).all()
+                if len(versions) == 2:
+                    diffs.append(f"Diff for Policy {pid} (v{versions[1].version_label} -> v{versions[0].version_label}): {versions[0].diff_json or 'None'}")
+            if diffs:
+                query = query + "\n\nPolicy Diffs:\n" + "\n".join(diffs) + "\n\nPlease contrast the versions based on the above diffs and excerpts."
+        except Exception:
+            pass
 
     # 5. Build prompt with conversation memory & prompt engineering guards
     history = get_history(session_id)
@@ -85,24 +162,85 @@ def answer(
         user_department=user_department,
     )
 
-    # 6. Generate answer via LLMProvider
-    llm_resp = provider.generate(messages)
+    # 5.5 Exact Match Cache Check
+    import hashlib
+    chunk_ids = [str(c.get("id", "")) for c in top_chunks]
+    cache_key_str = f"{query.strip().lower()}|{user_role}|{user_department}|{','.join(sorted(chunk_ids))}"
+    exact_cache_key = "exact:" + hashlib.sha256(cache_key_str.encode()).hexdigest()
+    
+    exact_cached = None
+    if cache.use_redis:
+        data = cache.redis.get(exact_cache_key)
+        if data:
+            import json
+            exact_cached = json.loads(data)
+
+    if exact_cached:
+        answer_text = exact_cached["answer"]
+        llm_resp = type('obj', (object,), {'text': answer_text, 'fallback': False, 'error': None, 'model': 'exact-cache', 'usage': {}})()
+    else:
+        # 6. Generate answer via LLMProvider
+        llm_resp = provider.generate(messages, use_secondary=use_secondary)
+        if cache.use_redis and not (llm_resp.fallback or llm_resp.error):
+            import json
+            cache.redis.setex(exact_cache_key, 3600, json.dumps({"answer": llm_resp.text}))
 
     answer_text = llm_resp.text
     is_fallback = llm_resp.fallback or (llm_resp.error is not None)
 
+    # Guardrails: Output check
+    if not is_fallback:
+        chunk_ids = [c.get("id", "") for c in top_chunks]
+        answer_text = apply_output_guardrails(answer_text, chunk_ids)
+        if "blocked by safety filters" in answer_text:
+            is_fallback = True
+
     # 7. Citations
     citations = build_citations(top_chunks)
+    
+    # 7.5 Grounding check
+    if not citations and not is_fallback:
+        from rag.metrics import GROUNDING_REJECTIONS
+        GROUNDING_REJECTIONS.inc()
+        answer_text = "I couldn't find this information in the available policies."
+        is_fallback = True
 
     # 8. Update memory
     add_message(session_id, "user", query)
     add_message(session_id, "assistant", answer_text)
 
-    return {
+    # 9. Cache put
+    if not is_fallback:
+        cache.put(
+            query_embedding=q_vec,
+            answer=answer_text,
+            citations=citations,
+            chunks_used=len(top_chunks),
+            allowed_depts=allowed_depts,
+            model=llm_resp.model,
+            is_diff_query=is_diff_query,
+        )
+        # We don't store confidence in cache explicitly unless we update SemanticCache put, but we can just use 100 on cache hit.
+
+    final_result = {
         "answer": answer_text,
         "citations": citations,
         "chunks_used": len(top_chunks),
         "session_id": session_id,
         "fallback": is_fallback,
         "model": llm_resp.model,
+        "cache_hit": False,
+        "usage": llm_resp.usage,
+        "confidence": confidence_score
     }
+    
+    if stream:
+        # Simulate streaming for now by chunking the final answer.
+        # In a real setup, LLMProvider would yield partial LLMResponse chunks.
+        words = answer_text.split(" ")
+        for i, word in enumerate(words):
+            yield {"token": word + (" " if i < len(words) - 1 else "")}
+        yield {"final": final_result}
+        return
+
+    return final_result
