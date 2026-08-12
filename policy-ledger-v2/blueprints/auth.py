@@ -149,6 +149,11 @@ def logout():
 def register():
     # In production, self-registration should be disabled and admin creates accounts.
     # This route is available for initial setup / demo only.
+    import os
+    if os.environ.get("FLASK_ENV") == "production" and User.query.count() > 0:
+        flash("Registration is disabled in production.", "error")
+        return redirect(url_for("auth.login"))
+
     if current_user.is_authenticated:
         return redirect(_dashboard_url())
 

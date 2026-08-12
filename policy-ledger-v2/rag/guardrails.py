@@ -65,7 +65,7 @@ def apply_output_guardrails(text: str, top_chunks: list[dict] = None) -> str:
             
     # 2. Citation check
     if GUARDRAILS_CONFIG["OUTPUT_CHECK_CITATIONS"] and top_chunks:
-        valid_policies = {c.get("policy_name", "").lower() for c in top_chunks}
+        valid_policies = {(c.get("policy_name") or "").lower() for c in top_chunks}
         # Find all citations e.g., [Policy: Name, Section: Sec]
         citations = re.findall(r"\[Policy:\s*(.*?)(?:,\s*Section:.*?)?\]", text)
         for cited_policy in citations:

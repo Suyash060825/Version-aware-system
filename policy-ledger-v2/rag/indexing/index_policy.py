@@ -45,11 +45,8 @@ def index_policy_version(policy_id: int, version_id: int, app=None) -> dict:
             raw_text = extract_text(version.file_path)
             
         # 2.5 PII Redaction
-        # In a real app context, we would do:
-        # if current_app.config.get("PII_REDACTION_ENABLED", True):
-        # But this might run in a celery worker without full app config, so default to True
-        from rag.guardrails import apply_document_pii_redaction
-        raw_text = apply_document_pii_redaction(raw_text)
+        # Removed from indexing so that contact info remains searchable.
+        # PII should be redacted at the output stage.
 
         clean = clean_text(raw_text)
         if not clean.strip():
@@ -114,6 +111,12 @@ def delete_policy_from_index(policy_id: int):
         from models import db, PolicyChunk
         PolicyChunk.query.filter_by(policy_id=policy_id).delete()
         db.session.commit()
+    except Exception:
+        pass
+
+    try:
+        from rag.cache.semantic_cache import get_cache
+        get_cache().invalidate_for_policy(policy_id, -1)
     except Exception:
         pass
 

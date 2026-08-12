@@ -14,6 +14,13 @@ from rag.chatbot.chat_service import answer
 from rag.cache.semantic_cache import get_cache
 
 def run_evaluation(naive=False):
+    import requests
+    try:
+        requests.get("http://127.0.0.1:11434/api/tags", timeout=2).raise_for_status()
+    except Exception:
+        print("Error: Ollama is not running. Start it before running eval.")
+        sys.exit(1)
+
     app = create_app("development")
     eval_file = os.path.join(os.path.dirname(__file__), "golden_questions.jsonl")
     fig_dir = os.path.join(os.path.dirname(__file__), "figures")
@@ -76,8 +83,14 @@ def run_evaluation(naive=False):
             passed = True
             failure_reason = []
             
+            model_used = str(res.get("model", "unknown")).lower()
+            is_error = model_used in ("error", "none", "unknown")
+            
             # Refusal check
-            if must_refuse:
+            if is_error:
+                passed = False
+                failure_reason.append("Pipeline error")
+            elif must_refuse:
                 # Grounding guardrail returns "couldn't find sufficient information"
                 if "couldn't find" not in ans:
                     passed = False
