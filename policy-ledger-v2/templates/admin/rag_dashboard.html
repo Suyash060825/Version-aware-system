@@ -51,6 +51,31 @@
   </div>
 </div>
 
+<div class="grid2 mb3">
+  <div class="card">
+    <div class="card-label">Observability & Cascade</div>
+    <table style="font-size:13px;width:100%">
+      {{ row('Cache Hit Rate', cache_hit_rate ~ '%') }}
+      {{ row('Avg Latency (Miss)', llm_avg_ms ~ ' ms' if llm_avg_ms else '—') }}
+      {{ row('Avg Latency (Hit)', '~10 ms (Redis)') }}
+      {{ row('Cascade (Ollama)', ollama_req|int ~ ' reqs') }}
+      {{ row('Cascade (Gemini)', gemini_req|int ~ ' reqs') }}
+      {{ row('Real Token Cost', '$' ~ cost_usd) }}
+      {{ row('Grounding Rejections', grounding_rej|int) }}
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-label">Blast Radius (Invalidation)</div>
+    <div style="font-size:13px; color:var(--ink2); margin-bottom:1rem">
+      When policies are updated, cached answers that depend on them are invalidated to prevent stale output.
+    </div>
+    <div style="font-size:32px; font-weight:700; color:var(--archive); font-family:var(--font-mono)">
+      {{ invalidations|int }}
+    </div>
+    <div style="font-size:12px; color:var(--faint)">Cached answers invalidated by version drift</div>
+  </div>
+</div>
+
 <div class="card mb3">
   <div class="card-label">Re-index policies</div>
   <p style="font-size:13px;color:var(--ink2);margin-bottom:1rem">Click to re-index a policy version into the vector database. Do this after editing policy content.</p>

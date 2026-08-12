@@ -548,8 +548,13 @@ class MeetingMinutes(db.Model):
     generated_at = db.Column(db.DateTime)
     edited_at = db.Column(db.DateTime)
     edited_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    
+    review_status = db.Column(db.String(30), default="ai_generated")
+    reviewed_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
 
-    edited_by = db.relationship("User")
+    edited_by = db.relationship("User", foreign_keys=[edited_by_id])
+    reviewed_by = db.relationship("User", foreign_keys=[reviewed_by_id])
 
     @property
     def key_points(self):
@@ -666,8 +671,13 @@ class PolicyAIInsight(db.Model):
     impact_analysis = db.Column(db.Text)
     reading_time_minutes = db.Column(db.Integer, default=0)
     generated_at = db.Column(db.DateTime, default=now_utc)
+    
+    review_status = db.Column(db.String(30), default="ai_generated")
+    reviewed_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
 
     policy = db.relationship("Policy", backref=db.backref("ai_insight", uselist=False, cascade="all, delete-orphan"))
+    reviewed_by = db.relationship("User", foreign_keys=[reviewed_by_id])
 
     def _get(self, field):
         try:

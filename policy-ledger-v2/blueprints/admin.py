@@ -513,12 +513,12 @@ def policy_publish(policy_id):
 
     flash(f'"{policy.title}" is now published and active.', "success")
 
-    # Auto-index into vector store
+    # Auto-index into vector store via Celery
     try:
-        from rag.indexing.index_policy import index_policy_version
+        from tasks import index_policy_version_task
         active_ver2 = policy.versions.filter_by(is_active=True).first()
         if active_ver2:
-            index_policy_version(policy.id, active_ver2.id)
+            index_policy_version_task.delay(policy.id, active_ver2.id)
     except Exception as e:
         flash(f"Warning: RAG indexing failed — {e}", "warning")
 

@@ -50,6 +50,13 @@ GEMINI_API_KEY=your_openrouter_or_gemini_api_key
 LLM_MODEL=google/gemini-2.0-flash-001
 ```
 
+### Cascading LLM (Module 28)
+```env
+LLM_BACKEND=cascade
+CASCADE_PRIMARY=ollama
+CASCADE_SECONDARY=gemini
+```
+
 ---
 
 ## 3. Database Migrations (Alembic)
@@ -62,6 +69,17 @@ alembic upgrade head
 
 # Rollback migration if needed
 alembic downgrade -1
+```
+
+---
+
+## 3.5. Redis Semantic Cache (Module 27)
+
+To support the version-aware semantic cache, Redis is now required in production:
+
+```env
+REDIS_URL=redis://localhost:6379/0
+# The cache will automatically degrade to an in-memory python dictionary if Redis is unreachable.
 ```
 
 ---
@@ -98,3 +116,21 @@ docker-compose -f docker-compose.prod.yml exec web /app/scripts/pull_model.sh
 - [x] **Prompt Injection Defense**: Policy chunk text wrapped in `<policy_chunk>` tags with system instructions treating content as passive data.
 - [x] **Audit Traceability**: Every LLM query records `model_name` in `ChatMessage`.
 - [x] **Health Checks**: Operational health monitored at `/rag/health` and `/rag/health/llm`.
+- [x] **Commercial License Confirmed**: Ensure the model you run (e.g. Llama 3.1 Community License, Qwen2.5 Apache 2.0) permits your exact commercial use case.
+
+---
+
+## 6. Model Lifecycle & Capacity Planning
+
+### Model Rollout Process
+1. Run new models through the `eval/run_eval.py` suite against `eval/golden_questions.jsonl` in a staging environment.
+2. Compare the output scorecard to your current production model.
+3. Perform a manual review and sign-off.
+4. Roll out gradually via environment variable swaps (e.g. updating `LOCAL_LLM_MODEL`).
+5. Keep the previous model pulled/warmed in Ollama or vLLM to allow for an instant rollback.
+
+### Capacity Planning
+- **CPU Servers (e.g. 8B Q4 via Ollama)**: Expect ~10-15 tokens/sec. Suitable for ~1-2 concurrent generations before noticeable queueing delays occur.
+- **Medium GPU (RTX 3090/4090 - 24GB VRAM)**: Can host a 14B AWQ model (e.g. Qwen2.5 14B) serving ~3-5 concurrent requests smoothly.
+- **Enterprise GPU (A100/H100)**: Can run 70B models with vLLM's paged attention, scaling to ~20+ concurrent generations.
+To scale horizontally, deploy multiple Ollama/vLLM replicas behind an Nginx upstream proxy block using a least-connections algorithm. Monitor queue depth via Prometheus to detect saturation.

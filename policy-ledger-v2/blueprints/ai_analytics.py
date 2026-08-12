@@ -162,26 +162,27 @@ def _sentiment():
 
 
 def _token_usage():
-    """Character-based estimate, bucketed by day for the last 14 days."""
+    """Real token usage from ChatMessage, bucketed by day for the last 14 days."""
     since = datetime.now(timezone.utc) - timedelta(days=14)
     msgs = ChatMessage.query.filter(ChatMessage.created_at >= since).all()
     daily = defaultdict(int)
-    total_chars = 0
+    total_tokens = 0
     for m in msgs:
-        chars = len(m.content or "")
-        total_chars += chars
-        daily[m.created_at.date().isoformat()] += chars
+        pt = getattr(m, 'prompt_tokens', 0) or 0
+        ct = getattr(m, 'completion_tokens', 0) or 0
+        total = pt + ct
+        total_tokens += total
+        daily[m.created_at.date().isoformat()] += total
 
-    total_tokens_est = total_chars // CHARS_PER_TOKEN
-    cost_est = round(total_tokens_est / 1000 * EST_COST_PER_1K_TOKENS, 2)
+    cost_est = round(total_tokens / 1000 * EST_COST_PER_1K_TOKENS, 2)
 
     daily_series = sorted(
-        [{"date": d, "tokens_est": chars // CHARS_PER_TOKEN} for d, chars in daily.items()],
+        [{"date": d, "tokens_est": t} for d, t in daily.items()],
         key=lambda r: r["date"])
 
     return {
         "message_count": len(msgs),
-        "total_tokens_est": total_tokens_est,
+        "total_tokens_est": total_tokens,
         "cost_est_usd": cost_est,
         "daily_series": daily_series,
         "rate_per_1k": EST_COST_PER_1K_TOKENS,

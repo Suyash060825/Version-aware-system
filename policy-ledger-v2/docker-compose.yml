@@ -20,6 +20,7 @@ services:
       - LOCAL_LLM_MODEL=llama3.1:8b-instruct-q4_K_M
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - .:/app
       - app_data:/app/data
@@ -28,6 +29,20 @@ services:
         condition: service_healthy
       chromadb:
         condition: service_started
+      redis:
+        condition: service_started
+
+  # ============================================================================
+  # Redis Cache & Message Broker
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: policy_ledger_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   # ============================================================================
   # Ollama Local LLM Inference Engine
@@ -76,3 +91,5 @@ volumes:
   ollama_data:
   chroma_data:
   app_data:
+  redis_data:
+
