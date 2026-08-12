@@ -60,8 +60,27 @@ class SemanticCache:
         dept_str = json.dumps(sorted(allowed_depts)) if allowed_depts else "none"
 
         if self.use_redis:
-            keys = self.redis.keys("vssc:*")
-            for k in keys:
+            # 1. Exact-hash tier (fast O(1) lookup)
+            import hashlib
+            exact_key_str = f"{query_embedding[0]:.4f}:{dept_str}:{is_diff_query}" # embeddings are deterministic for exact query string
+            # Better to pass query_text, but we only have query_embedding.
+            # We'll rely on the caller for this, or just hash the first 10 floats of embedding.
+            exact_hash = hashlib.sha256(np.array(query_embedding).tobytes()).hexdigest()
+            exact_key = f"vssc_exact:{exact_hash}:{dept_str}:{is_diff_query}"
+            
+            data = self.redis.get(exact_key)
+            if data:
+                entry = json.loads(data)
+                # Ensure it's a true match (collision check)
+                if self._cosine_similarity(query_embedding, entry["embedding"]) > 0.999:
+                    best_match = entry
+                    best_key = exact_key
+                    best_score = 1.0
+                    
+            if not best_match:
+                # 2. Cosine similarity scan
+                keys = self.redis.keys("vssc:*")
+                for k in keys:
                 data = self.redis.get(k)
                 if data:
                     entry = json.loads(data)
@@ -140,7 +159,11 @@ class SemanticCache:
         }
 
         if self.use_redis:
-            key_id = hashlib.sha256(np.array(query_embedding).tobytes()).hexdigest()
+            exact_hash = hashlib.sha256(np.array(query_embedding).tobytes()).hexdigest()
+            exact_key = f"vssc_exact:{exact_hash}:{dept_str}:{is_diff_query}"
+            self.redis.set(exact_key, json.dumps(entry))
+            
+            key_id = exact_hash
             self.redis.set(f"vssc:{key_id}", json.dumps(entry))
         else:
             self.local_cache.append(entry)
@@ -150,16 +173,17 @@ class SemanticCache:
         from rag.metrics import CACHE_INVALIDATIONS
         count = 0
         if self.use_redis:
-            keys = self.redis.keys("vssc:*")
-            for k in keys:
-                data = self.redis.get(k)
-                if data:
-                    entry = json.loads(data)
-                    cited = entry.get("cited_policies", {})
-                    if str(policy_id) in cited and cited[str(policy_id)] != active_version_id:
-                        self.redis.delete(k)
-                        count += 1
-        else:
+            # Need to check both vssc:* and vssc_exact:*
+            for prefix in ["vssc:*", "vssc_exact:*"]:
+                keys = self.redis.keys(prefix)
+                for k in keys:
+                    data = self.redis.get(k)
+                    if data:
+                        entry = json.loads(data)
+                        cited = entry.get("cited_policies", {})
+                        if str(policy_id) in cited and cited[str(policy_id)] != active_version_id:
+                            self.redis.delete(k)
+                            count += 1
             new_cache = []
             for entry in self.local_cache:
                 cited = entry.get("cited_policies", {})

@@ -97,6 +97,10 @@ class OllamaProvider(LLMProvider):
         stream: bool = False,
         **kwargs
     ) -> LLMResponse:
+        import requests
+        if not hasattr(self, "_session"):
+            self._session = requests.Session()
+            
         endpoint = f"{self.base_url}/api/chat"
         
         if isinstance(prompt, str):
@@ -119,26 +123,25 @@ class OllamaProvider(LLMProvider):
             }
         }
 
-        req = urllib.request.Request(
-            endpoint,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"}
-        )
-
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                content = data.get("message", {}).get("content", "").strip()
-                eval_count = data.get("eval_count", 0)
-                prompt_eval_count = data.get("prompt_eval_count", 0)
-                
-                return LLMResponse(
-                    text=content,
-                    raw_response=data,
-                    model=self.model,
-                    usage={"prompt_tokens": prompt_eval_count, "completion_tokens": eval_count},
-                    fallback=False
-                )
+            resp = self._session.post(
+                endpoint,
+                json=payload,
+                timeout=self.timeout
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data.get("message", {}).get("content", "").strip()
+            eval_count = data.get("eval_count", 0)
+            prompt_eval_count = data.get("prompt_eval_count", 0)
+            
+            return LLMResponse(
+                text=content,
+                raw_response=data,
+                model=self.model,
+                usage={"prompt_tokens": prompt_eval_count, "completion_tokens": eval_count},
+                fallback=False
+            )
         except Exception as e:
             logger.error(f"[OllamaProvider] Error generating completion: {e}")
             # Fallback to extractive
@@ -210,6 +213,10 @@ class VLLMProvider(LLMProvider):
         stream: bool = False,
         **kwargs
     ) -> LLMResponse:
+        import requests
+        if not hasattr(self, "_session"):
+            self._session = requests.Session()
+            
         endpoint = f"{self.base_url}/chat/completions"
 
         if isinstance(prompt, str):
@@ -231,29 +238,28 @@ class VLLMProvider(LLMProvider):
         }
 
         headers = {
-            "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}"
         }
 
-        req = urllib.request.Request(
-            endpoint,
-            data=json.dumps(payload).encode("utf-8"),
-            headers=headers
-        )
-
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                choice = data["choices"][0]
-                content = choice["message"]["content"].strip()
-                usage = data.get("usage", {})
-                return LLMResponse(
-                    text=content,
-                    raw_response=data,
-                    model=self.model,
-                    usage=usage,
-                    fallback=False
-                )
+            resp = self._session.post(
+                endpoint,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            choice = data["choices"][0]
+            content = choice["message"]["content"].strip()
+            usage = data.get("usage", {})
+            return LLMResponse(
+                text=content,
+                raw_response=data,
+                model=self.model,
+                usage=usage,
+                fallback=False
+            )
         except Exception as e:
             logger.error(f"[VLLMProvider] Error generating completion: {e}")
             fallback_resp = ExtractiveProvider().generate(prompt, system=system)
@@ -442,6 +448,25 @@ class CascadeProvider(LLMProvider):
         self.primary = primary
         self.secondary = secondary
         self.extractive = ExtractiveProvider()
+        
+        # Circuit breaker state for primary provider
+        self.cb_state = "closed" # closed, open, half-open
+        self.cb_failures = 0
+        self.cb_max_failures = 3
+        self.cb_last_failure_time = 0
+        self.cb_reset_timeout = 60 # seconds
+
+    def _execute_with_retry(self, provider: LLMProvider, max_retries: int, prompt, **kwargs):
+        import time
+        last_err = None
+        for attempt in range(max_retries):
+            resp = provider.generate(prompt, **kwargs)
+            if not (resp.fallback or resp.error):
+                return resp
+            last_err = resp
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt) # Exponential backoff
+        return last_err
 
     def generate(
         self,
@@ -458,22 +483,52 @@ class CascadeProvider(LLMProvider):
         from rag.metrics import LLM_REQUESTS, LLM_LATENCY
         
         logger.info(f"[CascadeProvider] Routing request: use_secondary={use_secondary}")
-        provider = self.secondary if use_secondary else self.primary
         
+        # Check circuit breaker state
+        if self.cb_state == "open":
+            if time.time() - self.cb_last_failure_time > self.cb_reset_timeout:
+                self.cb_state = "half-open"
+            else:
+                logger.warning("[CascadeProvider] Primary circuit is OPEN. Forcing secondary.")
+                use_secondary = True
+
+        provider = self.secondary if use_secondary else self.primary
         backend_name = provider.__class__.__name__
+        
         LLM_REQUESTS.labels(backend=backend_name).inc()
         start_time = time.time()
-        resp = provider.generate(prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
+        
+        # Execute with retry
+        resp = self._execute_with_retry(provider, max_retries=2, prompt=prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
+        
         LLM_LATENCY.labels(backend=backend_name).observe(time.time() - start_time)
+        
+        # Update circuit breaker
+        if not use_secondary:
+            if resp.fallback or resp.error:
+                self.cb_failures += 1
+                self.cb_last_failure_time = time.time()
+                if self.cb_failures >= self.cb_max_failures or self.cb_state == "half-open":
+                    self.cb_state = "open"
+            else:
+                if self.cb_state == "half-open":
+                    self.cb_state = "closed"
+                    self.cb_failures = 0
         
         if resp.fallback or resp.error:
             logger.warning(f"[CascadeProvider] {provider.__class__.__name__} failed. Falling back.")
             alt_provider = self.primary if use_secondary else self.secondary
-            resp = alt_provider.generate(prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
+            if self.cb_state == "open" and alt_provider == self.primary:
+                # Do not try primary if circuit is open
+                alt_resp = resp
+            else:
+                alt_resp = self._execute_with_retry(alt_provider, max_retries=2, prompt=prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
             
-            if resp.fallback or resp.error:
+            if alt_resp.fallback or alt_resp.error:
                 logger.warning("[CascadeProvider] Both backends failed. Using Extractive.")
                 resp = self.extractive.generate(prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
+            else:
+                resp = alt_resp
         return resp
 
     def embed(self, texts: List[str]) -> List[List[float]]:
