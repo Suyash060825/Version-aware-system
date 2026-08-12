@@ -38,6 +38,11 @@ def validate_production_env(app: Flask):
             raise RuntimeError(
                 "[FATAL SECURITY ERROR] JWT_SECRET_KEY must be set to a secure value in production!"
             )
+        default_admin_pw = app.config.get("DEFAULT_ADMIN_PASSWORD", "")
+        if default_admin_pw == "Admin@1234":
+            raise RuntimeError(
+                "[FATAL SECURITY ERROR] DEFAULT_ADMIN_PASSWORD must be changed in production!"
+            )
 
 
 def create_app(env="default"):
@@ -148,10 +153,11 @@ def create_app(env="default"):
 
 
 if __name__ == "__main__":
-    app = create_app("development")
+    env = os.environ.get("FLASK_ENV", "development")
+    app = create_app(env)
     print("\n" + "="*55)
     print("  Policy Ledger v2 — starting")
     print("  Open: http://127.0.0.1:5000")
     print("  Run seed.py first if this is a fresh install")
     print("="*55 + "\n")
-    app.run(debug=True, port=5000)
+    app.run(debug=app.config.get("DEBUG", False), port=5000)
