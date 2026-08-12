@@ -4,7 +4,7 @@ from models import db, User, UserRole
 
 @pytest.fixture
 def client():
-    app = create_app("default")
+    app = create_app("testing")
     app.config["TESTING"] = True
     app.config["WTF_CSRF_ENABLED"] = False
     with app.test_client() as client:

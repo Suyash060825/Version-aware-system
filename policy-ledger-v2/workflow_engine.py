@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 
 from models import (db, WorkflowTemplate, WorkflowStageInstance, WorkflowApprovalAction,
                     WorkflowStageStatus, WorkflowApprovalMode, WorkflowInstanceStatus,
-                    PolicyStatus, Notification, NotificationType, User, UserRole)
+                    PolicyStatus, NotificationType, User, UserRole)
 from utils import audit, notify_user
 
 

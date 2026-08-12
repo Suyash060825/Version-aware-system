@@ -9,9 +9,8 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from models import (db, Policy, PolicyVersion, PolicyStatus, PolicyCategory,
-                    Department, PolicyAcknowledgement, Notification, User,
-                    Tag, saved_policies, PolicyLike, PolicyComment, QuizAttempt,
-                    PolicyAIInsight, OnboardingChecklistItem)
+                    Department, PolicyAcknowledgement, Notification, Tag,
+                    PolicyLike, PolicyComment, QuizAttempt, PolicyAIInsight, OnboardingChecklistItem)
 from utils import audit, paginate, generate_policy_pdf
 from policy_ai import reading_time_minutes
 

@@ -17,11 +17,10 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from models import (db, Policy, PolicyVersion, PolicyStatus, PolicyAIReview,
-                    PolicyAIInsight, PolicyCategory)
+                    PolicyAIInsight)
 from utils import audit, next_version, compute_diff
 from policy_ai import (generate_policy_draft, rewrite_text, explain_clause, review_policy,
-                       find_duplicates, find_conflicts, generate_insights, summarize_changes,
-                       reading_time_minutes)
+                       find_duplicates, find_conflicts, generate_insights, summarize_changes)
 
 policy_ai_bp = Blueprint("policy_ai", __name__, url_prefix="/admin/policies")
 

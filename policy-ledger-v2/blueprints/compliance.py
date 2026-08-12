@@ -7,10 +7,10 @@ Routes:
   POST /admin/compliance/policies/<id>/frameworks  update which frameworks a policy maps to
   GET  /admin/compliance/report                    printable audit-readiness report
 """
-from datetime import date, timedelta
+from datetime import date
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_required, current_user
+from flask_login import login_required
 
 from models import (db, Policy, PolicyStatus, PolicyAcknowledgement, ComplianceFramework,
                     ensure_default_frameworks, PolicyAIReview, User, UserRole)

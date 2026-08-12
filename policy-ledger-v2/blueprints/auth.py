@@ -7,11 +7,11 @@ import io
 import base64
 import pyotp
 import qrcode
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from flask import (Blueprint, render_template, redirect, url_for,
-                   flash, request, session, jsonify, current_app)
+                   flash, request, session, current_app)
 from flask_login import login_user, logout_user, login_required, current_user
-from models import db, User, UserRole, AuditLog
+from models import db, User, UserRole
 from utils import audit
 from blueprints.employee import build_onboarding_checklist
 
@@ -45,7 +45,10 @@ def login():
                 return redirect(url_for("auth.mfa_verify"))
 
             _complete_login(user, remember)
-            return redirect(request.args.get("next") or _dashboard_url())
+            next_url = request.args.get("next")
+            if not next_url or not next_url.startswith("/") or next_url.startswith("//"):
+                next_url = _dashboard_url()
+            return redirect(next_url)
 
     return render_template("auth/login.html", error=error)
 

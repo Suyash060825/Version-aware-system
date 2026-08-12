@@ -22,7 +22,6 @@ without an API key configured — consistent with meeting_ai.py.
 import json
 import re
 import difflib
-from datetime import datetime
 
 from rag.llm.gemini import get_llm
 

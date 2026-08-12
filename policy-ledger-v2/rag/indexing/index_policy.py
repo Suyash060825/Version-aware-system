@@ -3,7 +3,6 @@ rag/indexing/index_policy.py
 Indexes a policy version into the vector store.
 Called after HR uploads/publishes a policy.
 """
-import json
 from datetime import datetime
 
 
@@ -26,7 +25,7 @@ def index_policy_version(policy_id: int, version_id: int, app=None) -> dict:
             ctx = app.app_context()
             ctx.push()
 
-        from models import db, Policy, PolicyVersion
+        from models import Policy, PolicyVersion
         from rag.parser.pdf_parser import extract_text
         from rag.parser.text_cleaner import clean_text
         from rag.chunking.chunker import chunk_policy

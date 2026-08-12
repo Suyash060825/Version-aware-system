@@ -110,7 +110,7 @@ class TFIDFEmbedder(BaseEmbedder):
     @classmethod
     def _bucket(cls, term: str) -> int:
         import hashlib
-        h = hashlib.md5(term.encode("utf-8")).hexdigest()
+        h = hashlib.md5(term.encode("utf-8"), usedforsecurity=False).hexdigest()
         return int(h, 16) % cls.VOCAB_SIZE
 
     def _observe(self, tokenized_docs: list[list[str]]):

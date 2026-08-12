@@ -4,8 +4,6 @@ Extracts text from PDF, DOCX, TXT, HTML files.
 Supports scanned PDFs via OCR (pytesseract).
 Libraries: PyMuPDF (fitz), pdfplumber, python-docx
 """
-import os
-import re
 from pathlib import Path
 
 

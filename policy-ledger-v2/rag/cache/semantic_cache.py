@@ -7,7 +7,7 @@ import os
 import numpy as np
 import redis
 import hashlib
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 
 CACHE_THRESHOLD = float(os.environ.get("CACHE_THRESHOLD", 0.95))
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
@@ -79,8 +79,7 @@ class SemanticCache:
                     
             if not best_match:
                 # 2. Cosine similarity scan
-                keys = self.redis.keys("vssc:*")
-                for k in keys:
+                for k in self.redis.scan_iter("vssc:*"):
                     data = self.redis.get(k)
                     if data:
                         entry = json.loads(data)
@@ -161,12 +160,14 @@ class SemanticCache:
         if self.use_redis:
             exact_hash = hashlib.sha256(np.array(query_embedding).tobytes()).hexdigest()
             exact_key = f"vssc_exact:{exact_hash}:{dept_str}:{is_diff_query}"
-            self.redis.set(exact_key, json.dumps(entry))
+            self.redis.setex(exact_key, 86400, json.dumps(entry))
             
             key_id = exact_hash
-            self.redis.set(f"vssc:{key_id}", json.dumps(entry))
+            self.redis.setex(f"vssc:{key_id}", 86400, json.dumps(entry))
         else:
             self.local_cache.append(entry)
+            if len(self.local_cache) > 1000:
+                self.local_cache.pop(0)
 
     def invalidate_for_policy(self, policy_id: int, active_version_id: int):
         """Invalidate entries that cite this policy but NOT the current active_version_id."""
@@ -175,8 +176,7 @@ class SemanticCache:
         if self.use_redis:
             # Need to check both vssc:* and vssc_exact:*
             for prefix in ["vssc:*", "vssc_exact:*"]:
-                keys = self.redis.keys(prefix)
-                for k in keys:
+                for k in self.redis.scan_iter(prefix):
                     data = self.redis.get(k)
                     if data:
                         entry = json.loads(data)

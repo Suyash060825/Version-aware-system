@@ -2,13 +2,11 @@
 tests/test_llm_provider.py
 Unit tests for LLMProvider implementations using a mocked HTTP layer (urllib / openai).
 """
-import json
 import unittest
 from unittest.mock import patch, MagicMock
 from rag.llm_provider import (
     OllamaProvider,
     VLLMProvider,
-    GeminiProvider,
     ExtractiveProvider,
     get_llm_provider,
     LLMResponse,

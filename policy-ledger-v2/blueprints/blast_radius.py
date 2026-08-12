@@ -37,14 +37,12 @@ exactly who/what needs a heads-up before they publish.
 Routes:
   GET /admin/policies/<policy_id>/blast-radius
 """
-from datetime import date
 
 from flask import Blueprint, render_template
 from flask_login import login_required
 
-from models import (Policy, PolicyStatus, PolicyAcknowledgement, User, UserRole,
-                    QuizAttempt, WhatIfQuery, WhatIfVerdict, ContradictionFlag,
-                    ContradictionScanStatus, PolicyAIReview)
+from models import (Policy, PolicyAcknowledgement, User, UserRole, QuizAttempt,
+                    WhatIfQuery, WhatIfVerdict, ContradictionFlag, ContradictionScanStatus)
 from utils import role_required
 
 blast_radius_bp = Blueprint("blast_radius", __name__, url_prefix="/admin")

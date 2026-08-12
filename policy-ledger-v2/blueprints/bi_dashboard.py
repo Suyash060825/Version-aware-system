@@ -12,12 +12,12 @@ from datetime import datetime, timedelta, date, timezone
 from collections import defaultdict
 
 from flask import Blueprint, render_template
-from flask_login import login_required, current_user
+from flask_login import login_required
 from sqlalchemy import func
 
 from models import (db, Policy, PolicyVersion, PolicyStatus, PolicyCategory, Priority,
                     Department, User, UserRole, PolicyAcknowledgement, AuditLog,
-                    SearchHistory, Meeting, WorkflowStageInstance, ConfidentialityLevel)
+                    SearchHistory, Meeting, WorkflowStageInstance)
 from utils import role_required
 
 bi_bp = Blueprint("bi", __name__, url_prefix="/admin")
@@ -56,7 +56,7 @@ def _generate_insight(stats: dict) -> str:
     """Short natural-language callout, generated via the LLM abstraction with a
     deterministic fallback (same graceful-degradation pattern as policy_ai.py)."""
     try:
-        from policy_ai import _llm_text, _REFUSAL_MARKER
+        from policy_ai import _llm_text
         prompt = (
             f"Dashboard stats: {stats}. In ONE short sentence, surface the single most "
             f"actionable insight for a policy compliance manager (e.g. a bottleneck, a "

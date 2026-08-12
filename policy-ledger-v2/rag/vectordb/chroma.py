@@ -9,9 +9,6 @@ Features:
 - Hybrid search: semantic + keyword BM25-style boost
 - Upsert-safe (same chunk can be re-indexed without duplicates)
 """
-import json
-import math
-import re
 import os
 from typing import Optional
 
@@ -21,7 +18,6 @@ CHROMA_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "chrom
 def _get_client():
     try:
         import chromadb
-        from chromadb.config import Settings
         os.makedirs(CHROMA_PATH, exist_ok=True)
         client = chromadb.PersistentClient(path=CHROMA_PATH)
         return client

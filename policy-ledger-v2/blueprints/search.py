@@ -13,7 +13,6 @@ Routes:
   POST /search/saved/<id>/delete     delete a saved search
   GET  /admin/search-analytics       admin: top queries, zero-result queries, volume
 """
-import json
 from datetime import datetime, timezone
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
@@ -23,7 +22,7 @@ from sqlalchemy import func, or_
 from models import (db, Policy, PolicyVersion, PolicyCategory, PolicyStatus,
                     Department, Tag, User, UserRole, Meeting, MeetingType,
                     MeetingStatus, SavedSearch, SearchHistory, Notification)
-from utils import audit, paginate, role_required
+from utils import audit, role_required
 
 search_bp = Blueprint("search", __name__)
 

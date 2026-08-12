@@ -1,4 +1,3 @@
-import pytest
 from rag.llm_provider import CascadeProvider, LLMResponse, LLMProvider
 from rag.cache.semantic_cache import SemanticCache
 

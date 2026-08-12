@@ -3,10 +3,8 @@ app.py  —  Policy Ledger v2 (Production Hardened)
 Run: python app.py
 """
 import os
-import logging
-from flask import Flask, redirect, url_for, Response, request
+from flask import Flask, redirect, url_for, Response, jsonify
 from flask_login import LoginManager, current_user
-from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect

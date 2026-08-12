@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from functools import wraps
 from flask import request, abort
 from flask_login import current_user
-from models import db, AuditLog, Notification, NotificationType, Policy, User
+from models import db, AuditLog, Notification, Policy, User
 
 
 # ---------- Role guards ----------
@@ -246,7 +246,7 @@ def generate_policy_pdf(policy, version):
     from reportlab.lib.pagesizes import LETTER
     from reportlab.lib.units import inch
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_LEFT
 

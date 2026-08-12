@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import glob
-from datetime import datetime
 
 def generate_results_md():
     eval_dir = os.path.dirname(__file__)
