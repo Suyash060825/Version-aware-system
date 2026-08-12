@@ -38,31 +38,36 @@ def validate_file_header(file_stream, ext: str) -> bool:
     return True
 
 
-def inspect_zip_bomb(file_path: str) -> Tuple[bool, str]:
+def inspect_zip_bomb(file_stream) -> Tuple[bool, str]:
     """
     Inspect DOCX / XLSX zip archives to detect potential Zip Bombs before parsing.
     Checks compression ratio and cumulative uncompressed size.
     """
     try:
-        if not zipfile.is_zipfile(file_path):
+        file_stream.seek(0)
+        if not zipfile.is_zipfile(file_stream):
             return False, "File is not a valid zip archive."
             
         total_uncompressed = 0
         total_compressed = 0
 
-        with zipfile.ZipFile(file_path, "r") as zf:
+        file_stream.seek(0)
+        with zipfile.ZipFile(file_stream, "r") as zf:
             for info in zf.infolist():
                 total_uncompressed += info.file_size
                 total_compressed += info.compress_size
                 
                 if total_uncompressed > MAX_UNCOMPRESSED_SIZE:
+                    file_stream.seek(0)
                     return False, f"File exceeds maximum uncompressed size limit ({MAX_UNCOMPRESSED_SIZE // (1024*1024)}MB)."
 
             if total_compressed > 0:
                 ratio = total_uncompressed / total_compressed
                 if ratio > MAX_COMPRESSION_RATIO:
+                    file_stream.seek(0)
                     return False, f"Potential Zip-Bomb detected (Compression ratio {ratio:.1f}x exceeds limit)."
                     
+        file_stream.seek(0)
         return True, ""
     except Exception as e:
         return False, f"Zip inspection failed: {str(e)}"
@@ -108,5 +113,11 @@ def sanitize_and_validate_upload(
     # 3. Magic header check
     if not validate_file_header(file_storage, ext):
         return False, "", f"File content does not match expected format for .{ext} file."
+
+    # 4. Zip-bomb inspection
+    if ext in ("docx", "xlsx"):
+        is_safe, err = inspect_zip_bomb(file_storage)
+        if not is_safe:
+            return False, "", err
 
     return True, safe_name, ""

@@ -10,8 +10,77 @@ from rag.llm_provider import get_llm_provider
 from rag.chatbot.citations import build_citations
 from rag.chatbot.memory import get_history, add_message
 from rag.cache.semantic_cache import get_cache
+import threading
 
 RELEVANCE_THRESHOLD = 0.10
+
+_embed_dedup_cache = {}
+_embed_dedup_lock = threading.Lock()
+
+
+def _run_diff_agent(query: str, session_id: str, q_vec: list, allowed_depts: list, provider, store) -> dict:
+    from models import Policy, PolicyVersion
+    from rag.chatbot.memory import add_message
+    
+    hits = store.search(
+        query_embedding=q_vec,
+        query_text=query,
+        top_k=5,
+        active_only=False,
+        allowed_departments=allowed_depts,
+    )
+    if not hits:
+        return None
+        
+    policy_ids = [int(h.get("policy_id")) for h in hits[:3] if h.get("policy_id") and str(h.get("policy_id")).isdigit()]
+    if not policy_ids:
+        return None
+        
+    from collections import Counter
+    target_policy_id = Counter(policy_ids).most_common(1)[0][0]
+    
+    policy = Policy.query.get(target_policy_id)
+    if not policy:
+        return None
+        
+    versions = policy.versions.order_by(PolicyVersion.version_num.desc()).limit(2).all()
+    if len(versions) < 2:
+        ans = f"The '{policy.title}' policy only has one version (v{versions[0].version_num}), so there are no changes to compare."
+        add_message(session_id, "user", query)
+        add_message(session_id, "assistant", ans)
+        return {
+            "answer": ans,
+            "citations": [],
+            "chunks_used": 0,
+            "session_id": session_id,
+            "fallback": False,
+            "model": "DiffAgent",
+            "cache_hit": False,
+            "confidence": 100,
+            "usage": {}
+        }
+        
+    v_new, v_old = versions[0], versions[1]
+    prompt = f"You are a specialized Policy Diffing Agent.\nThe user is asking about changes in the '{policy.title}' policy.\n\nOLD version (v{v_old.version_num}):\n{v_old.content[:2000]}...\n\nNEW version (v{v_new.version_num}):\n{v_new.content[:2000]}...\n\nQuestion: {query}\nExplain the changes clearly based ONLY on the provided texts."
+
+    messages = [{"role": "system", "content": "You are a helpful HR assistant."}, {"role": "user", "content": prompt}]
+    llm_resp = provider.generate(messages)
+    
+    ans = llm_resp.text
+    add_message(session_id, "user", query)
+    add_message(session_id, "assistant", ans)
+    
+    return {
+        "answer": ans,
+        "citations": [{"id": "diff", "title": f"Diff: {policy.title}", "version": f"v{v_old.version_num}->v{v_new.version_num}", "section": "Full text analysis"}],
+        "chunks_used": 2,
+        "session_id": session_id,
+        "fallback": False,
+        "model": "DiffAgent_" + (provider.get_model_name() if hasattr(provider, "get_model_name") else getattr(provider, "model", "none")),
+        "cache_hit": False,
+        "confidence": 100,
+        "usage": {}
+    }
 
 
 def answer(
@@ -79,22 +148,35 @@ def answer(
 
     # 1. Embed query (with dedup cache in memory)
     # Dedup cache is just a simple memory dict for high throughput local dedup
-    global _embed_dedup_cache
-    if '_embed_dedup_cache' not in globals():
-        _embed_dedup_cache = {}
-    
+    global _embed_dedup_cache, _embed_dedup_lock
+    import time
     t0 = time.time()
     
-    if query in _embed_dedup_cache:
-        q_vec = _embed_dedup_cache[query]
-    else:
+    with _embed_dedup_lock:
+        if query in _embed_dedup_cache:
+            q_vec = _embed_dedup_cache[query]
+        else:
+            q_vec = None
+
+    if q_vec is None:
         q_vec = embedder.embed_query(query)
-        _embed_dedup_cache[query] = q_vec
-        if len(_embed_dedup_cache) > 1000:
-            _embed_dedup_cache.clear() # naive TTL/eviction
+        with _embed_dedup_lock:
+            _embed_dedup_cache[query] = q_vec
+            if len(_embed_dedup_cache) > 1000:
+                _embed_dedup_cache.clear() # naive TTL/eviction
 
     diff_keywords = ["changed", "used to", "previous version", "difference between", "compare", "diff"]
     is_diff_query = any(k in query.lower() for k in diff_keywords)
+    
+    if is_diff_query:
+        diff_res = _run_diff_agent(query, session_id, q_vec, allowed_depts, provider, store)
+        if diff_res:
+            if stream:
+                def generate_diff():
+                    yield {"token": diff_res["answer"]}
+                    yield {"final": diff_res}
+                return generate_diff()
+            return diff_res
 
     # 1.5 Cache Lookup
     t_cache = time.time()

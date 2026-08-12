@@ -47,12 +47,24 @@ def verify_entailment(answer: str, chunks: list[dict]) -> tuple[bool, float]:
         pairs = [(context, claim) for claim in claims]
         try:
             scores = nli.predict(pairs)
-            entailment_scores = scores[:, 1] if len(scores.shape) > 1 else scores
+            import numpy as np
+            def softmax(x):
+                e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+                return e_x / e_x.sum(axis=-1, keepdims=True)
+            
+            probs = softmax(scores) if len(scores.shape) > 1 else softmax(np.array([scores]))[0]
+            entailment_idx = nli.config.label2id.get('entailment', 1)
+            
+            if len(probs.shape) > 1:
+                entailment_scores = probs[:, entailment_idx]
+            else:
+                entailment_scores = np.array([probs[entailment_idx]])
             
             # Require average entailment > 0.5
             avg_score = float(entailment_scores.mean())
             return avg_score > 0.5, avg_score
-        except Exception:
+        except Exception as e:
+            print(f"[Entailment] Error in NLI predict: {e}")
             pass # Fallback
 
     # Lexical overlap heuristic fallback

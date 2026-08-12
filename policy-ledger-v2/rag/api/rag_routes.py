@@ -114,12 +114,23 @@ def api_feedback():
     )
     db.session.add(fb)
     db.session.commit()
+    
+    if vote == "down" and msg_id:
+        from rag.chatbot.self_healing import trigger_self_healing
+        import threading
+        # Run in background to avoid blocking response
+        threading.Thread(target=trigger_self_healing, args=(msg_id,)).start()
+
     return jsonify({"ok": True})
 
 
 @rag_bp.route("/api/sessions/<session_id>/history")
 @login_required
 def api_session_history(session_id):
+    session_obj = ChatSession.query.get(session_id)
+    if not session_obj or session_obj.user_id != current_user.id:
+        from flask import abort
+        abort(403)
     msgs = ChatMessage.query.filter_by(session_id=session_id)\
         .order_by(ChatMessage.created_at).all()
     return jsonify([{
@@ -132,6 +143,10 @@ def api_session_history(session_id):
 @login_required
 def api_clear_session():
     sid = request.get_json(force=True).get("session_id")
+    session_obj = ChatSession.query.get(sid)
+    if not session_obj or session_obj.user_id != current_user.id:
+        from flask import abort
+        abort(403)
     from rag.chatbot.memory import clear_session
     clear_session(sid)
     return jsonify({"ok": True})

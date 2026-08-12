@@ -68,6 +68,7 @@ class VectorStore:
             for c in chunks
         ]
         self._col.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
+        self._bm25_index = None
 
     def delete_policy_version(self, policy_id: int, version: str):
         """Remove all chunks for a specific policy version."""
@@ -78,6 +79,7 @@ class VectorStore:
             ]})
             if results["ids"]:
                 self._col.delete(ids=results["ids"])
+                self._bm25_index = None
         except Exception:
             pass
 
@@ -87,6 +89,7 @@ class VectorStore:
             results = self._col.get(where={"policy_id": {"$eq": str(policy_id)}})
             if results["ids"]:
                 self._col.delete(ids=results["ids"])
+                self._bm25_index = None
         except Exception:
             pass
 
@@ -149,20 +152,24 @@ class VectorStore:
         if self._bm25_index:
             query_tokens = query_text.lower().split()
             bm25_scores = self._bm25_index.get_scores(query_tokens)
-            # Get top N bm25 scores
-            top_bm25_indices = sorted(range(len(bm25_scores)), key=lambda i: bm25_scores[i], reverse=True)[:n_results]
-            for rank, i in enumerate(top_bm25_indices):
-                if bm25_scores[i] > 0:
-                    doc_id = self._bm25_ids[i]
-                    # Check where filter manually for BM25 docs to respect role/active filtering
-                    meta = self._bm25_metas[i]
-                    if self._check_where_filter(meta, policy_id, department, active_only, allowed_departments):
-                        bm25_ranks[doc_id] = {
-                            "rank": rank + 1,
-                            "score": bm25_scores[i],
-                            "text": self._bm25_docs[i],
-                            "meta": meta
-                        }
+            # Sort all indices by score
+            top_bm25_indices = sorted(range(len(bm25_scores)), key=lambda i: bm25_scores[i], reverse=True)
+            rank = 1
+            for i in top_bm25_indices:
+                if bm25_scores[i] <= 0:
+                    break
+                doc_id = self._bm25_ids[i]
+                meta = self._bm25_metas[i]
+                if self._check_where_filter(meta, policy_id, department, active_only, allowed_departments):
+                    bm25_ranks[doc_id] = {
+                        "rank": rank,
+                        "score": bm25_scores[i],
+                        "text": self._bm25_docs[i],
+                        "meta": meta
+                    }
+                    rank += 1
+                    if len(bm25_ranks) >= n_results:
+                        break
 
         # Reciprocal Rank Fusion (RRF)
         K = 60
