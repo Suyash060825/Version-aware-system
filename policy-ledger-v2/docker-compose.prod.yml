@@ -46,6 +46,15 @@ services:
         condition: service_started
       ollama:
         condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/data/uploads
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
 
   # ============================================================================
   # Celery Background Indexing Worker
@@ -68,6 +77,14 @@ services:
       - postgres
       - redis
       - chromadb
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
 
   # ============================================================================
   # PostgreSQL Database

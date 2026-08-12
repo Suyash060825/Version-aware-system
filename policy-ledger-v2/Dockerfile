@@ -13,11 +13,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create non-root user
+RUN addgroup --system appgroup && adduser --system --group appuser
+
 # Copy application code
 COPY . .
 
-# Create data directories
-RUN mkdir -p data/uploads
+# Create data directories and set permissions
+RUN mkdir -p data/uploads \
+    && chown -R appuser:appgroup /app \
+    && chmod -R 755 /app
+
+# Switch to non-root user
+USER appuser
 
 EXPOSE 5000
 

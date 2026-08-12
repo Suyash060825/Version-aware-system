@@ -7,4 +7,10 @@ CACHE_INVALIDATIONS = Counter("rag_cache_invalidations_total", "Cache invalidati
 LLM_REQUESTS = Counter("rag_llm_requests_total", "LLM generation requests", ["backend"])
 LLM_LATENCY = Histogram("rag_llm_latency_seconds", "LLM generation latency", ["backend"])
 
+RETRIEVAL_LATENCY = Histogram("rag_retrieval_latency_seconds", "Retrieval stage latency")
+RERANK_LATENCY = Histogram("rag_rerank_latency_seconds", "Rerank stage latency")
+CACHE_LATENCY = Histogram("rag_cache_lookup_latency_seconds", "Cache lookup latency")
+GUARDRAIL_LATENCY = Histogram("rag_guardrail_latency_seconds", "Guardrail execution latency")
+GENERATION_LATENCY = Histogram("rag_generation_latency_seconds", "End-to-end generation stage latency")
+
 GROUNDING_REJECTIONS = Counter("rag_grounding_rejections_total", "Number of answers rejected due to zero citations")

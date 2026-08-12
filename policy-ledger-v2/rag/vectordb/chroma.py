@@ -129,38 +129,87 @@ class VectorStore:
             return []
 
         hits = []
-        query_tokens = set(re.findall(r"[a-z0-9]+", query_text.lower()))
-
+        
+        # Build lazy BM25 index if not built or if corpus changed
+        if not hasattr(self, "_bm25_index") or self._bm25_index is None:
+            all_docs = self._col.get(include=["documents", "metadatas"])
+            self._bm25_ids = all_docs["ids"]
+            self._bm25_docs = all_docs["documents"]
+            self._bm25_metas = all_docs["metadatas"]
+            tokenized_corpus = [doc.lower().split() for doc in self._bm25_docs]
+            from rank_bm25 import BM25Okapi
+            self._bm25_index = BM25Okapi(tokenized_corpus) if tokenized_corpus else None
+            
+        semantic_ranks = {}
         for i, doc_id in enumerate(results["ids"][0]):
-            doc_text = results["documents"][0][i]
-            metadata = results["metadatas"][0][i]
-            distance = results["distances"][0][i]
-            semantic_score = max(0.0, 1.0 - distance)  # cosine distance → similarity
+            semantic_ranks[doc_id] = {
+                "rank": i + 1,
+                "score": max(0.0, 1.0 - results["distances"][0][i]),
+                "text": results["documents"][0][i],
+                "meta": results["metadatas"][0][i]
+            }
+            
+        bm25_ranks = {}
+        if self._bm25_index:
+            query_tokens = query_text.lower().split()
+            bm25_scores = self._bm25_index.get_scores(query_tokens)
+            # Get top N bm25 scores
+            top_bm25_indices = sorted(range(len(bm25_scores)), key=lambda i: bm25_scores[i], reverse=True)[:n_results]
+            for rank, i in enumerate(top_bm25_indices):
+                if bm25_scores[i] > 0:
+                    doc_id = self._bm25_ids[i]
+                    # Check where filter manually for BM25 docs to respect role/active filtering
+                    meta = self._bm25_metas[i]
+                    if self._check_where_filter(meta, policy_id, department, active_only, allowed_departments):
+                        bm25_ranks[doc_id] = {
+                            "rank": rank + 1,
+                            "score": bm25_scores[i],
+                            "text": self._bm25_docs[i],
+                            "meta": meta
+                        }
 
-            # Keyword boost: reward chunks containing exact query terms
-            doc_tokens = set(re.findall(r"[a-z0-9]+", doc_text.lower()))
-            overlap = len(query_tokens & doc_tokens)
-            keyword_boost = min(overlap / max(len(query_tokens), 1) * 0.25, 0.25)
-
-            final_score = semantic_score + keyword_boost
-
+        # Reciprocal Rank Fusion (RRF)
+        K = 60
+        combined_scores = {}
+        all_ids = set(semantic_ranks.keys()).union(set(bm25_ranks.keys()))
+        
+        for doc_id in all_ids:
+            rrf_score = 0.0
+            sem_data = semantic_ranks.get(doc_id)
+            bm25_data = bm25_ranks.get(doc_id)
+            
+            if sem_data:
+                rrf_score += 1.0 / (K + sem_data["rank"])
+            if bm25_data:
+                rrf_score += 1.0 / (K + bm25_data["rank"])
+                
+            combined_scores[doc_id] = rrf_score
+            
+            # Keep metadata from whichever found it
+            source_data = sem_data or bm25_data
             hits.append({
                 "id": doc_id,
-                "text": doc_text,
-                "score": round(final_score, 4),
-                "semantic_score": round(semantic_score, 4),
-                "keyword_boost": round(keyword_boost, 4),
-                "policy_id": metadata.get("policy_id", ""),
-                "policy_name": metadata.get("policy_name", ""),
-                "version": metadata.get("version", ""),
-                "department": metadata.get("department", ""),
-                "section": metadata.get("section", ""),
-                "page": metadata.get("page", ""),
-                "chunk_index": metadata.get("chunk_index", ""),
+                "text": source_data["text"],
+                "score": rrf_score,
+                "policy_id": source_data["meta"].get("policy_id", ""),
+                "policy_name": source_data["meta"].get("policy_name", ""),
+                "version": source_data["meta"].get("version", ""),
+                "department": source_data["meta"].get("department", ""),
+                "section": source_data["meta"].get("section", ""),
+                "page": source_data["meta"].get("page", ""),
+                "chunk_index": source_data["meta"].get("chunk_index", ""),
             })
 
         hits.sort(key=lambda h: h["score"], reverse=True)
         return hits[:top_k]
+
+    def _check_where_filter(self, meta, policy_id, department, active_only, allowed_departments):
+        if policy_id is not None and meta.get("policy_id") != str(policy_id): return False
+        if department and meta.get("department") != department: return False
+        if active_only and meta.get("is_active") != "True": return False
+        if allowed_departments:
+            if meta.get("department") not in allowed_departments: return False
+        return True
 
     def _build_where(self, policy_id, department, active_only, allowed_departments):
         conditions = []
