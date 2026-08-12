@@ -46,9 +46,16 @@ def answer(
     elif user_role in ("hr", "admin"):
         allowed_depts = None  # no restriction
 
+    import time
+    from rag.metrics import RETRIEVAL_LATENCY, RERANK_LATENCY, CACHE_LATENCY, GUARDRAIL_LATENCY, GENERATION_LATENCY
+
+
     # Guardrails: Input check
     from rag.guardrails import check_input_guardrails, apply_output_guardrails
+    t0 = time.time()
     is_allowed, fallback_msg = check_input_guardrails(query)
+    GUARDRAIL_LATENCY.observe(time.time() - t0)
+    
     if not is_allowed:
         add_message(session_id, "user", query)
         add_message(session_id, "assistant", fallback_msg)
@@ -69,15 +76,31 @@ def answer(
             return
         return final_res
 
-    # 1. Embed query
-    q_vec = embedder.embed_query(query)
+    # 1. Embed query (with dedup cache in memory)
+    # Dedup cache is just a simple memory dict for high throughput local dedup
+    global _embed_dedup_cache
+    if '_embed_dedup_cache' not in globals():
+        _embed_dedup_cache = {}
+    
+    t0 = time.time()
+    
+    if query in _embed_dedup_cache:
+        q_vec = _embed_dedup_cache[query]
+    else:
+        q_vec = embedder.embed_query(query)
+        _embed_dedup_cache[query] = q_vec
+        if len(_embed_dedup_cache) > 1000:
+            _embed_dedup_cache.clear() # naive TTL/eviction
 
     diff_keywords = ["changed", "used to", "previous version", "difference between", "compare", "diff"]
     is_diff_query = any(k in query.lower() for k in diff_keywords)
 
     # 1.5 Cache Lookup
+    t_cache = time.time()
     cache = get_cache()
     cached = cache.get(q_vec, allowed_depts, is_diff_query=is_diff_query)
+    CACHE_LATENCY.observe(time.time() - t_cache)
+    
     if cached:
         add_message(session_id, "user", query)
         add_message(session_id, "assistant", cached["answer"])
@@ -105,6 +128,7 @@ def answer(
         active_only=not is_diff_query,
         allowed_departments=allowed_depts,
     )
+    RETRIEVAL_LATENCY.observe(time.time() - t0)
 
     # 3. Filter by relevance threshold
     hits = [h for h in hits if h.get("score", 0) >= RELEVANCE_THRESHOLD]
@@ -130,7 +154,9 @@ def answer(
         return final_res
 
     # 4. Rerank
+    t0 = time.time()
     top_chunks = reranker.rerank(query, hits, top_k=top_k_rerank)
+    RERANK_LATENCY.observe(time.time() - t0)
 
     # 4.5 Decide routing and confidence
     top_score = top_chunks[0].get("rerank_score", 0) if top_chunks else 0
@@ -152,11 +178,53 @@ def answer(
         except Exception:
             pass
 
+    # 4.8 Contradiction-aware generation
+    if top_chunks:
+        try:
+            from models import ContradictionFlag
+            policy_ids = list(set([int(c.get("policy_id")) for c in top_chunks if c.get("policy_id")]))
+            if len(policy_ids) > 1:
+                # Find any open contradictions between these policies
+                flags = ContradictionFlag.query.filter(
+                    ContradictionFlag.status == "open",
+                    ContradictionFlag.policy_a_id.in_(policy_ids),
+                    ContradictionFlag.policy_b_id.in_(policy_ids)
+                ).all()
+                if flags:
+                    flag_texts = []
+                    for f in flags:
+                        flag_texts.append(f"Policies {f.policy_a_id} and {f.policy_b_id} have an open contradiction flag: {f.description}")
+                    query = query + "\n\nWARNING: " + "\n".join(flag_texts) + "\n\nDo not silently pick one side. Explicitly state the contradiction in your answer."
+        except Exception as e:
+            pass
+
+    # 4.9 Prompt compression
+    # Extract only top-N most query-relevant sentences per chunk before prompting
+    import re
+    compressed_chunks = []
+    q_tokens_cmp = set(re.findall(r"[a-z0-9]+", query.lower()))
+    for c in top_chunks:
+        sentences = re.split(r'(?<=[.!?])\s+', c.get("text", "").strip())
+        if len(sentences) > 3:
+            s_scores = []
+            for s in sentences:
+                s_toks = set(re.findall(r"[a-z0-9]+", s.lower()))
+                overlap = len(q_tokens_cmp & s_toks) / max(len(s_toks), 1)
+                s_scores.append((overlap, s))
+            s_scores.sort(key=lambda x: x[0], reverse=True)
+            # Keep top 3 most relevant sentences in original order
+            top_s = [s[1] for s in sorted(s_scores[:3], key=lambda x: sentences.index(x[1]))]
+            new_c = dict(c)
+            new_c["text"] = " ".join(top_s)
+            compressed_chunks.append(new_c)
+        else:
+            compressed_chunks.append(c)
+
     # 5. Build prompt with conversation memory & prompt engineering guards
     history = get_history(session_id)
     messages = build_prompt(
         query,
-        top_chunks,
+        compressed_chunks,
         chat_history=history,
         user_role=user_role,
         user_department=user_department,
@@ -180,7 +248,10 @@ def answer(
         llm_resp = type('obj', (object,), {'text': answer_text, 'fallback': False, 'error': None, 'model': 'exact-cache', 'usage': {}})()
     else:
         # 6. Generate answer via LLMProvider
+        t0 = time.time()
         llm_resp = provider.generate(messages, use_secondary=use_secondary)
+        GENERATION_LATENCY.observe(time.time() - t0)
+        
         if cache.use_redis and not (llm_resp.fallback or llm_resp.error):
             import json
             cache.redis.setex(exact_cache_key, 3600, json.dumps({"answer": llm_resp.text}))
@@ -190,20 +261,23 @@ def answer(
 
     # Guardrails: Output check
     if not is_fallback:
-        chunk_ids = [c.get("id", "") for c in top_chunks]
-        answer_text = apply_output_guardrails(answer_text, chunk_ids)
-        if "blocked by safety filters" in answer_text:
+        answer_text = apply_output_guardrails(answer_text, top_chunks)
+        if "blocked by safety filters" in answer_text or "hallucinated citation" in answer_text:
             is_fallback = True
 
     # 7. Citations
     citations = build_citations(top_chunks)
     
-    # 7.5 Grounding check
-    if not citations and not is_fallback:
-        from rag.metrics import GROUNDING_REJECTIONS
-        GROUNDING_REJECTIONS.inc()
-        answer_text = "I couldn't find this information in the available policies."
-        is_fallback = True
+    # 7.5 Grounding check (Entailment)
+    groundedness_score = 1.0
+    if not is_fallback:
+        from rag.entailment import verify_entailment
+        is_entailed, groundedness_score = verify_entailment(answer_text, top_chunks)
+        if not citations or not is_entailed:
+            from rag.metrics import GROUNDING_REJECTIONS
+            GROUNDING_REJECTIONS.inc()
+            answer_text = "I couldn't find sufficient information in the available policies to fully support an answer."
+            is_fallback = True
 
     # 8. Update memory
     add_message(session_id, "user", query)
@@ -231,7 +305,8 @@ def answer(
         "model": llm_resp.model,
         "cache_hit": False,
         "usage": llm_resp.usage,
-        "confidence": confidence_score
+        "confidence": confidence_score,
+        "groundedness": groundedness_score
     }
     
     if stream:

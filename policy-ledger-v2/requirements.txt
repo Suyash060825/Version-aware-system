@@ -24,3 +24,7 @@ celery>=5.3.0
 redis>=5.0.0
 prometheus-client>=0.20.0
 gunicorn>=21.2.0
+rank-bm25
+requests
+matplotlib
+pandas

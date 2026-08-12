@@ -14,16 +14,26 @@ GUARDRAILS_CONFIG = {
 
 # Regex patterns for lightweight classification
 OUT_OF_SCOPE_PATTERNS = [
-    re.compile(r"\b(legal advice|sue|lawsuit|attorney)\b", re.IGNORECASE),
-    re.compile(r"\b(medical advice|diagnose|prescription|symptoms)\b", re.IGNORECASE),
-    re.compile(r"\b(fire|terminate|justify firing|let go)\b", re.IGNORECASE),
+    re.compile(r"\b(legal advice|sue|lawsuit|attorney|lawyer|court|subpoena|litigation)\b", re.IGNORECASE),
+    re.compile(r"\b(medical advice|diagnose|prescription|symptoms|treatment|doctor's note)\b", re.IGNORECASE),
+    re.compile(r"\b(fire|terminate|justify firing|let go|layoff|redundancy|severance negotiation)\b", re.IGNORECASE),
+    re.compile(r"\b(hack|bypass|exploit|penetration test|breach)\b", re.IGNORECASE)
 ]
 
-# Simple PII patterns
+TOXICITY_PATTERNS = [
+    re.compile(r"\b(stupid|idiot|dumb|moron|crazy|insane|retarded|bastard)\b", re.IGNORECASE),
+    re.compile(r"\b(kill|murder|suicide|die|harm)\b", re.IGNORECASE)
+]
+
+# Expanded PII patterns
 PII_PATTERNS = [
     (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[REDACTED_SSN]"),
+    (re.compile(r"\b[A-CEGHJ-PR-TW-Z]{1}[A-CEGHJ-NPR-TW-Z]{1}[0-9]{6}[A-D\s]\b", re.IGNORECASE), "[REDACTED_NINO]"),
     (re.compile(r"\b[\w\.-]+@[\w\.-]+\.\w+\b"), "[REDACTED_EMAIL]"),
-    (re.compile(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b"), "[REDACTED_PHONE]"),
+    (re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"), "[REDACTED_PHONE]"),
+    (re.compile(r"\b(?:\d[ -]*?){13,16}\b"), "[REDACTED_CREDIT_CARD]"),
+    (re.compile(r"\bEMP-\d{5,8}\b", re.IGNORECASE), "[REDACTED_EMP_ID]"),
+    (re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"), "[REDACTED_IP]")
 ]
 
 def check_input_guardrails(query: str) -> tuple[bool, str]:
@@ -41,7 +51,7 @@ def check_input_guardrails(query: str) -> tuple[bool, str]:
     return True, ""
 
 
-def apply_output_guardrails(text: str, retrieved_chunk_ids: list[str]) -> str:
+def apply_output_guardrails(text: str, top_chunks: list[dict] = None) -> str:
     """
     Applies output guardrails like PII redaction and citation checking.
     """
@@ -53,15 +63,21 @@ def apply_output_guardrails(text: str, retrieved_chunk_ids: list[str]) -> str:
         for pattern, replacement in PII_PATTERNS:
             text = pattern.sub(replacement, text)
             
-    # 2. Citation check (simplified)
-    # Ensure every citation bracket [Policy: ..., Section: ...] maps to a chunk ID.
-    # If OUTPUT_CHECK_CITATIONS is True, we could enforce logic here, but returning the text for now.
-    
-    # 3. Toxicity check (simplified)
+    # 2. Citation check
+    if GUARDRAILS_CONFIG["OUTPUT_CHECK_CITATIONS"] and top_chunks:
+        valid_policies = {c.get("policy_name", "").lower() for c in top_chunks}
+        # Find all citations e.g., [Policy: Name, Section: Sec]
+        citations = re.findall(r"\[Policy:\s*(.*?)(?:,\s*Section:.*?)?\]", text)
+        for cited_policy in citations:
+            if cited_policy.lower() not in valid_policies:
+                # Flag hallucinated citation
+                return "The generated response was blocked because it contained a hallucinated citation."
+                
+    # 3. Toxicity check
     if GUARDRAILS_CONFIG["OUTPUT_BLOCK_TOXICITY"]:
-        toxic_words = ["stupid", "idiot", "dumb"]
-        if any(w in text.lower() for w in toxic_words):
-            return "The generated response was blocked by safety filters."
+        for pattern in TOXICITY_PATTERNS:
+            if pattern.search(text):
+                return "The generated response was blocked by safety filters."
 
     return text
 
