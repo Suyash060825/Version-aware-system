@@ -257,6 +257,16 @@ class PolicyVersion(db.Model):
     created_by = db.relationship("User", foreign_keys=[created_by_id])
     approved_by = db.relationship("User", foreign_keys=[approved_by_id])
 
+    __table_args__ = (
+        db.Index(
+            "uix_one_active_version_per_policy",
+            "policy_id",
+            unique=True,
+            postgresql_where=db.text("is_active = true"),
+            sqlite_where=db.text("is_active = 1")
+        ),
+    )
+
     def __repr__(self):
         return f"<PolicyVersion {self.version_label} of policy {self.policy_id}>"
 
