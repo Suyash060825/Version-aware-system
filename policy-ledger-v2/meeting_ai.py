@@ -114,7 +114,7 @@ def _heuristic_fallback(raw_notes: str) -> dict:
         "decisions": decisions,
         "action_items": action_items,
         "followup_email": (
-            f"Hi all,\n\nThanks for joining. Quick recap:\n\n"
+            "Hi all,\n\nThanks for joining. Quick recap:\n\n"
             + "\n".join(f"- {p}" for p in key_points[:6])
             + ("\n\nAction items:\n" + "\n".join(f"- {a['description']}" for a in action_items) if action_items else "")
             + "\n\nBest regards"

@@ -35,14 +35,10 @@ services:
       - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-llama3.1:8b-instruct-q4_K_M}
       - OLLAMA_BASE_URL=http://ollama:11434
       - VLLM_BASE_URL=http://vllm:8000/v1
-      - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8000
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
-      chromadb:
         condition: service_started
       ollama:
         condition: service_healthy
@@ -71,12 +67,9 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
-      - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8000
     depends_on:
       - postgres
       - redis
-      - chromadb
     read_only: true
     tmpfs:
       - /tmp
@@ -116,19 +109,6 @@ services:
       - redis_data:/data
 
   # ============================================================================
-  # ChromaDB Vector Store
-  # ============================================================================
-  chromadb:
-    image: chromadb/chroma:latest
-    container_name: policy_ledger_chromadb
-    restart: always
-    volumes:
-      - chroma_data:/chroma/chroma
-    environment:
-      - IS_PERSISTENT=TRUE
-      - PERSIST_DIRECTORY=/chroma/chroma
-
-  # ============================================================================
   # Ollama Local LLM Service (Default Local Backend)
   # ============================================================================
   ollama:
@@ -157,5 +137,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  chroma_data:
   ollama_data:

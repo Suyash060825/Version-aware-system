@@ -19,9 +19,9 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from models import (db, Policy, PolicyVersion, PolicyCategory, PolicyStatus,
                     User, UserRole, Department, Tag, ApprovalWorkflow,
-                    ApprovalStage, ApprovalStatus, Notification,
-                    NotificationType, AuditLog, PolicyAcknowledgement,
-                    WorkflowTemplate, WorkflowStageInstance)
+                    ApprovalStage, ApprovalStatus, NotificationType,
+                    AuditLog, PolicyAcknowledgement, WorkflowTemplate,
+                    WorkflowStageInstance)
 from utils import (role_required, audit, notify_user, notify_all_employees,
                    generate_policy_id, next_version, compute_diff, paginate, days_until)
 from blueprints.employee import build_onboarding_checklist

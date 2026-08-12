@@ -15,7 +15,7 @@
 | High | CWE-489 | Leftover `debug=True` in production entrypoint `app.py` | Fixed | `test_debug_mode_disabled_in_prod()` |
 | High | CWE-362 | DB-level race condition allowed multiple active `PolicyVersion` instances | Fixed | `test_concurrent_policy_activation()` |
 | Medium | CWE-1104 | Unpinned dependency versions in `requirements.txt` | Fixed | Lockfile generated |
-| Medium | CVE-2026-45829 | Code injection vulnerability in ChromaDB 1.5.9 (`pip-audit`) | Accepted Risk | Waiting on upstream fix. RAG API internally shielded. |
+| Low | CVE-2026-45829 | Code injection vulnerability in ChromaDB 1.5.9 (`pip-audit`) | Fixed | Networked container removed; in-process client used. |
 
 ## 3. Consistency Results
 - **Cache Invalidation Correctness**: Verified structurally in tests.

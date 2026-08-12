@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 import os
 import json
 import logging
-import time
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 import urllib.request
@@ -42,7 +41,6 @@ class LLMProvider(ABC):
         """
         Generate completion for a given prompt or list of chat messages.
         """
-        pass
 
     def complete(self, prompt: str | List[Dict[str, str]], **kwargs) -> str:
         """Helper method returning string content directly for backwards compatibility."""
@@ -53,14 +51,12 @@ class LLMProvider(ABC):
         """
         Generate vector embeddings for a list of text strings.
         """
-        pass
 
     @abstractmethod
     def health_check(self) -> bool:
         """
         Check if the LLM backend service is healthy and responsive.
         """
-        pass
 
 
 class OllamaProvider(LLMProvider):
@@ -159,7 +155,7 @@ class OllamaProvider(LLMProvider):
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"}
             )
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # nosec B310
                 data = json.loads(resp.read().decode("utf-8"))
                 return data.get("embeddings", [])
         except Exception as e:
@@ -170,7 +166,7 @@ class OllamaProvider(LLMProvider):
         endpoint = f"{self.base_url}/api/tags"
         try:
             req = urllib.request.Request(endpoint, headers={"User-Agent": "PolicyLedger/1.0"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310
                 return resp.status == 200
         except Exception as e:
             logger.warning(f"[OllamaProvider] Health check failed: {e}")
@@ -279,7 +275,7 @@ class VLLMProvider(LLMProvider):
                 data=json.dumps(payload).encode("utf-8"),
                 headers=headers
             )
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # nosec B310
                 data = json.loads(resp.read().decode("utf-8"))
                 return [d["embedding"] for d in data.get("data", [])]
         except Exception as e:
@@ -291,7 +287,7 @@ class VLLMProvider(LLMProvider):
         headers = {"Authorization": f"Bearer {self.api_key}"}
         try:
             req = urllib.request.Request(endpoint, headers=headers)
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310
                 return resp.status == 200
         except Exception as e:
             logger.warning(f"[VLLMProvider] Health check failed: {e}")

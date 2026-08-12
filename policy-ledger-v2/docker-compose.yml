@@ -18,8 +18,6 @@ services:
       - LLM_BACKEND=ollama
       - OLLAMA_BASE_URL=http://ollama:11434
       - LOCAL_LLM_MODEL=llama3.1:8b-instruct-q4_K_M
-      - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8000
       - REDIS_URL=redis://redis:6379/0
     volumes:
       - .:/app
@@ -27,8 +25,6 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
-      chromadb:
-        condition: service_started
       redis:
         condition: service_started
 
@@ -72,24 +68,8 @@ services:
       retries: 5
       start_period: 15s
 
-  # ============================================================================
-  # ChromaDB Vector Store Service
-  # ============================================================================
-  chromadb:
-    image: chromadb/chroma:latest
-    container_name: policy_ledger_chroma
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - chroma_data:/chroma/chroma
-    environment:
-      - IS_PERSISTENT=TRUE
-      - PERSIST_DIRECTORY=/chroma/chroma
-
 volumes:
   ollama_data:
-  chroma_data:
   app_data:
   redis_data:
 

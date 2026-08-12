@@ -4,7 +4,6 @@ Cross-encoder reranker. Takes top-N semantic hits and reranks for precision.
 Primary: BAAI/bge-reranker-base
 Fallback: simple token-overlap scoring
 """
-from typing import Optional
 
 _reranker = None
 

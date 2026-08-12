@@ -37,10 +37,10 @@ def run_evaluation(naive=False):
 
     with app.app_context():
         # Clear cache for clean run
+        cache = get_cache()
         if not naive:
-            cache = get_cache()
             if cache.use_redis:
-                for k in cache.redis.keys("vssc:*") + cache.redis.keys("vssc_exact:*"):
+                for k in list(cache.redis.scan_iter("vssc:*")) + list(cache.redis.scan_iter("vssc_exact:*")):
                     cache.redis.delete(k)
 
         for i, q in enumerate(queries):
@@ -52,7 +52,7 @@ def run_evaluation(naive=False):
                 # To simulate naive simply, we clear cache before each call and use top_k_rerank=20 (no rerank compression)
                 if naive:
                     if cache.use_redis:
-                        for k in cache.redis.keys("vssc:*") + cache.redis.keys("vssc_exact:*"):
+                        for k in list(cache.redis.scan_iter("vssc:*")) + list(cache.redis.scan_iter("vssc_exact:*")):
                             cache.redis.delete(k)
                 
                 res = answer(

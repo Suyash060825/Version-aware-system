@@ -28,7 +28,7 @@ from datetime import date
 from flask import Blueprint, render_template
 from flask_login import login_required
 
-from models import db, Policy, PolicyStatus, PolicyAIReview, Department, UserRole
+from models import Policy, PolicyStatus, PolicyAIReview, Department, UserRole
 from utils import role_required
 
 governance_bp = Blueprint("governance", __name__, url_prefix="/admin")

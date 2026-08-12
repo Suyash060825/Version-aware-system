@@ -18,16 +18,15 @@ Routes:
   GET  /meetings/<id>/calendar.ics        download action items as a calendar file
   GET  /my-action-items                   employee-facing: action items assigned to me
 """
-import json
 from datetime import datetime, timezone
 
 from flask import (Blueprint, render_template, redirect, url_for, flash,
-                   request, jsonify, abort, Response, current_app)
+                   request, jsonify, abort, Response)
 from flask_login import login_required, current_user
 
 from models import (db, Meeting, MeetingType, MeetingStatus, MeetingParticipant,
                     MeetingMinutes, MeetingDecision, MeetingActionItem, ActionItemStatus,
-                    Priority, User, UserRole, Department, Policy, PolicyStatus, Notification, NotificationType)
+                    Priority, User, Department, Policy, PolicyStatus, Notification, NotificationType)
 from utils import (audit, notify_user, paginate, generate_meeting_code,
                    build_action_items_ics, days_until)
 from meeting_ai import generate_mom, parse_due_date, match_owner

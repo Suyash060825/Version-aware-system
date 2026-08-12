@@ -40,9 +40,8 @@ from datetime import date, timedelta
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 
-from models import (db, User, UserRole, Department, QuizAttempt,
-                    PolicyAcknowledgement, PolicyComment, PolicyLike,
-                    OnboardingChecklistItem, MeetingActionItem,
+from models import (User, UserRole, QuizAttempt, PolicyAcknowledgement, PolicyComment,
+                    PolicyLike, OnboardingChecklistItem, MeetingActionItem,
                     ActionItemStatus, Policy)
 from utils import role_required
 
