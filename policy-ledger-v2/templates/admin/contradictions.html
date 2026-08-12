@@ -31,6 +31,7 @@
           <a href="{{ url_for('admin.policy_detail', policy_id=flag.policy_b_id) }}" style="font-weight:600">{{ flag.policy_b.title }}</a>
         </div>
         <form method="POST" action="{{ url_for('contradiction_radar.dismiss', flag_id=flag.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <button type="submit" class="btn btn-sm btn-ghost">Dismiss as false positive</button>
         </form>
       </div>

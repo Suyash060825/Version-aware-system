@@ -26,6 +26,7 @@
                         </div>
                         <div>
                             <form action="{{ url_for('admin.ai_review_approve', item_type='minutes', item_id=item.id) }}" method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="btn btn-sm btn-success">Approve</button>
                             </form>
                         </div>
@@ -48,6 +49,7 @@
                         </div>
                         <div>
                             <form action="{{ url_for('admin.ai_review_approve', item_type='insights', item_id=item.id) }}" method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="btn btn-sm btn-success">Approve</button>
                             </form>
                         </div>

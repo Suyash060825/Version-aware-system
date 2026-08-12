@@ -27,13 +27,15 @@
         </td>
         <td>
           {% if t.is_default %}<span class="pill pill-active">Default</span>
-          {% else %}<form method="POST" action="{{ url_for('workflow.template_set_default', template_id=t.id) }}"><button class="btn btn-sm btn-ghost" type="submit">Make default</button></form>{% endif %}
+          {% else %}<form method="POST" action="{{ url_for('workflow.template_set_default', template_id=t.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/><button class="btn btn-sm btn-ghost" type="submit">Make default</button></form>{% endif %}
         </td>
         <td><span class="pill {{ 'pill-active' if t.is_active else 'pill-archived' }}">{{ 'Active' if t.is_active else 'Inactive' }}</span></td>
         <td>
           <div class="gap-row">
             <a href="{{ url_for('workflow.template_edit', template_id=t.id) }}" class="btn btn-sm btn-secondary">Edit</a>
             <form method="POST" action="{{ url_for('workflow.template_delete', template_id=t.id) }}" onsubmit="return confirm('Delete this template? Policies mid-workflow on it will keep their current stage instances.')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
               <button class="btn btn-sm btn-ghost" type="submit">Delete</button>
             </form>
           </div>

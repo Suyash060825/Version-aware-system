@@ -88,6 +88,7 @@
       <div class="card-label" style="color:var(--red)">This policy requires your acknowledgement</div>
       <p style="font-size:13.5px;color:var(--ink2);margin-bottom:1rem">Please read the policy above, then click below to confirm you have read and understood it. Your name and timestamp will be recorded as a digital signature.</p>
       <form method="POST" action="{{ url_for('employee.policy_acknowledge', policy_id=policy.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <button type="submit" class="btn btn-primary" onclick="return confirm('By clicking OK you confirm you have read and understood this policy.')">I have read and acknowledge this policy</button>
       </form>
       {% endif %}
@@ -109,6 +110,7 @@
     <div class="card mb2" id="comments">
       <div class="card-label">Comments ({{ comments|length }})</div>
       <form method="POST" action="{{ url_for('employee.add_comment', policy_id=policy.id) }}" class="mb2">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <textarea name="content" rows="2" placeholder="Ask a question or leave a comment…" required></textarea>
         <button type="submit" class="btn btn-sm btn-secondary mt1">Post</button>
       </form>
@@ -121,6 +123,7 @@
         <div style="font-size:13.5px;color:var(--ink2);margin-top:.2rem">{{ c.content }}</div>
         {% if c.user_id == current_user.id or current_user.can_manage_policies() %}
         <form method="POST" action="{{ url_for('employee.delete_comment', comment_id=c.id) }}" onsubmit="return confirm('Delete this comment?')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <button type="submit" class="btn btn-sm btn-ghost" style="padding:.1rem .4rem;font-size:11px">Delete</button>
         </form>
         {% endif %}

@@ -9,12 +9,14 @@ from flask_login import LoginManager, current_user
 from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 
 from config import config
 from models import db, bcrypt, User
 
 login_manager = LoginManager()
 limiter = Limiter(key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
+csrf = CSRFProtect()
 
 
 def rate_limit_key_user_or_ip():
@@ -62,6 +64,7 @@ def create_app(env="default"):
     db.init_app(app)
     bcrypt.init_app(app)
     limiter.init_app(app)
+    csrf.init_app(app)
 
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"

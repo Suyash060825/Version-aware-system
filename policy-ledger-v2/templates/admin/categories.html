@@ -6,6 +6,7 @@
   <div class="card">
     <div class="card-label">Add category</div>
     <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="field"><label>Category name *</label><input name="name" placeholder="e.g. AI Usage" required></div>
       <div class="field"><label>Color</label><input type="color" name="color" value="#2a4a38" style="height:40px;padding:.2rem"></div>
       <button type="submit" class="btn btn-primary">Add category</button>

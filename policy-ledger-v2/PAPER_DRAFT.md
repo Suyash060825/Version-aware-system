@@ -18,13 +18,15 @@ The VSSC intercepts queries at two tiers:
 Critically, cache entries store the exact database version identifiers of the policies they cite. When a policy is updated, a signal invalidates only the cache entries citing the superseded version, eliminating stale answers without needing to purge the entire cache.
 
 ### 2.2 Confidence-Weighted Model Cascade
-Not all queries require a billion-parameter model. We implemented a cascading router that defaults to a lightweight local model (e.g., Llama 3.1 8B). The system escalates to a heavier cloud model (e.g., Gemini) only when:
+Not all queries require a billion-parameter model. We implemented a cascading router that defaults to a lightweight local model (e.g., Llama 3.1 8B). The system escalates to a heavier cloud model (e.g., `google/gemini-2.0-flash-001`) only when:
 - The top reranked chunks fall below a confidence threshold (60%).
 - The user is explicitly asking a comparative, cross-version query (detected via keyword heuristics).
 This cascade is protected by a circuit breaker pattern (Closed, Open, Half-Open) to ensure high availability even when local hardware fails.
 
-### 2.3 Strict Entailment Grounding
-To prevent hallucinations, the output undergoes a rigorous guardrail check. Beyond mere citation formatting, the system passes the generated answer and retrieved chunks to an NLI Cross-Encoder (`nli-deberta-v3-base`). If the entailment score is low, the response is rejected and defaults to a safe refusal.
+### 2.3 Layered Guardrails (Regex and Model-Based)
+To prevent hallucinations and out-of-scope answers, the output undergoes a rigorous two-layered guardrail check:
+1. **Regex Heuristics**: Lightweight keyword matching blocks obvious prompt injections and out-of-scope requests (e.g., requests concerning external topics).
+2. **Strict Entailment Grounding**: Beyond mere citation formatting, the system passes the generated answer and retrieved chunks to an NLI Cross-Encoder (`nli-deberta-v3-base`). If the entailment score is low, the response is rejected and defaults to a safe refusal.
 
 ## 3. Evaluation Setup
 We constructed a "Golden Dataset" of 100 enterprise queries covering factual lookups, cross-version diffs, adversarial prompt injections, and role-based access denials. The system was evaluated against a "Naive RAG" baseline consisting of single-pass dense retrieval and a static large model without caching or version awareness.

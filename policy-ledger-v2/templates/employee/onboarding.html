@@ -28,6 +28,7 @@
       <span class="pill pill-active">✓ Done</span>
       {% else %}
       <form method="POST" action="{{ url_for('employee.onboarding_complete', policy_id=item.policy_id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <button type="submit" class="btn btn-sm btn-secondary">Mark read</button>
       </form>
       {% endif %}

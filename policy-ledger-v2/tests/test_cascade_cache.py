@@ -19,6 +19,9 @@ class DummyProvider(LLMProvider):
     
     def health_check(self):
         return True
+        
+    def embed(self, text):
+        return [0.0] * 384
 
 def test_cascade_failover():
     primary = DummyProvider(fail=True)
@@ -44,7 +47,8 @@ def test_cascade_use_secondary():
 
 def test_semantic_cache():
     # Use local cache for test
-    cache = SemanticCache(use_redis=False)
+    cache = SemanticCache()
+    cache.use_redis = False
     vec = [0.1] * 384
     
     # put

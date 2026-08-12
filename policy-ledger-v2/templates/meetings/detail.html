@@ -10,10 +10,12 @@
     <span class="pill pill-{{ 'active' if meeting.status=='completed' else ('archived' if meeting.status=='cancelled' else 'draft') }}">{{ meeting.status }}</span>
     {% if can_manage and meeting.status == 'scheduled' %}
     <form method="POST" action="{{ url_for('meetings.set_status', meeting_id=meeting.id) }}" style="display:inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <input type="hidden" name="status" value="completed">
       <button class="btn btn-secondary btn-sm">Mark Completed</button>
     </form>
     <form method="POST" action="{{ url_for('meetings.set_status', meeting_id=meeting.id) }}" style="display:inline" onsubmit="return confirmAction('Cancel this meeting?', this)">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <input type="hidden" name="status" value="cancelled">
       <button class="btn btn-danger btn-sm">Cancel</button>
     </form>
@@ -35,6 +37,7 @@
   <div class="card">
     <div class="card-label">Participants ({{ participants|length }})</div>
     <form method="POST" action="{{ url_for('meetings.mark_attendance', meeting_id=meeting.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       {% for p in participants %}
       <label style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;font-size:13px">
         <input type="checkbox" name="attended_ids" value="{{ p.user_id }}" {% if p.attended %}checked{% endif %} {% if not can_manage %}disabled{% endif %}>
@@ -51,6 +54,7 @@
   <div class="card-label">Meeting notes / transcript</div>
   <p style="font-size:13px;color:var(--ink2);margin-bottom:.75rem">Paste rough notes or a transcript below, then let AI generate the minutes, decisions, action items, and a follow-up email.</p>
   <form id="notesForm" method="POST" action="{{ url_for('meetings.save_notes', meeting_id=meeting.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <textarea name="raw_notes" id="rawNotes" rows="8" placeholder="Paste meeting notes or transcript here…">{{ meeting.raw_notes or '' }}</textarea>
     <div class="gap-row mt2">
       <button type="submit" class="btn btn-secondary btn-sm">Save Notes</button>
@@ -88,6 +92,7 @@
     {% if not decisions %}<div class="text-faint" style="font-size:13px">No decisions recorded yet.</div>{% endif %}
     {% if can_manage %}
     <form method="POST" action="{{ url_for('meetings.add_decision', meeting_id=meeting.id) }}" class="gap-row mt2">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <input name="description" placeholder="Add a decision…" style="flex:1;padding:.5rem .7rem;border:1px solid var(--rule2);border-radius:var(--r);font-size:13px">
       <button class="btn btn-sm btn-secondary" type="submit">Add</button>
     </form>
@@ -131,6 +136,7 @@
           <td>{% if a.source == 'ai' %}<span class="pill pill-medium">AI</span>{% else %}<span class="pill pill-low">Manual</span>{% endif %}</td>
           <td>{% if can_manage %}
             <form method="POST" action="{{ url_for('meetings.delete_action_item', item_id=a.id) }}" onsubmit="return confirm('Delete this action item?')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
               <button class="btn btn-sm btn-ghost" type="submit">Delete</button>
             </form>
           {% endif %}</td>
@@ -145,6 +151,7 @@
 
   {% if can_manage %}
   <form method="POST" action="{{ url_for('meetings.add_action_item', meeting_id=meeting.id) }}" class="mt2" style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <div class="field" style="margin:0;flex:2;min-width:200px"><input name="description" placeholder="New action item…" required></div>
     <div class="field" style="margin:0">
       <select name="owner_id"><option value="">Unassigned</option>{% for p in participants %}<option value="{{ p.user_id }}">{{ p.user.name }}</option>{% endfor %}</select>

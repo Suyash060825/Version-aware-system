@@ -124,6 +124,7 @@
 
 {% if has_query %}
 <form method="POST" action="{{ url_for('search.save_search') }}" class="card mb3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
   <input type="hidden" name="scope" value="{{ scope }}">
   {% for k, v in f.items() %}{% if v %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
   <div class="gap-row">
