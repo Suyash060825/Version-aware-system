@@ -44,9 +44,17 @@ def get_reranker():
     global _reranker
     if _reranker:
         return _reranker
+    import os
+    model_name = os.environ.get("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+    
+    if os.environ.get("USE_FALLBACK_RERANKER") == "true":
+        _reranker = FallbackReranker()
+        print("[Reranker] Using fallback token-overlap reranker (forced via env)")
+        return _reranker
+
     try:
-        _reranker = CrossEncoderReranker()
-        print("[Reranker] Using BAAI/bge-reranker-base")
+        _reranker = CrossEncoderReranker(model_name)
+        print(f"[Reranker] Using {model_name}")
     except Exception:
         _reranker = FallbackReranker()
         print("[Reranker] Using fallback token-overlap reranker")
