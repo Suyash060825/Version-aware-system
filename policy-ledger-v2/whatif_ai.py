@@ -154,7 +154,8 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
             f"[{c.get('policy_name')} — {c.get('section', 'General')}]\n{c.get('text', '')[:1200]}"
             for c in top_chunks
         )
-        user_prompt = f"SCENARIO: {scenario}\n\nRELEVANT POLICY EXCERPTS:\n\n{excerpts}\n\nProduce the JSON verdict now."
+        user_prompt = f"SCENARIO: {scenario}\n\nPOLICY EXCERPTS:\n\n{excerpts}\n\nQUESTION: {scenario}\n\nProduce the JSON verdict now."
+        raw_resp = None
         raw = ""
         try:
             prompt_msgs = [
@@ -163,16 +164,27 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
             ]
             raw_resp = llm.generate(prompt_msgs)
             raw = raw_resp.text
-            parsed = _extract_json(raw)
-            if parsed and (int(parsed.get("confidence", 0) or 0) < 55 or parsed.get("verdict") in ("depends", "unclear")):
-                # Escalate to secondary model due to ambiguity
-                raw_resp = llm.generate(prompt_msgs, use_secondary=True)
-                raw = raw_resp.text
+            
+            if getattr(raw_resp, "fallback", False):
+                parsed = {
+                    "verdict": "depends",
+                    "confidence": 50,
+                    "explanation": raw if raw != "I couldn't find this information in the available policies." else "The closest matching policy content does not clearly authorize or prohibit this scenario. Please check with HR.",
+                    "required_actions": ["Review the policy manually or ask HR."],
+                    "applicable_sections": [f"{top_chunks[0].get('policy_name', 'Policy')} - {top_chunks[0].get('section', 'General')}"]
+                }
+            else:
                 parsed = _extract_json(raw)
+                if parsed and (int(parsed.get("confidence", 0) or 0) < 55 or parsed.get("verdict") in ("depends", "unclear")):
+                    # Escalate to secondary model due to ambiguity
+                    raw_resp = llm.generate(prompt_msgs, use_secondary=True)
+                    raw = raw_resp.text
+                    parsed = _extract_json(raw)
         except Exception:
             raw = ""
-        parsed = _extract_json(raw)
-        if not parsed or "I couldn't find this information" in (raw or ""):
+            parsed = None
+            
+        if not getattr(raw_resp, "fallback", False) and (not parsed or "I couldn't find this information" in (raw or "")):
             result = _heuristic_verdict(scenario, top_chunks)
         else:
             result = {
