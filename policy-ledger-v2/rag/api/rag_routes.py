@@ -8,6 +8,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template, session
 from flask_login import login_required, current_user
 from models import db, ChatSession, ChatMessage, SearchHistory, Feedback, IndexingJob, PolicyChunk
+from app import csrf
 
 rag_bp = Blueprint("rag", __name__, url_prefix="/rag")
 
@@ -27,6 +28,7 @@ def chat_page():
 
 
 @rag_bp.route("/api/chat", methods=["POST"])
+@csrf.exempt
 @login_required
 def api_chat():
     data = request.get_json(force=True)
@@ -85,10 +87,13 @@ def api_chat():
         "fallback": result["fallback"],
         "model": result.get("model"),
         "message_id": message_id,
+        "confidence": result.get("confidence", 0),  # I7 fix: expose to frontend
+        "cache_hit": result.get("cache_hit", False),
     })
 
 
 @rag_bp.route("/api/feedback", methods=["POST"])
+@csrf.exempt
 @login_required
 def api_feedback():
     data = request.get_json(force=True)
@@ -140,6 +145,7 @@ def api_session_history(session_id):
 
 
 @rag_bp.route("/api/sessions/clear", methods=["POST"])
+@csrf.exempt
 @login_required
 def api_clear_session():
     sid = request.get_json(force=True).get("session_id")

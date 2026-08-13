@@ -25,19 +25,22 @@ def _get_client():
         raise ImportError("chromadb not installed. Run: pip install chromadb")
 
 
-def _get_collection(client=None):
+def _get_collection(client=None, dimension=None):
     if client is None:
         client = _get_client()
+    name = f"policy_chunks_{dimension}" if dimension else "policy_chunks"
     return client.get_or_create_collection(
-        name="policy_chunks",
+        name=name,
         metadata={"hnsw:space": "cosine"},
     )
 
 
 class VectorStore:
     def __init__(self):
+        from rag.embeddings.embedder import get_embedder
+        embedder = get_embedder()
         self._client = _get_client()
-        self._col = _get_collection(self._client)
+        self._col = _get_collection(self._client, embedder.dimension)
 
     # ----------------------------------------------------------------
     # Indexing

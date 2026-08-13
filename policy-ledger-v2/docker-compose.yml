@@ -14,7 +14,7 @@ services:
       - "5000:5000"
     environment:
       - FLASK_ENV=development
-      - SECRET_KEY=dev-secret-key-change-in-prod
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-prod}
       - LLM_BACKEND=ollama
       - OLLAMA_BASE_URL=http://ollama:11434
       - LOCAL_LLM_MODEL=llama3.1:8b-instruct-q4_K_M

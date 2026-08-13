@@ -381,6 +381,10 @@ class ChatMessage(db.Model):
     chunks_used = db.Column(db.Integer, default=0)
     model_name = db.Column(db.String(100), nullable=True)
     model_version = db.Column(db.String(50), nullable=True)
+    prompt_tokens = db.Column(db.Integer, default=0)
+    completion_tokens = db.Column(db.Integer, default=0)
+    model_used = db.Column(db.String(100), nullable=True)
+    cache_hit = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=now_utc)
 
 

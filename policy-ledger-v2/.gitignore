@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+venv/
+env/
+ENV/
+
+# Testing and evaluation
+.pytest_cache/
+bandit_results.json
+pip_audit_results.json
+eval_results_raw.txt
+
+# Databases
+*.sqlite
+*.db
+
+# Logs and environment variables
+.env
+*.log

@@ -90,7 +90,7 @@ def start_workflow(policy, version, template, started_by=None):
         first = min(instances, key=lambda i: i.order)
         first.status = WorkflowStageStatus.PENDING
         if first.sla_hours:
-            first.sla_due_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=first.sla_hours)
+            first.sla_due_at = datetime.now(timezone.utc) + timedelta(hours=first.sla_hours)
 
     db.session.commit()
 
@@ -163,7 +163,7 @@ def record_action(stage_instance, actor, decision: str, comment: str = ""):
     if next_stage:
         next_stage.status = WorkflowStageStatus.PENDING
         if next_stage.sla_hours:
-            next_stage.sla_due_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=next_stage.sla_hours)
+            next_stage.sla_due_at = datetime.now(timezone.utc) + timedelta(hours=next_stage.sla_hours)
         result["next_stage"] = next_stage.name
         result["workflow_status"] = WorkflowInstanceStatus.IN_PROGRESS
         db.session.commit()
