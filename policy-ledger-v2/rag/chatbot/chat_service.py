@@ -247,9 +247,11 @@ def answer(
     top_score = top_chunks[0].get("rerank_score", 0) if top_chunks else 0
     confidence_score = int(min(1.0, max(0.0, top_score)) * 100) if top_chunks else 0
     use_secondary = confidence_score < 60 or is_diff_query
-
-    # 4.7 Version diff fetching
-    if is_diff_query and top_chunks:
+    augmented_query = query
+    # 4.5 Diff-aware augmentation
+    is_diff_query = False
+    if any(k in query.lower() for k in ["diff", "change", "compare", "difference"]):
+        is_diff_query = True
         try:
             from models import PolicyVersion
             policy_ids = list(set([int(c.get("policy_id")) for c in top_chunks if c.get("policy_id")]))
@@ -259,7 +261,7 @@ def answer(
                 if len(versions) == 2:
                     diffs.append(f"Diff for Policy {pid} (v{versions[1].version_label} -> v{versions[0].version_label}): {versions[0].diff_json or 'None'}")
             if diffs:
-                query = query + "\n\nPolicy Diffs:\n" + "\n".join(diffs) + "\n\nPlease contrast the versions based on the above diffs and excerpts."
+                augmented_query = augmented_query + "\n\nPolicy Diffs:\n" + "\n".join(diffs) + "\n\nPlease contrast the versions based on the above diffs and excerpts."
         except Exception:
             pass
 
@@ -279,7 +281,7 @@ def answer(
                     flag_texts = []
                     for f in flags:
                         flag_texts.append(f"Policies {f.policy_a_id} and {f.policy_b_id} have an open contradiction flag: {f.description}")
-                    query = query + "\n\nWARNING: " + "\n".join(flag_texts) + "\n\nDo not silently pick one side. Explicitly state the contradiction in your answer."
+                    augmented_query = augmented_query + "\n\nWARNING: " + "\n".join(flag_texts) + "\n\nDo not silently pick one side. Explicitly state the contradiction in your answer."
         except Exception as e:
             pass
 
@@ -308,7 +310,7 @@ def answer(
     # 5. Build prompt with conversation memory & prompt engineering guards
     history = get_history(session_id)
     messages = build_prompt(
-        query,
+        augmented_query,
         compressed_chunks,
         chat_history=history,
         user_role=user_role,
@@ -334,7 +336,12 @@ def answer(
     else:
         # 6. Generate answer via LLMProvider
         t0 = time.time()
-        llm_resp = provider.generate(messages, use_secondary=use_secondary)
+        # H1 fix: only pass use_secondary to CascadeProvider
+        kwargs = {"use_secondary": use_secondary} if getattr(provider, "__class__", None).__name__ == "CascadeProvider" else {}
+        try:
+            llm_resp = provider.generate(messages, **kwargs)
+        except Exception as e:
+            llm_resp = type('obj', (object,), {'text': f"Error: {str(e)}", 'fallback': True, 'error': str(e), 'model': 'error', 'usage': {}})()
         GENERATION_LATENCY.observe(time.time() - t0)
         
         if cache.use_redis and not (llm_resp.fallback or llm_resp.error):

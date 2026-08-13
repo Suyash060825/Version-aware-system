@@ -289,10 +289,14 @@ def generate_insights(content: str, title: str) -> dict:
     quiz = []
     for item in (parsed.get("quiz") or []):
         if isinstance(item, dict) and item.get("question") and item.get("options"):
+            options = [str(o) for o in item["options"]][:6]
+            raw_idx = int(item.get("correct_index", 0) or 0)
+            # L3 fix: clamp to valid range so OOB LLM values don't crash templates
+            correct_index = min(max(raw_idx, 0), len(options) - 1)
             quiz.append({
                 "question": str(item["question"]),
-                "options": [str(o) for o in item["options"]][:6],
-                "correct_index": int(item.get("correct_index", 0) or 0),
+                "options": options,
+                "correct_index": correct_index,
             })
 
     return {

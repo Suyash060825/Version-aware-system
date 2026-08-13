@@ -28,7 +28,7 @@ def role_required(*roles):
 
 
 # ---------- Audit logging ----------
-def audit(action: str, resource_type: str = None, resource_id: int = None, detail: dict = None):
+def audit(action: str, resource_type: str = None, resource_id: int = None, detail: dict = None, commit: bool = True):
     """Write an immutable audit log entry. Safe to call outside a request
     context too (e.g. from scripts/check_workflow_reminders.py via cron)."""
     from flask import has_request_context
@@ -43,7 +43,8 @@ def audit(action: str, resource_type: str = None, resource_id: int = None, detai
         user_agent=request.headers.get("User-Agent", "")[:300] if in_request else "background-job",
     )
     db.session.add(log)
-    db.session.commit()
+    if commit:
+        db.session.commit()
 
 
 # ---------- Notifications ----------
@@ -71,6 +72,7 @@ def generate_policy_id() -> str:
     prefix = f"POL-{year}-"
     last = (
         Policy.query
+        .with_for_update()
         .filter(Policy.policy_id.like(f"{prefix}%"))
         .order_by(Policy.id.desc())
         .first()
@@ -125,7 +127,7 @@ def compute_diff(old_text: str, new_text: str) -> dict:
     old_lines = old_text.splitlines(keepends=True)
     new_lines = new_text.splitlines(keepends=True)
 
-    added, removed, html_parts = [], [], []
+    added, removed, changed, html_parts = [], [], [], []
     matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
 
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
@@ -147,12 +149,14 @@ def compute_diff(old_text: str, new_text: str) -> dict:
             for line in new_lines[j1:j2]:
                 added.append(line.rstrip())
                 html_parts.append(f'<span class="diff-added">+ {_esc(line)}</span>')
+            changed.append(("".join(old_lines[i1:i2]), "".join(new_lines[j1:j2])))
 
     return {
         "added": added,
         "removed": removed,
+        "changed": changed,
         "html": "".join(html_parts),
-        "stats": {"added": len(added), "removed": len(removed)},
+        "stats": {"added": len(added), "removed": len(removed), "changed": len(changed)},
     }
 
 

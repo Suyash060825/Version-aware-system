@@ -177,7 +177,8 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
                 parsed = _extract_json(raw)
                 if parsed and (int(parsed.get("confidence", 0) or 0) < 55 or parsed.get("verdict") in ("depends", "unclear")):
                     # Escalate to secondary model due to ambiguity
-                    raw_resp = llm.generate(prompt_msgs, use_secondary=True)
+                    kwargs = {"use_secondary": True} if getattr(llm, "__class__", None).__name__ == "CascadeProvider" else {}
+                    raw_resp = llm.generate(prompt_msgs, **kwargs)
                     raw = raw_resp.text
                     parsed = _extract_json(raw)
         except Exception:

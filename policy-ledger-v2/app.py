@@ -27,7 +27,7 @@ def rate_limit_key_user_or_ip():
 def validate_production_env(app: Flask):
     """Fail fast if required security environment variables are missing in production."""
     env = os.environ.get("FLASK_ENV", "development").lower()
-    if env == "production" or not app.debug:
+    if (env == "production" or not app.debug) and not app.testing:
         secret = app.config.get("SECRET_KEY", "")
         if not secret or "change-this" in secret.lower() or secret == "dev-secret-key-change-in-prod":
             raise RuntimeError(
@@ -56,7 +56,9 @@ def create_app(env="default"):
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     if "sqlite" in app.config["SQLALCHEMY_DATABASE_URI"]:
         db_path = app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
 
     # Extensions
     db.init_app(app)
@@ -114,10 +116,9 @@ def create_app(env="default"):
     app.register_blueprint(blast_radius_bp)
     app.register_blueprint(rag_bp)
 
-    # Apply 20 req/min rate limit to RAG Chat endpoint
-    limiter.limit("20 per minute", key_func=rate_limit_key_user_or_ip)(
-        app.view_functions.get("rag.api_chat")
-    )
+    # Rate limit is applied back to the view_functions dict
+    if "rag.api_chat" in app.view_functions:
+        app.view_functions["rag.api_chat"] = limiter.limit("20 per minute", key_func=rate_limit_key_user_or_ip)(app.view_functions["rag.api_chat"])
 
     # Prometheus Metrics endpoint
     @app.route("/metrics")
