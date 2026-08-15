@@ -67,6 +67,14 @@ def create_app(env="default"):
     # Extensions
     db.init_app(app)
     bcrypt.init_app(app)
+    
+    # Configure rate limiter storage URI dynamically
+    redis_url = os.environ.get("REDIS_URL")
+    if (os.environ.get("FLASK_ENV") == "production" or not app.debug) and not redis_url:
+        redis_url = "redis://localhost:6379/0"
+    if redis_url:
+        app.config["RATELIMIT_STORAGE_URI"] = redis_url
+        
     limiter.init_app(app)
     csrf.init_app(app)
 
