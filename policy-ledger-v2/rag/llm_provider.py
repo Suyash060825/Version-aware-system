@@ -301,9 +301,21 @@ class GeminiProvider(LLMProvider):
     """
 
     def __init__(self, model: Optional[str] = None):
-        self.api_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("GEMINI_API_KEY", "")
-        self.model = model or os.environ.get("LLM_MODEL", "google/gemini-2.0-flash-001")
-        self.base_url = "https://openrouter.ai/api/v1"
+        if os.environ.get("OPENROUTER_API_KEY"):
+            self.api_key = os.environ.get("OPENROUTER_API_KEY")
+            self.base_url = "https://openrouter.ai/api/v1"
+            self.model = model or os.environ.get("LLM_MODEL", "google/gemini-2.0-flash-001")
+        else:
+            self.api_key = os.environ.get("GEMINI_API_KEY", "")
+            self.base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+            raw_model = model or os.environ.get("LLM_MODEL", "google/gemini-2.0-flash-001")
+            # Map OpenRouter google/ prefix to direct Gemini model name if needed
+            if raw_model.startswith("google/"):
+                self.model = raw_model.replace("google/", "").replace(":free", "")
+                if self.model == "gemini-2.0-flash-001":
+                    self.model = "gemini-2.0-flash"
+            else:
+                self.model = raw_model
 
     def generate(
         self,
