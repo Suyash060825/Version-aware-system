@@ -21,3 +21,7 @@ eval_results_raw.txt
 # Logs and environment variables
 .env
 *.log
+
+# Local development instances and eval datasets
+instance/
+eval/

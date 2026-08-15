@@ -3,7 +3,6 @@ import pytest
 from app import create_app
 from rag.cache.semantic_cache import SemanticCache
 from rag.chatbot.chat_service import answer
-from rag.llm_provider import GeminiProvider
 
 def test_flask_limiter_storage(monkeypatch):
     """Verify Flask-Limiter uses Redis in production when REDIS_URL is present."""
@@ -44,10 +43,4 @@ def test_chat_service_confidence_in_fallback():
         assert "confidence" in res
         assert res["confidence"] == 0
 
-def test_gemini_provider_key_priority(monkeypatch):
-    """Verify GeminiProvider prefers OPENROUTER_API_KEY over GEMINI_API_KEY."""
-    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-test")
-    monkeypatch.setenv("GEMINI_API_KEY", "gemini-key")
-    
-    provider = GeminiProvider()
     assert provider.api_key == "sk-or-v1-test"

@@ -169,7 +169,7 @@ def admin_rag_dashboard():
 
     from rag.vectordb.chroma import get_store
     from rag.embeddings.embedder import get_embedder
-    from rag.llm.gemini import get_llm, GeminiClient, OllamaClient
+    from rag.llm_provider import get_llm_provider as get_llm
 
     try:
         store = get_store()
@@ -179,10 +179,8 @@ def admin_rag_dashboard():
 
     embedder = get_embedder()
     llm = get_llm()
-    if isinstance(llm, GeminiClient):
-        llm_provider = f"Gemini via OpenRouter ({llm.model})"
-    elif isinstance(llm, OllamaClient):
-        llm_provider = f"Ollama ({llm.model})"
+    if True:
+        llm_provider = getattr(llm, "model", "Local LLM")
     else:
         llm_provider = "Extractive fallback (no LLM_PROVIDER / API key configured)"
     chunk_count = PolicyChunk.query.count()
@@ -218,8 +216,6 @@ def admin_rag_dashboard():
     invalidations = REGISTRY.get_sample_value('rag_cache_invalidations_total', {'reason': 'explicit_drift'}) or 0
     
     ollama_req = REGISTRY.get_sample_value('rag_llm_requests_total', {'backend': 'OllamaProvider'}) or 0
-    gemini_req = REGISTRY.get_sample_value('rag_llm_requests_total', {'backend': 'GeminiProvider'}) or 0
-    
     grounding_rej = REGISTRY.get_sample_value('rag_grounding_rejections_total') or 0
     
     total_llm_sum = (REGISTRY.get_sample_value('rag_llm_latency_seconds_sum', {'backend': 'OllamaProvider'}) or 0) + \
@@ -249,7 +245,7 @@ def admin_rag_dashboard():
         cache_hit_rate=cache_hit_rate,
         invalidations=invalidations,
         ollama_req=ollama_req,
-        gemini_req=gemini_req,
+        
         grounding_rej=grounding_rej,
         llm_avg_ms=llm_avg_ms,
         cost_usd=cost_usd,
