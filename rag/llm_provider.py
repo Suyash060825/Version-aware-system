@@ -119,7 +119,12 @@ class OllamaProvider(LLMProvider):
             "stream": False,
             "options": {
                 "num_predict": max_tokens,
-                "temperature": temperature
+                "temperature": temperature,
+                "keep_alive": -1,
+                "num_gpu": 99,
+                "num_thread": 4,
+                "f16_kv": True,
+                "low_vram": False
             }
         }
 
@@ -132,6 +137,8 @@ class OllamaProvider(LLMProvider):
             resp.raise_for_status()
             data = resp.json()
             content = data.get("message", {}).get("content", "").strip()
+            if not content:
+                raise ValueError("Empty response received from Ollama model")
             eval_count = data.get("eval_count", 0)
             prompt_eval_count = data.get("prompt_eval_count", 0)
             
