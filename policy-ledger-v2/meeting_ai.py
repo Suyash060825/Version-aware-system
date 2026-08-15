@@ -2,7 +2,7 @@
 meeting_ai.py
 AI generation for Module 5 (Meeting Management / MOM).
 
-Reuses the existing rag/llm provider abstraction (Gemini via OpenRouter, Ollama,
+Reuses the existing rag/llm provider abstraction (Ollama,
 or the zero-dependency extractive fallback) so no new API keys or dependencies
 are required. Given raw meeting notes or a pasted transcript, produces:
 
@@ -21,7 +21,7 @@ import json
 import re
 from datetime import datetime, timedelta, date
 
-from rag.llm.gemini import get_llm
+from rag.llm_provider import get_llm_provider as get_llm
 
 SYSTEM_PROMPT = """You are an assistant that converts raw meeting notes or transcripts into structured Minutes of Meeting (MOM) for a corporate policy/knowledge platform.
 

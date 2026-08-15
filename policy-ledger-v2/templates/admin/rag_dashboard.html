@@ -59,7 +59,7 @@
       {{ row('Avg Latency (Miss)', llm_avg_ms ~ ' ms' if llm_avg_ms else '—') }}
       {{ row('Avg Latency (Hit)', '~10 ms (Redis)') }}
       {{ row('Cascade (Ollama)', ollama_req|int ~ ' reqs') }}
-      {{ row('Cascade (Gemini)', gemini_req|int ~ ' reqs') }}
+      
       {{ row('Real Token Cost', '$' ~ cost_usd) }}
       {{ row('Grounding Rejections', grounding_rej|int) }}
     </table>

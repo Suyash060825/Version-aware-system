@@ -294,90 +294,6 @@ class VLLMProvider(LLMProvider):
             return False
 
 
-class GeminiProvider(LLMProvider):
-    """
-    Provider for Google Gemini API or OpenRouter endpoint.
-    Configurable via GEMINI_API_KEY or OPENROUTER_API_KEY.
-    """
-
-    def __init__(self, model: Optional[str] = None):
-        if os.environ.get("OPENROUTER_API_KEY"):
-            self.api_key = os.environ.get("OPENROUTER_API_KEY")
-            self.base_url = "https://openrouter.ai/api/v1"
-            self.model = model or os.environ.get("LLM_MODEL", "google/gemini-2.0-flash-001")
-        else:
-            self.api_key = os.environ.get("GEMINI_API_KEY", "")
-            self.base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
-            raw_model = model or os.environ.get("LLM_MODEL", "google/gemini-2.0-flash-001")
-            # Map OpenRouter google/ prefix to direct Gemini model name if needed
-            if raw_model.startswith("google/"):
-                self.model = raw_model.replace("google/", "").replace(":free", "")
-                if self.model == "gemini-2.0-flash-001":
-                    self.model = "gemini-2.0-flash"
-            else:
-                self.model = raw_model
-
-    def generate(
-        self,
-        prompt: str | List[Dict[str, str]],
-        *,
-        system: Optional[str] = None,
-        max_tokens: int = 1024,
-        temperature: float = 0.2,
-        stream: bool = False,
-        **kwargs
-    ) -> LLMResponse:
-        if not self.api_key:
-            logger.warning("[GeminiProvider] No API key set. Falling back to ExtractiveProvider.")
-            return ExtractiveProvider().generate(prompt, system=system)
-
-        try:
-            from openai import OpenAI
-            client = OpenAI(base_url=self.base_url, api_key=self.api_key)
-            
-            if isinstance(prompt, str):
-                messages = []
-                if system:
-                    messages.append({"role": "system", "content": system})
-                messages.append({"role": "user", "content": prompt})
-            else:
-                messages = prompt
-                if system and not any(m.get("role") == "system" for m in messages):
-                    messages = [{"role": "system", "content": system}] + messages
-
-            resp = client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature
-            )
-            content = resp.choices[0].message.content.strip()
-            usage = {
-                "prompt_tokens": getattr(resp.usage, "prompt_tokens", 0),
-                "completion_tokens": getattr(resp.usage, "completion_tokens", 0)
-            } if hasattr(resp, "usage") and resp.usage else {}
-
-            return LLMResponse(
-                text=content,
-                raw_response=None,
-                model=self.model,
-                usage=usage,
-                fallback=False
-            )
-        except Exception as e:
-            logger.error(f"[GeminiProvider] Error generating completion: {e}")
-            fallback_resp = ExtractiveProvider().generate(prompt, system=system)
-            fallback_resp.error = f"Gemini error: {str(e)}"
-            return fallback_resp
-
-    def embed(self, texts: List[str]) -> List[List[float]]:
-        # Fall back or return empty if not supported
-        return []
-
-    def health_check(self) -> bool:
-        return bool(self.api_key)
-
-
 class ExtractiveProvider(LLMProvider):
     """
     Zero-dependency non-AI extractive fallback provider.
@@ -451,117 +367,28 @@ class ExtractiveProvider(LLMProvider):
         return True
 
 
-class CascadeProvider(LLMProvider):
-    def __init__(self, primary: LLMProvider, secondary: LLMProvider):
-        self.primary = primary
-        self.secondary = secondary
-        self.extractive = ExtractiveProvider()
-        
-        # Circuit breaker state for primary provider
-        self.cb_state = "closed" # closed, open, half-open
-        self.cb_failures = 0
-        self.cb_max_failures = 3
-        self.cb_last_failure_time = 0
-        self.cb_reset_timeout = 60 # seconds
-
-    def _execute_with_retry(self, provider: LLMProvider, max_retries: int, prompt, **kwargs):
-        import time
-        last_err = None
-        for attempt in range(max_retries):
-            resp = provider.generate(prompt, **kwargs)
-            if not (resp.fallback or resp.error):
-                return resp
-            last_err = resp
-            if attempt < max_retries - 1:
-                time.sleep(2 ** attempt) # Exponential backoff
-        return last_err
-
-    def generate(
-        self,
-        prompt: str | List[Dict[str, str]],
-        *,
-        system: Optional[str] = None,
-        max_tokens: int = 1024,
-        temperature: float = 0.2,
-        stream: bool = False,
-        use_secondary: bool = False,
-        **kwargs
-    ) -> LLMResponse:
-        import time
-        from rag.metrics import LLM_REQUESTS, LLM_LATENCY
-        
-        logger.info(f"[CascadeProvider] Routing request: use_secondary={use_secondary}")
-        
-        # Check circuit breaker state
-        if self.cb_state == "open":
-            if time.time() - self.cb_last_failure_time > self.cb_reset_timeout:
-                self.cb_state = "half-open"
-            else:
-                logger.warning("[CascadeProvider] Primary circuit is OPEN. Forcing secondary.")
-                use_secondary = True
-
-        provider = self.secondary if use_secondary else self.primary
-        backend_name = provider.__class__.__name__
-        
-        LLM_REQUESTS.labels(backend=backend_name).inc()
-        start_time = time.time()
-        
-        # Execute with retry
-        resp = self._execute_with_retry(provider, max_retries=2, prompt=prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
-        
-        LLM_LATENCY.labels(backend=backend_name).observe(time.time() - start_time)
-        
-        # Update circuit breaker
-        if not use_secondary:
-            if resp.fallback or resp.error:
-                self.cb_failures += 1
-                self.cb_last_failure_time = time.time()
-                if self.cb_failures >= self.cb_max_failures or self.cb_state == "half-open":
-                    self.cb_state = "open"
-            else:
-                if self.cb_state == "half-open":
-                    self.cb_state = "closed"
-                    self.cb_failures = 0
-        
-        if resp.fallback or resp.error:
-            logger.warning(f"[CascadeProvider] {provider.__class__.__name__} failed. Falling back.")
-            alt_provider = self.primary if use_secondary else self.secondary
-            if self.cb_state == "open" and alt_provider == self.primary:
-                # Do not try primary if circuit is open
-                alt_resp = resp
-            else:
-                alt_resp = self._execute_with_retry(alt_provider, max_retries=2, prompt=prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
-            
-            if alt_resp.fallback or alt_resp.error:
-                logger.warning("[CascadeProvider] Both backends failed. Using Extractive.")
-                resp = self.extractive.generate(prompt, system=system, max_tokens=max_tokens, temperature=temperature, stream=stream)
-            else:
-                resp = alt_resp
-        return resp
-
-    def embed(self, texts: List[str]) -> List[List[float]]:
-        res = self.primary.embed(texts)
-        if not res:
-            res = self.secondary.embed(texts)
-        return res
-
-    def health_check(self) -> bool:
-        return self.primary.health_check() or self.secondary.health_check()
-
-
-
 # Cache provider instance
 _provider_instance: Optional[LLMProvider] = None
 
 
 def get_llm_provider(force_reload: bool = False) -> LLMProvider:
-    """
-    Factory function returning the configured LLMProvider instance.
-    Checks environment variable LLM_BACKEND ('ollama', 'vllm', 'gemini', 'extractive').
-    """
     global _provider_instance
     if _provider_instance and not force_reload:
         return _provider_instance
+
+    backend = os.environ.get("LLM_BACKEND", "ollama").lower().strip()
+
+    if backend == "vllm":
+        logger.info("[LLMProvider] Initializing VLLMProvider")
+        _provider_instance = VLLMProvider()
+    elif backend == "extractive":
+        logger.info("[LLMProvider] Initializing ExtractiveProvider")
+        _provider_instance = ExtractiveProvider()
+    else:
+        logger.info("[LLMProvider] Initializing OllamaProvider")
+        _provider_instance = OllamaProvider(timeout=180)
+
+    return _provider_instance
 
     backend = os.environ.get("LLM_BACKEND", os.environ.get("LLM_PROVIDER", "cascade")).lower().strip()
 

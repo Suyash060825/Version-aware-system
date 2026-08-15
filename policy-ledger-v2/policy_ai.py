@@ -23,7 +23,7 @@ import json
 import re
 import difflib
 
-from rag.llm.gemini import get_llm
+from rag.llm_provider import get_llm_provider as get_llm
 
 WORDS_PER_MINUTE = 200
 
