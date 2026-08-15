@@ -132,7 +132,7 @@ def api_feedback():
 @rag_bp.route("/api/sessions/<session_id>/history")
 @login_required
 def api_session_history(session_id):
-    session_obj = ChatSession.query.get(session_id)
+    session_obj = db.session.get(ChatSession, session_id)
     if not session_obj or session_obj.user_id != current_user.id:
         from flask import abort
         abort(403)
@@ -149,7 +149,7 @@ def api_session_history(session_id):
 @login_required
 def api_clear_session():
     sid = request.get_json(force=True).get("session_id")
-    session_obj = ChatSession.query.get(sid)
+    session_obj = db.session.get(ChatSession, sid)
     if not session_obj or session_obj.user_id != current_user.id:
         from flask import abort
         abort(403)

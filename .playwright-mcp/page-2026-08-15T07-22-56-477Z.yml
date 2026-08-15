@@ -1,0 +1,259 @@
+- generic [ref=f4e2]:
+  - generic [ref=f4e3]:
+    - generic [ref=f4e4]:
+      - generic [ref=f4e5]: §
+      - generic [ref=f4e6]:
+        - generic [ref=f4e7]: Policy Ledger
+        - generic [ref=f4e8]: Acme Corp
+    - navigation [ref=f4e9]:
+      - generic [ref=f4e10]: Admin
+      - link [ref=f4e11] [cursor=pointer]:
+        - /url: /admin/
+      - link [ref=f4e18] [cursor=pointer]:
+        - /url: /admin/policies
+      - link [ref=f4e25] [cursor=pointer]:
+        - /url: /admin/policies/new
+      - link [ref=f4e30] [cursor=pointer]:
+        - /url: /admin/users
+      - link [ref=f4e37] [cursor=pointer]:
+        - /url: /admin/categories
+      - link [ref=f4e42] [cursor=pointer]:
+        - /url: /admin/audit-center
+      - link [ref=f4e50] [cursor=pointer]:
+        - /url: /admin/compliance
+      - link [ref=f4e56] [cursor=pointer]:
+        - /url: /admin/governance
+      - link [ref=f4e62] [cursor=pointer]:
+        - /url: /admin/confusion-index
+      - link [ref=f4e68] [cursor=pointer]:
+        - /url: /admin/contradictions
+      - link [ref=f4e74] [cursor=pointer]:
+        - /url: /admin/knowledge-graph
+      - link [ref=f4e86] [cursor=pointer]:
+        - /url: /admin/what-if-queue
+      - link [active] [ref=f4e92] [cursor=pointer]:
+        - /url: /rag/admin/dashboard
+      - link [ref=f4e100] [cursor=pointer]:
+        - /url: /admin/ai-analytics
+      - link [ref=f4e106] [cursor=pointer]:
+        - /url: /admin/search-analytics
+      - link [ref=f4e112] [cursor=pointer]:
+        - /url: /admin/bi-dashboard
+      - link [ref=f4e117] [cursor=pointer]:
+        - /url: /admin/workflows
+      - link [ref=f4e124] [cursor=pointer]:
+        - /url: /admin/leaderboard
+      - generic [ref=f4e129]: Employee
+      - link [ref=f4e130] [cursor=pointer]:
+        - /url: /dashboard
+      - link [ref=f4e135] [cursor=pointer]:
+        - /url: /onboarding
+      - link [ref=f4e140] [cursor=pointer]:
+        - /url: /meetings
+      - link [ref=f4e147] [cursor=pointer]:
+        - /url: /my-action-items
+      - link [ref=f4e152] [cursor=pointer]:
+        - /url: /rag/chat
+      - link [ref=f4e160] [cursor=pointer]:
+        - /url: /what-if
+      - link [ref=f4e166] [cursor=pointer]:
+        - /url: /policies
+      - link [ref=f4e171] [cursor=pointer]:
+        - /url: /search
+      - link [ref=f4e176] [cursor=pointer]:
+        - /url: /search/advanced
+      - link [ref=f4e182] [cursor=pointer]:
+        - /url: /saved
+      - link [ref=f4e186] [cursor=pointer]:
+        - /url: /rewards
+      - link [ref=f4e191] [cursor=pointer]:
+        - /url: /notifications
+    - generic [ref=f4e196]:
+      - generic [ref=f4e197]: System Admin
+      - generic [ref=f4e198]: admin
+      - generic [ref=f4e199]:
+        - link "Profile" [ref=f4e200] [cursor=pointer]:
+          - /url: /auth/profile
+        - link "Sign out" [ref=f4e201] [cursor=pointer]:
+          - /url: /auth/logout
+  - generic [ref=f4e202]:
+    - generic [ref=f4e203]:
+      - textbox "Search policies…" [ref=f4e211]
+      - generic [ref=f4e212]:
+        - link "Notifications" [ref=f4e213] [cursor=pointer]:
+          - /url: /notifications
+        - link "System Admin" [ref=f4e218] [cursor=pointer]:
+          - /url: /auth/profile
+    - generic [ref=f4e219]:
+      - generic [ref=f4e221]:
+        - heading "AI & RAG Dashboard" [level=1] [ref=f4e222]
+        - paragraph [ref=f4e223]: Vector database health, indexing jobs, and search analytics
+      - generic [ref=f4e224]:
+        - generic [ref=f4e225]:
+          - generic [ref=f4e226]: "5"
+          - generic [ref=f4e227]: Indexed policies
+        - generic [ref=f4e228]:
+          - generic [ref=f4e229]: "36"
+          - generic [ref=f4e230]: Total chunks
+        - generic [ref=f4e231]:
+          - generic [ref=f4e232]: "0"
+          - generic [ref=f4e233]: Total queries
+        - generic [ref=f4e234]:
+          - generic [ref=f4e235]: "0"
+          - generic [ref=f4e236]: Failed index jobs
+        - generic [ref=f4e237]:
+          - generic [ref=f4e238]: "0"
+          - generic [ref=f4e239]: Unanswered queries
+      - generic [ref=f4e240]:
+        - generic [ref=f4e241]:
+          - generic [ref=f4e242]: Vector database status
+          - table [ref=f4e243]:
+            - rowgroup [ref=f4e244]:
+              - row [ref=f4e245]:
+                - cell "Engine" [ref=f4e246]
+                - cell "ChromaDB (persistent)" [ref=f4e247]
+              - row [ref=f4e248]:
+                - cell "Embedding model" [ref=f4e249]
+                - cell "BAAI/bge-small-en-v1.5" [ref=f4e250]
+              - row [ref=f4e251]:
+                - cell "Total vectors" [ref=f4e252]
+                - cell "0" [ref=f4e253]
+              - row [ref=f4e254]:
+                - cell "Collection" [ref=f4e255]
+                - cell "policy_chunks" [ref=f4e256]
+              - row [ref=f4e257]:
+                - cell "Storage path" [ref=f4e258]
+                - cell "/home/suyashpradhan/Desktop/Version aware/policy-ledger-v2/rag/vectordb/../../data/chroma" [ref=f4e259]
+              - row [ref=f4e260]:
+                - cell "LLM provider" [ref=f4e261]
+                - cell "Gemini via OpenRouter (google/gemma-3-12b-it:free)" [ref=f4e262]
+              - row [ref=f4e263]:
+                - cell "Status" [ref=f4e264]
+                - cell "Healthy" [ref=f4e265]
+        - generic [ref=f4e266]:
+          - generic [ref=f4e267]: Feedback summary
+          - generic [ref=f4e268]:
+            - generic [ref=f4e269]:
+              - generic [ref=f4e270]: "0"
+              - generic [ref=f4e271]: Helpful
+            - generic [ref=f4e272]:
+              - generic [ref=f4e273]: "0"
+              - generic [ref=f4e274]: Not helpful
+            - generic [ref=f4e275]:
+              - generic [ref=f4e276]: Satisfaction rate
+              - generic [ref=f4e278]: 0%
+          - generic [ref=f4e279]: Top searched topics
+          - generic [ref=f4e280]: No queries yet
+      - generic [ref=f4e281]:
+        - generic [ref=f4e282]:
+          - generic [ref=f4e283]: Observability & Cascade
+          - table [ref=f4e284]:
+            - rowgroup [ref=f4e285]:
+              - row [ref=f4e286]:
+                - cell "Cache Hit Rate" [ref=f4e287]
+                - cell "0%" [ref=f4e288]
+              - row [ref=f4e289]:
+                - cell "Avg Latency (Miss)" [ref=f4e290]
+                - cell "—" [ref=f4e291]
+              - row [ref=f4e292]:
+                - cell "Avg Latency (Hit)" [ref=f4e293]
+                - cell "~10 ms (Redis)" [ref=f4e294]
+              - row [ref=f4e295]:
+                - cell "Cascade (Ollama)" [ref=f4e296]
+                - cell "0 reqs" [ref=f4e297]
+              - row [ref=f4e298]:
+                - cell "Cascade (Gemini)" [ref=f4e299]
+                - cell "0 reqs" [ref=f4e300]
+              - row [ref=f4e301]:
+                - cell "Real Token Cost" [ref=f4e302]
+                - cell "$0.0" [ref=f4e303]
+              - row [ref=f4e304]:
+                - cell "Grounding Rejections" [ref=f4e305]
+                - cell "0" [ref=f4e306]
+        - generic [ref=f4e307]:
+          - generic [ref=f4e308]: Blast Radius (Invalidation)
+          - generic [ref=f4e309]: When policies are updated, cached answers that depend on them are invalidated to prevent stale output.
+          - generic [ref=f4e310]: "0"
+          - generic [ref=f4e311]: Cached answers invalidated by version drift
+      - generic [ref=f4e312]:
+        - generic [ref=f4e313]: Re-index policies
+        - paragraph [ref=f4e314]: Click to re-index a policy version into the vector database. Do this after editing policy content.
+        - table [ref=f4e317]:
+          - rowgroup [ref=f4e318]:
+            - row [ref=f4e319]:
+              - columnheader "Policy" [ref=f4e320]
+              - columnheader "Version" [ref=f4e321]
+              - columnheader "Status" [ref=f4e322]
+              - columnheader [ref=f4e323]
+          - rowgroup [ref=f4e324]:
+            - row [ref=f4e325]:
+              - cell "Code of Conduct" [ref=f4e326]
+              - cell "v1.0" [ref=f4e327]
+              - cell "active" [ref=f4e328]
+              - cell [ref=f4e330]:
+                - button "Index" [ref=f4e331] [cursor=pointer]
+            - row [ref=f4e332]:
+              - cell "IT Security Policy" [ref=f4e333]
+              - cell "v1.0" [ref=f4e334]
+              - cell "active" [ref=f4e335]
+              - cell [ref=f4e337]:
+                - button "Index" [ref=f4e338] [cursor=pointer]
+            - row [ref=f4e339]:
+              - cell "Leave Policy" [ref=f4e340]
+              - cell "v2.0" [ref=f4e341]
+              - cell "active" [ref=f4e342]
+              - cell [ref=f4e344]:
+                - button "Index" [ref=f4e345] [cursor=pointer]
+            - row [ref=f4e346]:
+              - cell "Remote Work Policy" [ref=f4e347]
+              - cell "v2.0" [ref=f4e348]
+              - cell "active" [ref=f4e349]
+              - cell [ref=f4e351]:
+                - button "Index" [ref=f4e352] [cursor=pointer]
+            - row [ref=f4e353]:
+              - cell "Travel & Expense Policy" [ref=f4e354]
+              - cell "v1.0" [ref=f4e355]
+              - cell "active" [ref=f4e356]
+              - cell [ref=f4e358]:
+                - button "Index" [ref=f4e359] [cursor=pointer]
+      - generic [ref=f4e360]:
+        - generic [ref=f4e361]: Recent indexing jobs
+        - table [ref=f4e363]:
+          - rowgroup [ref=f4e364]:
+            - row [ref=f4e365]:
+              - columnheader "Time" [ref=f4e366]
+              - columnheader "Policy" [ref=f4e367]
+              - columnheader "Chunks" [ref=f4e368]
+              - columnheader "Status" [ref=f4e369]
+              - columnheader "Error" [ref=f4e370]
+          - rowgroup [ref=f4e371]:
+            - row [ref=f4e372]:
+              - cell "13 Aug 17:25" [ref=f4e373]
+              - 'cell "Policy #5" [ref=f4e374]'
+              - cell "7" [ref=f4e375]
+              - cell "success" [ref=f4e376]
+              - cell "—" [ref=f4e378]
+            - row [ref=f4e379]:
+              - cell "13 Aug 17:25" [ref=f4e380]
+              - 'cell "Policy #4" [ref=f4e381]'
+              - cell "7" [ref=f4e382]
+              - cell "success" [ref=f4e383]
+              - cell "—" [ref=f4e385]
+            - row [ref=f4e386]:
+              - cell "13 Aug 17:24" [ref=f4e387]
+              - 'cell "Policy #3" [ref=f4e388]'
+              - cell "7" [ref=f4e389]
+              - cell "success" [ref=f4e390]
+              - cell "—" [ref=f4e392]
+            - row [ref=f4e393]:
+              - cell "13 Aug 17:24" [ref=f4e394]
+              - 'cell "Policy #2" [ref=f4e395]'
+              - cell "8" [ref=f4e396]
+              - cell "success" [ref=f4e397]
+              - cell "—" [ref=f4e399]
+            - row [ref=f4e400]:
+              - cell "13 Aug 17:24" [ref=f4e401]
+              - 'cell "Policy #1" [ref=f4e402]'
+              - cell "7" [ref=f4e403]
+              - cell "success" [ref=f4e404]
+              - cell "—" [ref=f4e406]

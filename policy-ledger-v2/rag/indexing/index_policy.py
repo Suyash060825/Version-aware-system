@@ -32,8 +32,8 @@ def index_policy_version(policy_id: int, version_id: int, app=None) -> dict:
         from rag.embeddings.embedder import get_embedder
         from rag.vectordb.chroma import get_store
 
-        policy = Policy.query.get(policy_id)
-        version = PolicyVersion.query.get(version_id)
+        policy = db.session.get(Policy, policy_id)
+        version = db.session.get(PolicyVersion, version_id)
 
         if not policy or not version:
             result["error"] = "Policy or version not found"

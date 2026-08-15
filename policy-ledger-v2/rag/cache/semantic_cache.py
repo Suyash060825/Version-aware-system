@@ -15,13 +15,13 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 class SemanticCache:
     def __init__(self):
         self.use_redis = False
+        self.local_cache = []
         try:
             self.redis = redis.from_url(REDIS_URL)
             self.redis.ping()
             self.use_redis = True
         except Exception:
             self.redis = None
-            self.local_cache = []
 
     def _cosine_similarity(self, a, b):
         return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
@@ -184,6 +184,8 @@ class SemanticCache:
                         if str(policy_id) in cited and cited[str(policy_id)] != active_version_id:
                             self.redis.delete(k)
                             count += 1
+        
+        if hasattr(self, "local_cache"):
             new_cache = []
             for entry in self.local_cache:
                 cited = entry.get("cited_policies", {})

@@ -15,7 +15,7 @@ from flask import Blueprint, render_template
 from flask_login import login_required
 from sqlalchemy import func
 
-from models import (db, Policy, PolicyVersion, PolicyStatus, PolicyCategory, Priority,
+from models import (db, db, Policy, PolicyVersion, PolicyStatus, PolicyCategory, Priority,
                     Department, User, UserRole, PolicyAcknowledgement, AuditLog,
                     SearchHistory, Meeting, WorkflowStageInstance)
 from utils import role_required
@@ -188,7 +188,7 @@ def bi_dashboard():
                      .group_by(AuditLog.user_id).order_by(func.count(AuditLog.id).desc()).limit(8).all())
     most_active = []
     for uid, cnt in activity_rows:
-        u = User.query.get(uid)
+        u = db.session.get(User, uid)
         if u:
             most_active.append({"name": u.name, "count": cnt})
 

@@ -69,7 +69,7 @@ class OllamaProvider(LLMProvider):
         self,
         base_url: Optional[str] = None,
         model: Optional[str] = None,
-        timeout: int = 60
+        timeout: int = 180
     ):
         self.base_url = (
             base_url
@@ -301,7 +301,7 @@ class GeminiProvider(LLMProvider):
     """
 
     def __init__(self, model: Optional[str] = None):
-        self.api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENROUTER_API_KEY", "")
+        self.api_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("GEMINI_API_KEY", "")
         self.model = model or os.environ.get("LLM_MODEL", "google/gemini-2.0-flash-001")
         self.base_url = "https://openrouter.ai/api/v1"
 
@@ -560,7 +560,7 @@ def get_llm_provider(force_reload: bool = False) -> LLMProvider:
         _provider_instance = CascadeProvider(primary, secondary)
     elif backend == "ollama":
         logger.info("[LLMProvider] Initializing OllamaProvider")
-        _provider_instance = OllamaProvider()
+        _provider_instance = OllamaProvider(timeout=180)
     elif backend == "vllm":
         logger.info("[LLMProvider] Initializing VLLMProvider")
         _provider_instance = VLLMProvider()

@@ -17,7 +17,7 @@ from flask import (Blueprint, render_template, redirect, url_for,
                    flash, request, jsonify, abort, current_app)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from models import (db, Policy, PolicyVersion, PolicyCategory, PolicyStatus,
+from models import (db, db, Policy, PolicyVersion, PolicyCategory, PolicyStatus,
                     User, UserRole, Department, Tag, ApprovalWorkflow,
                     ApprovalStage, ApprovalStatus, NotificationType,
                     AuditLog, PolicyAcknowledgement, WorkflowTemplate,
@@ -464,8 +464,8 @@ def version_compare(policy_id):
     v2_id = request.args.get("v2", type=int)
 
     versions = policy.versions.order_by(PolicyVersion.version_num.desc()).all()
-    v1 = PolicyVersion.query.get(v1_id) if v1_id else (versions[1] if len(versions) > 1 else None)
-    v2 = PolicyVersion.query.get(v2_id) if v2_id else (versions[0] if versions else None)
+    v1 = db.session.get(PolicyVersion, v1_id) if v1_id else (versions[1] if len(versions) > 1 else None)
+    v2 = db.session.get(PolicyVersion, v2_id) if v2_id else (versions[0] if versions else None)
 
     diff = {}
     if v1 and v2:

@@ -19,7 +19,7 @@ _embed_dedup_lock = threading.Lock()
 
 
 def _run_diff_agent(query: str, session_id: str, q_vec: list, allowed_depts: list, provider, store) -> dict:
-    from models import Policy, PolicyVersion
+    from models import db, Policy, PolicyVersion
     from rag.chatbot.memory import add_message
     
     hits = store.search(
@@ -39,7 +39,7 @@ def _run_diff_agent(query: str, session_id: str, q_vec: list, allowed_depts: lis
     from collections import Counter
     target_policy_id = Counter(policy_ids).most_common(1)[0][0]
     
-    policy = Policy.query.get(target_policy_id)
+    policy = db.session.get(Policy, target_policy_id)
     if not policy:
         return None
         
@@ -229,7 +229,8 @@ def answer(
             "fallback": True,
             "model": provider.get_model_name() if hasattr(provider, "get_model_name") else getattr(provider, "model", "none"),
             "cache_hit": False,
-            "usage": {}
+            "usage": {},
+            "confidence": 0
         }
         if stream:
             def generate_empty():
@@ -249,9 +250,8 @@ def answer(
     use_secondary = confidence_score < 60 or is_diff_query
     augmented_query = query
     # 4.5 Diff-aware augmentation
-    is_diff_query = False
-    if any(k in query.lower() for k in ["diff", "change", "compare", "difference"]):
-        is_diff_query = True
+    _is_diff_for_augment = any(k in query.lower() for k in ["diff", "change", "compare", "difference"])
+    if _is_diff_for_augment:
         try:
             from models import PolicyVersion
             policy_ids = list(set([int(c.get("policy_id")) for c in top_chunks if c.get("policy_id")]))
