@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Flask Web Application (Dev Mode)
+  # ============================================================================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: policy_ledger_app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-prod}
+      - LLM_BACKEND=${LLM_BACKEND:-cascade}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-llama3.2:3b-instruct-q4_K_M}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+      - app_data:/app/data
+    depends_on:
+      ollama:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # ============================================================================
+  # Redis Cache & Message Broker
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: policy_ledger_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # ============================================================================
+  # Ollama Local LLM Inference Engine
+  # ============================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: policy_ledger_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  ollama_data:
+  app_data:
+  redis_data:
+

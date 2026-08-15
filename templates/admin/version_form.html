@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}New Version — {{ policy.title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>New Version — {{ policy.title }}</h1>
+    <p>Current version: <strong>{{ policy.current_version }}</strong> · Create a minor (1.0→1.1) or major (1.0→2.0) version bump</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{{ url_for('admin.policy_detail', policy_id=policy.id) }}" class="btn btn-ghost">Cancel</a>
+  </div>
+</div>
+{% if error %}<div class="alert alert-danger mb2">{{ error }}</div>{% endif %}
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+  <div class="grid2 mb2">
+    <div class="card">
+      <div class="card-label">Version settings</div>
+      <div class="field">
+        <label>Version bump type</label>
+        <div class="seg">
+          <button type="button" class="seg-btn active" id="btn-minor" onclick="setBump('minor')">Minor ({{ policy.current_version }} → next minor)</button>
+          <button type="button" class="seg-btn" id="btn-major" onclick="setBump('major')">Major (→ next major)</button>
+        </div>
+        <input type="hidden" name="bump_type" id="bump_type" value="minor">
+      </div>
+      <div class="field"><label>What changed? (required)</label><input name="summary" placeholder="e.g. Remote days increased from 2 to 3. Equipment clause updated." required></div>
+      <div class="field"><label>Reason for change</label><input name="change_reason" placeholder="e.g. Annual policy review, employee feedback"></div>
+      <div class="field"><label>New effective date</label><input type="date" name="effective_date"></div>
+    </div>
+    {% if current_ver %}
+    <div class="card">
+      <div class="card-label">Previous version content ({{ current_ver.version_label }}) — for reference</div>
+      <div style="font-family:var(--font-mono);font-size:12px;line-height:1.6;white-space:pre-wrap;max-height:260px;overflow-y:auto;color:var(--ink2)">{{ current_ver.content }}</div>
+    </div>
+    {% endif %}
+  </div>
+  <div class="card mb2">
+    <div class="card-label">Import from a file (optional)</div>
+    <p style="font-size:12.5px;color:var(--ink3,#777);margin:0 0 .6rem">Upload a PDF, Word (.docx) or Excel (.xlsx) file to replace the content below with its text — review before saving.</p>
+    <div class="gap-row" style="align-items:center;flex-wrap:wrap">
+      <input type="file" id="versionFileInput" accept=".pdf,.docx,.xlsx,.xls,.txt,.md" style="flex:1;min-width:220px;font-size:13px">
+      <button type="button" class="btn btn-sm btn-secondary" onclick="extractVersionFromFile()" id="extractVersionFileBtn">⇪ Extract &amp; fill</button>
+    </div>
+    <div id="versionFileImportStatus" style="font-size:12.5px;margin-top:.5rem;display:none"></div>
+  </div>
+
+  <div class="card mb2">
+    <div class="card-label">New version content *</div>
+    <div class="field" style="margin:0">
+      <textarea name="content" id="versionContent" rows="20" placeholder="Write the full updated policy text here…" required>{{ current_ver.content if current_ver else '' }}</textarea>
+    </div>
+  </div>
+  <div class="gap-row">
+    <button type="submit" class="btn btn-primary">Create version</button>
+    <a href="{{ url_for('admin.policy_detail', policy_id=policy.id) }}" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>
+<script>
+async function extractVersionFromFile() {
+  const input = document.getElementById('versionFileInput');
+  const statusEl = document.getElementById('versionFileImportStatus');
+  const btn = document.getElementById('extractVersionFileBtn');
+  if (!input.files || !input.files.length) { alert('Choose a PDF, Word or Excel file first.'); return; }
+
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+
+  btn.disabled = true; btn.textContent = 'Extracting…';
+  statusEl.style.display = 'block';
+  statusEl.style.color = 'var(--ink3,#777)';
+  statusEl.textContent = 'Reading file…';
+
+  try {
+    const res = await fetch("{{ url_for('admin.policy_extract_file') }}", { method: 'POST', body: formData });
+    const d = await res.json();
+    if (d.success) {
+      document.getElementById('versionContent').value = d.content;
+      statusEl.style.color = 'var(--success,#1a7f37)';
+      statusEl.textContent = `Imported "${d.filename}"` + (d.truncated ? ' (content was long and got trimmed).' : '. Review the content below before saving.');
+      if (typeof showToast === 'function') showToast('File imported — review before saving');
+    } else {
+      statusEl.style.color = 'var(--danger,#c0392b)';
+      statusEl.textContent = d.error || 'Could not extract text from that file.';
+    }
+  } catch (e) {
+    statusEl.style.color = 'var(--danger,#c0392b)';
+    statusEl.textContent = 'Error uploading file.';
+  } finally {
+    btn.disabled = false; btn.textContent = '⇪ Extract & fill';
+  }
+}
+
+function setBump(type){
+  document.getElementById('bump_type').value=type;
+  document.getElementById('btn-minor').classList.toggle('active', type==='minor');
+  document.getElementById('btn-major').classList.toggle('active', type==='major');
+}
+</script>
+{% endblock %}
