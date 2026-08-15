@@ -67,7 +67,7 @@ def mfa_verify():
     if not user_id:
         return redirect(url_for("auth.login"))
 
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     error = None
 
     if request.method == "POST":

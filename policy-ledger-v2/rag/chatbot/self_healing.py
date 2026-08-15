@@ -9,7 +9,7 @@ def trigger_self_healing(msg_id: int):
     # Setup context
     app = create_app("development")
     with app.app_context():
-        msg = ChatMessage.query.get(msg_id)
+        msg = db.session.get(ChatMessage, msg_id)
         if not msg or msg.role != "assistant":
             return
             

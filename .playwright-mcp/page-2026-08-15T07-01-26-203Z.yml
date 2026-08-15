@@ -1,0 +1,22 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: §
+    - generic [ref=e6]: Policy Ledger
+    - text: Sign in to your account
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]: Email address
+      - textbox "Email address" [ref=e10]:
+        - /placeholder: you@company.com
+        - text: admin@company.com
+    - generic [ref=e11]:
+      - generic [ref=e12]: Password
+      - textbox "Password" [active] [ref=e13]:
+        - /placeholder: ••••••••
+        - text: Admin@1234!
+    - generic [ref=e14]:
+      - checkbox "Remember me for 30 days" [ref=e15]
+      - text: Remember me for 30 days
+    - button "Sign in →" [ref=e16] [cursor=pointer]
+  - link "Create account" [ref=e18] [cursor=pointer]:
+    - /url: /auth/register

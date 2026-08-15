@@ -48,7 +48,7 @@ class SentenceTransformerEmbedder(BaseEmbedder):
         from sentence_transformers import SentenceTransformer
         self._model_name = model_name
         self._model = SentenceTransformer(model_name)
-        self._dim = self._model.get_sentence_embedding_dimension()
+        self._dim = self._model.get_embedding_dimension()
         self._is_bge = "bge" in model_name.lower()
 
     def embed(self, texts: list[str]) -> list[list[float]]:

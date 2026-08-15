@@ -35,7 +35,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, render_template
 from flask_login import login_required
 
-from models import (ChatMessage, ChatSession, Feedback, SearchHistory,
+from models import (db, ChatMessage, ChatSession, Feedback, SearchHistory,
                     Policy, UserRole)
 from utils import role_required
 
@@ -99,7 +99,7 @@ def _failed_answers(limit=15):
              .order_by(Feedback.created_at.desc()).limit(200).all())
     out = []
     for f in downs[:limit]:
-        msg = ChatMessage.query.get(f.message_id) if f.message_id else None
+        msg = db.session.get(ChatMessage, f.message_id) if f.message_id else None
         out.append({
             "answer": (msg.content[:220] if msg else "(message not found)"),
             "comment": f.comment,
@@ -137,7 +137,7 @@ def _popular_policies(limit=10):
     ranked = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:limit]
     out = []
     for pid, cnt in ranked:
-        p = Policy.query.get(pid)
+        p = db.session.get(Policy, pid)
         if p:
             out.append({"policy": p, "citation_count": cnt})
     return out

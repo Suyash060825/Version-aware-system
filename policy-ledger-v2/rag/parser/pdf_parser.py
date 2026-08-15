@@ -43,7 +43,7 @@ def _extract_pdf(filepath: str) -> str:
 
     # Try PyMuPDF first
     try:
-        import fitz  # PyMuPDF
+        import pymupdf as fitz  # PyMuPDF
         doc = fitz.open(filepath)
         pages = []
         for page_num, page in enumerate(doc, 1):

@@ -13,7 +13,11 @@ from config import config
 from models import db, bcrypt, User
 
 login_manager = LoginManager()
-limiter = Limiter(key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri=os.environ.get("REDIS_URL", "memory://"),
+)
 csrf = CSRFProtect()
 
 
@@ -73,7 +77,7 @@ def create_app(env="default"):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        return db.session.get(User, int(user_id))
 
     # Blueprints
     from blueprints.auth import auth_bp

@@ -76,7 +76,7 @@ def audit_dashboard():
                 .group_by(AuditLog.user_id).order_by(func.count(AuditLog.id).desc()).limit(10).all())
     top_users_data = []
     for uid, cnt in top_users:
-        u = User.query.get(uid)
+        u = db.session.get(User, uid)
         if u:
             top_users_data.append({"user": u, "count": cnt})
 
