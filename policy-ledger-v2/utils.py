@@ -11,6 +11,34 @@ from flask import request, abort
 from flask_login import current_user
 from models import db, AuditLog, Notification, Policy, User
 
+def rate_limit_key_user_or_ip():
+    """Key builder for Flask-Limiter: per-user when authenticated, per-IP otherwise."""
+    from flask_limiter.util import get_remote_address
+    if current_user and current_user.is_authenticated:
+        return f"user:{current_user.id}"
+    return get_remote_address() or "127.0.0.1"
+
+def extract_json(text: str) -> dict | None:
+    """Shared JSON extraction helper for all AI modules."""
+    import re
+    if not text:
+        return None
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+    text = re.sub(r"\s*```$", "", text)
+    try:
+        obj = json.loads(text)
+        return obj if isinstance(obj, dict) else None
+    except (ValueError, TypeError):
+        pass
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        try:
+            obj = json.loads(match.group(0))
+            return obj if isinstance(obj, dict) else None
+        except (ValueError, TypeError):
+            pass
+    return None
+
 
 # ---------- Role guards ----------
 def role_required(*roles):

@@ -17,12 +17,8 @@ Tables:
 """
 import json
 from datetime import datetime, timezone
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-from flask_bcrypt import Bcrypt
-
-db = SQLAlchemy()
-bcrypt = Bcrypt()
+from extensions import db, bcrypt
 
 
 # ---------- Helpers ----------
@@ -844,7 +840,7 @@ class WorkflowStageInstance(db.Model):
     def is_overdue(self):
         if not self.sla_due_at or self.status != WorkflowStageStatus.PENDING:
             return False
-        return datetime.now(timezone.utc).replace(tzinfo=None) > self.sla_due_at
+        return datetime.now(timezone.utc) > self.sla_due_at
 
     def can_user_act(self, user) -> bool:
         return any(a.user_can_act(user) for a in self.actions)

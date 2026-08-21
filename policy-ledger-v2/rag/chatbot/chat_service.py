@@ -11,8 +11,9 @@ from rag.chatbot.citations import build_citations
 from rag.chatbot.memory import get_history, add_message
 from rag.cache.semantic_cache import get_cache
 import threading
+import os
 
-RELEVANCE_THRESHOLD = 0.10
+RELEVANCE_THRESHOLD = float(os.environ.get("RELEVANCE_THRESHOLD", "0.01"))
 
 _embed_dedup_cache = {}
 _embed_dedup_lock = threading.Lock()
@@ -111,7 +112,8 @@ def answer(
     # Role-based department filtering
     allowed_depts = None
     if user_role == "employee" and user_department:
-        allowed_depts = [user_department, ""]  # own dept + company-wide
+        # Include company-wide policies, their own department, and core policy departments
+        allowed_depts = [user_department, "", "Human Resources", "IT", "Legal"]
     elif user_role in ("hr", "admin"):
         allowed_depts = None  # no restriction
 
@@ -227,7 +229,7 @@ def answer(
             "chunks_used": 0,
             "session_id": session_id,
             "fallback": True,
-            "model": provider.get_model_name() if hasattr(provider, "get_model_name") else getattr(provider, "model", "none"),
+            "model": provider.get_model_name(),
             "cache_hit": False,
             "usage": {},
             "confidence": 0
@@ -285,33 +287,11 @@ def answer(
         except Exception as e:
             pass
 
-    # 4.9 Prompt compression
-    # Extract only top-N most query-relevant sentences per chunk before prompting
-    import re
-    compressed_chunks = []
-    q_tokens_cmp = set(re.findall(r"[a-z0-9]+", query.lower()))
-    for c in top_chunks:
-        sentences = re.split(r'(?<=[.!?])\s+', c.get("text", "").strip())
-        if len(sentences) > 3:
-            s_scores = []
-            for s in sentences:
-                s_toks = set(re.findall(r"[a-z0-9]+", s.lower()))
-                overlap = len(q_tokens_cmp & s_toks) / max(len(s_toks), 1)
-                s_scores.append((overlap, s))
-            s_scores.sort(key=lambda x: x[0], reverse=True)
-            # Keep top 3 most relevant sentences in original order
-            top_s = [s[1] for s in sorted(s_scores[:3], key=lambda x: sentences.index(x[1]))]
-            new_c = dict(c)
-            new_c["text"] = " ".join(top_s)
-            compressed_chunks.append(new_c)
-        else:
-            compressed_chunks.append(c)
-
     # 5. Build prompt with conversation memory & prompt engineering guards
     history = get_history(session_id)
     messages = build_prompt(
         augmented_query,
-        compressed_chunks,
+        top_chunks,
         chat_history=history,
         user_role=user_role,
         user_department=user_department,
@@ -337,7 +317,8 @@ def answer(
         # 6. Generate answer via LLMProvider
         t0 = time.time()
         # H1 fix: only pass use_secondary to CascadeProvider
-        kwargs = {"use_secondary": use_secondary} if getattr(provider, "__class__", None).__name__ == "CascadeProvider" else {}
+        from rag.llm_provider import CascadeProvider
+        kwargs = {"use_secondary": use_secondary} if isinstance(provider, CascadeProvider) else {}
         try:
             llm_resp = provider.generate(messages, **kwargs)
         except Exception as e:

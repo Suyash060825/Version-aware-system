@@ -32,7 +32,8 @@ def index_policy_version_task(self, policy_id: int, version_id: int):
     Offloads heavy sentence-transformer embedding & ChromaDB upserts off Flask request threads.
     """
     from app import create_app
-    app = create_app(os.environ.get("FLASK_ENV", "development"))
+    env = os.environ.get("FLASK_ENV") or os.environ.get("APP_ENV", "production")
+    app = create_app(env)
     
     with app.app_context():
         from rag.indexing.index_policy import index_policy_version

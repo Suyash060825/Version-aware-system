@@ -13,7 +13,8 @@ Covers:
 import unittest
 from unittest.mock import patch, MagicMock, call
 
-from whatif_ai import evaluate_scenario, _heuristic_verdict, _extract_json
+from whatif_ai import evaluate_scenario, _heuristic_verdict
+from utils import extract_json
 
 
 class _StubResponse:
@@ -192,25 +193,21 @@ class TestWhatIfUncoveredBranches(unittest.TestCase):
         self.assertEqual(res["verdict"], "unclear")
         self.assertTrue(res["flagged_for_hr"])
 
-    # ── Branch: _extract_json with nested braces in text ─────────────────────
+    # ── Branch: extract_json with nested braces in text ─────────────────────
     def test_extract_json_with_surrounding_text(self):
-        """_extract_json must extract a valid dict even with prose around it."""
-        text = 'Here is the answer: {"verdict": "depends", "confidence": 55} end of response.'
-        result = _extract_json(text)
-        self.assertIsNotNone(result)
-        self.assertEqual(result["verdict"], "depends")
-        self.assertEqual(result["confidence"], 55)
+        text = "Here is the json:\n```json\n{\"verdict\": \"compliant\"}\n```\nHope it helps."
+        result = extract_json(text)
+        self.assertEqual(result, {"verdict": "compliant"})
 
     def test_extract_json_returns_none_for_list(self):
-        """_extract_json must return None if JSON is a list, not a dict."""
-        text = '[{"verdict": "compliant"}]'
-        result = _extract_json(text)
+        # Even if valid JSON, if it's a list instead of a dict, it should return None
+        text = "[\"compliant\", \"depends\"]"
+        result = extract_json(text)
         self.assertIsNone(result)
 
     def test_extract_json_empty_string(self):
-        """_extract_json must return None for empty/None input."""
-        self.assertIsNone(_extract_json(""))
-        self.assertIsNone(_extract_json(None))
+        self.assertIsNone(extract_json(""))
+        self.assertIsNone(extract_json(None))
 
     # ── Branch: employee with department → filters correctly ─────────────────
     @patch("whatif_ai.get_llm_provider",
