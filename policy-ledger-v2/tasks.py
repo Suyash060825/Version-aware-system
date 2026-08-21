@@ -53,3 +53,17 @@ def index_policy_version_task(self, policy_id: int, version_id: int):
                 # Non-retryable: fail immediately with a clear message
                 raise RuntimeError(f"Non-retryable indexing failure: {error_msg}")
         return result
+
+@celery_app.task(name="tasks.self_healing_task", bind=True, max_retries=2, default_retry_delay=10)
+def self_healing_task(self, msg_id: int):
+    """
+    Asynchronous Celery task for self-healing a bad response.
+    """
+    from rag.chatbot.self_healing import trigger_self_healing
+    try:
+        trigger_self_healing(msg_id)
+        return {"success": True}
+    except Exception as e:
+        import logging
+        logging.getLogger("celery.tasks").error(f"[Celery] self_healing_task failed: {e}")
+        raise self.retry(exc=e)

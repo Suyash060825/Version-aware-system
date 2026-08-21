@@ -37,6 +37,11 @@ meetings_bp = Blueprint("meetings", __name__)
 def _can_manage(meeting):
     return current_user.is_admin() or meeting.organizer_id == current_user.id or current_user.can_manage_policies()
 
+def _can_view(meeting):
+    if _can_manage(meeting):
+        return True
+    return any(p.user_id == current_user.id for p in meeting.participants.all())
+
 
 def _unread_count():
     return Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
@@ -156,9 +161,7 @@ def meeting_detail(meeting_id):
     participants = meeting.participants.all()
     action_items = meeting.action_items.order_by(MeetingActionItem.status, MeetingActionItem.due_date).all()
     decisions = meeting.decisions.order_by(MeetingDecision.created_at).all()
-    is_participant = any(p.user_id == current_user.id for p in participants)
-
-    if not (is_participant or current_user.is_admin() or current_user.can_manage_policies()):
+    if not _can_view(meeting):
         flash("You don't have access to this meeting.", "warning")
         return redirect(url_for("meetings.list_meetings"))
 
@@ -388,6 +391,8 @@ def delete_action_item(item_id):
 @login_required
 def calendar_export(meeting_id):
     meeting = Meeting.query.get_or_404(meeting_id)
+    if not _can_view(meeting):
+        abort(403)
     items = meeting.action_items.filter(MeetingActionItem.due_date.isnot(None)).all()
     ics = build_action_items_ics(items, calendar_name=f"{meeting.title} — Action Items")
     return Response(ics, mimetype="text/calendar",

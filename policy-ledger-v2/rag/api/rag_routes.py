@@ -29,13 +29,20 @@ def chat_page():
 
 
 @rag_bp.route("/api/chat", methods=["POST"])
-@csrf.exempt
 @login_required
 @limiter.limit("20 per minute", key_func=rate_limit_key_user_or_ip)
 def api_chat():
     data = request.get_json(force=True)
     query = (data.get("query") or "").strip()
-    session_id = data.get("session_id") or _get_or_create_session()
+    session_id = data.get("session_id")
+    
+    if session_id:
+        from models import ChatSession
+        cs = ChatSession.query.get(session_id)
+        if not cs or cs.user_id != current_user.id:
+            return jsonify({"error": "Unauthorized session_id"}), 403
+    else:
+        session_id = _get_or_create_session()
 
     if not query:
         return jsonify({"error": "Empty query"}), 400
@@ -114,7 +121,6 @@ def api_chat():
 
 
 @rag_bp.route("/api/feedback", methods=["POST"])
-@csrf.exempt
 @login_required
 def api_feedback():
     data = request.get_json(force=True)
@@ -128,8 +134,12 @@ def api_feedback():
     # never trust it blindly, since the FK column will reject anything else.
     try:
         msg_id = int(data.get("message_id"))
+        from models import ChatMessage
+        msg = ChatMessage.query.get(msg_id)
+        if not msg or msg.role != "assistant" or not msg.session or msg.session.user_id != current_user.id:
+            return jsonify({"error": "Unauthorized message_id"}), 403
     except (TypeError, ValueError):
-        msg_id = None
+        return jsonify({"error": "Invalid message_id"}), 400
 
     fb = Feedback(
         user_id=current_user.id,
@@ -142,10 +152,14 @@ def api_feedback():
     db.session.commit()
     
     if vote == "down" and msg_id:
-        from rag.chatbot.self_healing import trigger_self_healing
-        import threading
-        # Run in background to avoid blocking response
-        threading.Thread(target=trigger_self_healing, args=(msg_id,)).start()
+        try:
+            from tasks import self_healing_task
+            self_healing_task.delay(msg_id)
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.warning(f"Failed to queue self_healing_task via Celery: {e}. Executing synchronously.")
+            from rag.chatbot.self_healing import trigger_self_healing
+            trigger_self_healing(msg_id)
 
     return jsonify({"ok": True})
 
@@ -166,7 +180,6 @@ def api_session_history(session_id):
 
 
 @rag_bp.route("/api/sessions/clear", methods=["POST"])
-@csrf.exempt
 @login_required
 def api_clear_session():
     sid = request.get_json(force=True).get("session_id")
