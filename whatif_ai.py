@@ -105,8 +105,12 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
     llm = get_llm_provider()
 
     allowed_depts = None
-    if user_role == "employee" and user_department:
-        allowed_depts = [user_department, ""]
+    if user_role == "employee":
+        allowed_depts = [user_department, ""] if user_department else [""]
+    elif user_role == "manager":
+        allowed_depts = [user_department, "", "Management"] if user_department else ["", "Management"]
+    elif user_role in ("hr", "admin"):
+        allowed_depts = None
 
     q_vec = embedder.embed_query(scenario)
     hits = store.search(

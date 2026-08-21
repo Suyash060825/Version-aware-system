@@ -118,9 +118,10 @@ def answer(
 
     # Role-based department filtering
     allowed_depts = None
-    if user_role == "employee" and user_department:
-        # Include company-wide policies, their own department, and core policy departments
-        allowed_depts = [user_department, "", "Human Resources", "IT", "Legal"]
+    if user_role == "employee":
+        allowed_depts = [user_department, ""] if user_department else [""]
+    elif user_role == "manager":
+        allowed_depts = [user_department, "", "Management"] if user_department else ["", "Management"]
     elif user_role in ("hr", "admin"):
         allowed_depts = None  # no restriction
 
@@ -339,7 +340,7 @@ def answer(
 
     # Guardrails: Output check
     if not is_fallback:
-        answer_text = apply_output_guardrails(answer_text, top_chunks)
+        answer_text = apply_output_guardrails(answer_text, top_chunks, user_role=user_role)
         if "blocked by safety filters" in answer_text or "hallucinated citation" in answer_text:
             is_fallback = True
 

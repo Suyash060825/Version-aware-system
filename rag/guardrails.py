@@ -51,15 +51,15 @@ def check_input_guardrails(query: str) -> tuple[bool, str]:
     return True, ""
 
 
-def apply_output_guardrails(text: str, top_chunks: list[dict] = None) -> str:
+def apply_output_guardrails(text: str, top_chunks: list[dict] = None, user_role: str = "employee") -> str:
     """
     Applies output guardrails like PII redaction and citation checking.
     """
     if not text:
         return text
         
-    # 1. PII Redaction
-    if GUARDRAILS_CONFIG["OUTPUT_REDACT_PII"]:
+    # 1. PII Redaction (HR and Admin should see PII, employees should not)
+    if GUARDRAILS_CONFIG["OUTPUT_REDACT_PII"] and user_role not in ("hr", "admin"):
         for pattern, replacement in PII_PATTERNS:
             text = pattern.sub(replacement, text)
             

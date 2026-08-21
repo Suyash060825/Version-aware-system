@@ -73,6 +73,10 @@ def build_prompt(
         dept = chunk.get("department", "Company-Wide")
         
         sanitized_body = sanitize_chunk_content(chunk.get("text", ""))
+        
+        if user_role not in ("hr", "admin"):
+            from rag.guardrails import apply_document_pii_redaction
+            sanitized_body = apply_document_pii_redaction(sanitized_body)
 
         block = (
             f'<policy_chunk id="{chunk_id}" index="{i}" policy="{policy_name}" '
