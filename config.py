@@ -63,7 +63,15 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+
+    # Enforce secure secrets in production
+    if os.environ.get("FLASK_ENV") == "production" or os.environ.get("APP_ENV") == "production":
+        if not os.environ.get("SECRET_KEY") or os.environ.get("SECRET_KEY") == "change-this-in-production-please":
+            raise ValueError("SECRET_KEY must be securely set in production.")
+        if os.environ.get("DEFAULT_ADMIN_PASSWORD", "Admin@1234") == "Admin@1234":
+            raise ValueError("DEFAULT_ADMIN_PASSWORD must be securely set in production.")
 
 
 class TestingConfig(Config):

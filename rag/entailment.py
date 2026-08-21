@@ -57,14 +57,18 @@ def verify_entailment(answer: str, chunks: list[dict]) -> tuple[bool, float]:
                 e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
                 return e_x / e_x.sum(axis=-1, keepdims=True)
             
-            probs = softmax(scores) if len(scores.shape) > 1 else softmax(np.array([scores]))[0]
-                        label2id = {k.lower(): v for k, v in nli.config.label2id.items()}
-            entailment_idx = label2id.get('entailment', 2)
+            probs = softmax(scores)
             
-            if len(probs.shape) > 1:
-                entailment_scores = probs[:, entailment_idx]
-            else:
-                entailment_scores = np.array([probs[entailment_idx]])
+            # Robustly find entailment index
+            entailment_idx = 1 # default if not found
+            if hasattr(nli.model, "config") and hasattr(nli.model.config, "label2id"):
+                label2id = {k.lower(): v for k, v in nli.model.config.label2id.items()}
+                entailment_idx = label2id.get("entailment", 1)
+            
+            if len(probs.shape) == 1:
+                probs = probs.reshape(1, -1)
+                
+            entailment_scores = probs[:, entailment_idx]
             
             # Require average entailment > 0.35
             avg_score = float(entailment_scores.mean())

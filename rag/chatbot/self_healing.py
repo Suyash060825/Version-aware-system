@@ -3,11 +3,12 @@ from models import db, ChatMessage
 from rag.llm_provider import get_llm_provider
 from rag.cache.semantic_cache import get_cache
 from rag.embeddings.embedder import get_embedder
-from app import create_app
 
 def trigger_self_healing(msg_id: int):
-    # Setup context
-    app = create_app("development")
+    import os
+    from app import create_app  # deferred to avoid circular import at module load
+    env = os.environ.get("FLASK_ENV", "development")
+    app = create_app(env)
     with app.app_context():
         msg = db.session.get(ChatMessage, msg_id)
         if not msg or msg.role != "assistant":
@@ -61,13 +62,25 @@ Please write a corrected, highly accurate answer to the user's question based st
             
             # Inject into Semantic Cache to act as a "corrected anchor" for future queries
             cache = get_cache()
+            
+            # Reconstruct dummy citations with actual policy IDs and active version IDs to participate in version invalidation
+            from models import PolicyVersion
+            citations = []
+            for h in hits[:5]:
+                pid = h.get("policy_id")
+                if pid:
+                    ver = PolicyVersion.query.filter_by(policy_id=pid, is_active=True).first()
+                    vid = ver.id if ver else None
+                    citations.append({"policy_id": pid, "version_id": vid, "title": h.get("title", "Self-Healed")})
+            
             cache.put(
                 query_embedding=q_vec,
                 answer=corrected_answer,
-                citations=[{"id": "self-healed", "title": "Self-Healed Correction", "version": "latest", "section": "Diagnostic"}],
-                chunks_used=5,
-                policy_ids=policy_ids,
-                ttl=86400 * 30  # 30 days
+                citations=citations,
+                chunks_used=len(hits[:5]),
+                allowed_depts=None,
+                model="self-healed",
+                is_diff_query=False
             )
             print(f"[Self-Healing] Successfully patched cache for query: {query}")
         except Exception as e:

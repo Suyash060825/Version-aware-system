@@ -11,9 +11,30 @@ Features:
 """
 import os
 from typing import Optional
+import redis
 
 CHROMA_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "chroma")
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
+def _get_redis():
+    try:
+        r = redis.from_url(REDIS_URL)
+        r.ping()
+        return r
+    except Exception:
+        return None
+
+def _bump_bm25_revision():
+    r = _get_redis()
+    if r:
+        r.incr("bm25_revision")
+
+def _get_bm25_revision():
+    r = _get_redis()
+    if r:
+        val = r.get("bm25_revision")
+        return int(val) if val else 0
+    return 0
 
 def _get_client():
     try:
@@ -91,6 +112,7 @@ class VectorStore:
         ]
         self._col.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
         self._bm25_index = None
+        _bump_bm25_revision()
 
     def delete_policy_version(self, policy_id: int, version: str):
         """Remove all chunks for a specific policy version."""
@@ -102,8 +124,10 @@ class VectorStore:
             if results["ids"]:
                 self._col.delete(ids=results["ids"])
                 self._bm25_index = None
-        except Exception:
-            pass
+                _bump_bm25_revision()
+        except Exception as e:
+            import logging
+            logging.getLogger("rag.chroma").error(f"Chroma operation failed: {e}")
 
     def delete_policy(self, policy_id: int):
         """Remove all chunks for a policy (all versions)."""
@@ -112,8 +136,10 @@ class VectorStore:
             if results["ids"]:
                 self._col.delete(ids=results["ids"])
                 self._bm25_index = None
-        except Exception:
-            pass
+                _bump_bm25_revision()
+        except Exception as e:
+            import logging
+            logging.getLogger("rag.chroma").error(f"Chroma operation failed: {e}")
 
     # ----------------------------------------------------------------
     # Retrieval
@@ -152,7 +178,9 @@ class VectorStore:
         hits = []
         
         # Build lazy BM25 index if not built or if corpus changed
-        if not hasattr(self, "_bm25_index") or self._bm25_index is None:
+        current_rev = _get_bm25_revision()
+        if not hasattr(self, "_bm25_index") or self._bm25_index is None or getattr(self, "_bm25_revision", -1) != current_rev:
+            self._bm25_revision = current_rev
             all_docs = self._col.get(include=["documents", "metadatas"])
             self._bm25_ids = all_docs["ids"]
             self._bm25_docs = all_docs["documents"]

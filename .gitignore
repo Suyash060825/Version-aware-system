@@ -25,3 +25,14 @@ eval_results_raw.txt
 # Local development instances and eval datasets
 instance/
 eval/
+
+# Runtime databases and artifacts
+*.rdb
+dump.rdb
+*.sqlite
+*.sqlite3
+data/ledger.db
+data/chroma/
+data/uploads/
+.pytest_cache/
+__pycache__/

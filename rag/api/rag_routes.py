@@ -29,13 +29,20 @@ def chat_page():
 
 
 @rag_bp.route("/api/chat", methods=["POST"])
-@csrf.exempt
 @login_required
 @limiter.limit("20 per minute", key_func=rate_limit_key_user_or_ip)
 def api_chat():
     data = request.get_json(force=True)
     query = (data.get("query") or "").strip()
-    session_id = data.get("session_id") or _get_or_create_session()
+    session_id = data.get("session_id")
+    
+    if session_id:
+        from models import ChatSession
+        cs = ChatSession.query.get(session_id)
+        if not cs or cs.user_id != current_user.id:
+            return jsonify({"error": "Unauthorized session_id"}), 403
+    else:
+        session_id = _get_or_create_session()
 
     if not query:
         return jsonify({"error": "Empty query"}), 400
@@ -51,7 +58,10 @@ def api_chat():
     if is_stream:
         from flask import Response
         import json
-        
+
+        # We need to capture the final result to persist it
+        final_holder = {}
+
         def generate_stream():
             for chunk in rag_answer(
                 query=query,
@@ -60,9 +70,25 @@ def api_chat():
                 user_department=dept,
                 stream=True
             ):
+                if "final" in chunk:
+                    final_holder["result"] = chunk["final"]
                 yield f"data: {json.dumps(chunk)}\n\n"
-        
-        return Response(generate_stream(), mimetype="text/event-stream")
+
+        response = Response(generate_stream(), mimetype="text/event-stream")
+
+        @response.call_on_close
+        def persist_after_stream():
+            result = final_holder.get("result")
+            if result:
+                _save_message(
+                    session_id, query, result["answer"], result["citations"],
+                    result["chunks_used"], model_name=result.get("model"),
+                    cache_hit=result.get("cache_hit", False),
+                    usage=result.get("usage", {})
+                )
+                _save_search_history(query, result)
+
+        return response
         
     result = rag_answer(
         query=query,
@@ -95,7 +121,6 @@ def api_chat():
 
 
 @rag_bp.route("/api/feedback", methods=["POST"])
-@csrf.exempt
 @login_required
 def api_feedback():
     data = request.get_json(force=True)
@@ -109,8 +134,12 @@ def api_feedback():
     # never trust it blindly, since the FK column will reject anything else.
     try:
         msg_id = int(data.get("message_id"))
+        from models import ChatMessage
+        msg = ChatMessage.query.get(msg_id)
+        if not msg or msg.role != "assistant" or not msg.session or msg.session.user_id != current_user.id:
+            return jsonify({"error": "Unauthorized message_id"}), 403
     except (TypeError, ValueError):
-        msg_id = None
+        return jsonify({"error": "Invalid message_id"}), 400
 
     fb = Feedback(
         user_id=current_user.id,
@@ -123,10 +152,14 @@ def api_feedback():
     db.session.commit()
     
     if vote == "down" and msg_id:
-        from rag.chatbot.self_healing import trigger_self_healing
-        import threading
-        # Run in background to avoid blocking response
-        threading.Thread(target=trigger_self_healing, args=(msg_id,)).start()
+        try:
+            from tasks import self_healing_task
+            self_healing_task.delay(msg_id)
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.warning(f"Failed to queue self_healing_task via Celery: {e}. Executing synchronously.")
+            from rag.chatbot.self_healing import trigger_self_healing
+            trigger_self_healing(msg_id)
 
     return jsonify({"ok": True})
 
@@ -147,7 +180,6 @@ def api_session_history(session_id):
 
 
 @rag_bp.route("/api/sessions/clear", methods=["POST"])
-@csrf.exempt
 @login_required
 def api_clear_session():
     sid = request.get_json(force=True).get("session_id")
@@ -293,14 +325,18 @@ def health_check():
         from sqlalchemy import text
         db.session.execute(text("SELECT 1"))
     except Exception as e:
-        db_status = f"error: {str(e)}"
+        import logging
+        logging.getLogger("rag.health").error(f"DB Health Check Failed: {e}")
+        db_status = "error"
 
     chroma_status = "ok"
     try:
         from rag.vectordb.chroma import get_store
         get_store().stats()
     except Exception as e:
-        chroma_status = f"error: {str(e)}"
+        import logging
+        logging.getLogger("rag.health").error(f"Chroma Health Check Failed: {e}")
+        chroma_status = "error"
 
     healthy = (db_status == "ok" and chroma_status == "ok")
     return jsonify({
@@ -313,15 +349,11 @@ def health_check():
 
 @rag_bp.route("/health/llm", methods=["GET"])
 def llm_health_check():
-    import os
     from rag.llm_provider import get_llm_provider
     provider = get_llm_provider()
     is_healthy = provider.health_check()
-    model = getattr(provider, "model", "unknown")
     return jsonify({
         "healthy": is_healthy,
-        "backend": os.environ.get("LLM_BACKEND", os.environ.get("LLM_PROVIDER", "ollama")),
-        "model": model,
         "timestamp": datetime.utcnow().isoformat()
     }), (200 if is_healthy else 503)
 

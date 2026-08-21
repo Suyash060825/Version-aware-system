@@ -111,13 +111,23 @@ def delete_policy_from_index(policy_id: int):
         from models import db, PolicyChunk
         PolicyChunk.query.filter_by(policy_id=policy_id).delete()
         db.session.commit()
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger("rag.indexing").error(f"Error in index_policy: {e}")
+        from models import db
+        try: db.session.rollback() 
+        except: pass
         pass
 
     try:
         from rag.cache.semantic_cache import get_cache
         get_cache().invalidate_for_policy(policy_id, -1)
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger("rag.indexing").error(f"Error in index_policy: {e}")
+        from models import db
+        try: db.session.rollback() 
+        except: pass
         pass
 
 
@@ -137,7 +147,12 @@ def _save_chunks_to_db(policy_id: int, version_id: int, chunks):
             )
             db.session.add(pc)
         db.session.commit()
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger("rag.indexing").error(f"Error in index_policy: {e}")
+        from models import db
+        try: db.session.rollback() 
+        except: pass
         pass
 
 
@@ -154,5 +169,10 @@ def _log_indexing_job(policy_id, version_id, chunks_count, error):
         )
         db.session.add(job)
         db.session.commit()
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger("rag.indexing").error(f"Error in index_policy: {e}")
+        from models import db
+        try: db.session.rollback() 
+        except: pass
         pass

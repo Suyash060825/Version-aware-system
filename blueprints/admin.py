@@ -176,7 +176,7 @@ def policy_create():
                 policy.tags.append(tag)
 
             db.session.add(policy)
-            db.session.flush()  # get policy.id
+            # db.session.flush()  # get policy.id
 
             # First version
             version = PolicyVersion(
@@ -185,6 +185,8 @@ def policy_create():
                 version_label="v1.0",
                 content=content,
                 summary=request.form.get("change_summary", "Initial version"),
+                # PolicyVersion.query.filter_by(policy_id=policy.id, is_active=True).update({"is_active": False})
+                # db.session.flush()
                 change_reason="Policy created",
                 created_by_id=current_user.id,
                 is_active=True,
@@ -424,6 +426,8 @@ def version_create(policy_id):
                 content=content,
                 summary=summary,
                 diff_json=json.dumps(diff),
+                # PolicyVersion.query.filter_by(policy_id=policy.id, is_active=True).update({"is_active": False})
+                # db.session.flush()
                 change_reason=change_reason,
                 created_by_id=current_user.id,
                 is_active=True,
@@ -586,7 +590,7 @@ def policy_duplicate(policy_id):
         status=PolicyStatus.DRAFT,
     )
     db.session.add(new_policy)
-    db.session.flush()
+    # db.session.flush()
 
     if orig_ver:
         new_ver = PolicyVersion(
@@ -594,6 +598,8 @@ def policy_duplicate(policy_id):
             version_num=1.0,
             version_label="v1.0",
             content=orig_ver.content,
+            # PolicyVersion.query.filter_by(policy_id=new_policy.id, is_active=True).update({"is_active": False})
+            # db.session.flush()
             summary=f"Duplicated from {orig.policy_id} {orig.current_version}",
             created_by_id=current_user.id,
             is_active=True,
@@ -654,11 +660,32 @@ def submit_for_review(policy_id):
 
 @admin_bp.route("/approvals/<int:approval_id>/act", methods=["POST"])
 @login_required
-@hr_required
 def approval_act(approval_id):
     approval = ApprovalWorkflow.query.get_or_404(approval_id)
     action = request.form.get("action")  # "approve" or "reject"
     comment = request.form.get("comment", "").strip()
+
+    if approval.status != ApprovalStatus.PENDING:
+        flash("Approval is not pending.", "danger")
+        return redirect(url_for("admin.policy_detail", policy_id=approval.policy_id))
+
+    # Check eligible role
+    is_authorized = current_user.is_admin()
+    if not is_authorized:
+        if approval.stage == ApprovalStage.HR_REVIEW and current_user.role == UserRole.HR:
+            is_authorized = True
+        elif approval.stage == ApprovalStage.MANAGEMENT and current_user.role == UserRole.MANAGER:
+            is_authorized = True
+        # LEGAL_REVIEW requires Admin since there is no Legal role
+
+    if not is_authorized or not current_user.is_active:
+        abort(403)
+
+    # Validate active version context
+    active_ver = PolicyVersion.query.filter_by(policy_id=approval.policy_id, is_active=True).first()
+    if not active_ver or active_ver.id != approval.version_id:
+        flash("This approval applies to an older version.", "danger")
+        return redirect(url_for("admin.policy_detail", policy_id=approval.policy_id))
 
     approval.actor_id = current_user.id
     approval.comment = comment

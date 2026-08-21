@@ -1,3 +1,4 @@
+import time
 """
 rag/chatbot/chat_service.py
 Full RAG pipeline: question → embed → retrieve → rerank → prompt → pluggable LLM → cite
@@ -123,12 +124,7 @@ def answer(
     elif user_role in ("hr", "admin"):
         allowed_depts = None  # no restriction
 
-    import time
-    from rag.metrics import RETRIEVAL_LATENCY, RERANK_LATENCY, CACHE_LATENCY, GUARDRAIL_LATENCY, GENERATION_LATENCY
-
-
     # Guardrails: Input check
-    from rag.guardrails import check_input_guardrails, apply_output_guardrails
     t0 = time.time()
     is_allowed, fallback_msg = check_input_guardrails(query)
     GUARDRAIL_LATENCY.observe(time.time() - t0)
@@ -271,8 +267,9 @@ def answer(
                     diffs.append(f"Diff for Policy {pid} (v{versions[1].version_label} -> v{versions[0].version_label}): {versions[0].diff_json or 'None'}")
             if diffs:
                 augmented_query = augmented_query + "\n\nPolicy Diffs:\n" + "\n".join(diffs) + "\n\nPlease contrast the versions based on the above diffs and excerpts."
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger("rag.chat_service").warning(f"[DiffAugment] Failed: {e}")
 
     # 4.8 Contradiction-aware generation
     if top_chunks:
@@ -292,7 +289,8 @@ def answer(
                         flag_texts.append(f"Policies {f.policy_a_id} and {f.policy_b_id} have an open contradiction flag: {f.description}")
                     augmented_query = augmented_query + "\n\nWARNING: " + "\n".join(flag_texts) + "\n\nDo not silently pick one side. Explicitly state the contradiction in your answer."
         except Exception as e:
-            pass
+            import logging
+            logging.getLogger("rag.chat_service").warning(f"[ContradictionCheck] Failed: {e}")
 
     # 5. Build prompt with conversation memory & prompt engineering guards
     history = get_history(session_id)
