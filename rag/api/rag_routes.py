@@ -8,7 +8,8 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template, session
 from flask_login import login_required, current_user
 from models import db, ChatSession, ChatMessage, SearchHistory, Feedback, IndexingJob, PolicyChunk
-from app import csrf
+from extensions import csrf, limiter
+from utils import rate_limit_key_user_or_ip
 
 rag_bp = Blueprint("rag", __name__, url_prefix="/rag")
 
@@ -30,6 +31,7 @@ def chat_page():
 @rag_bp.route("/api/chat", methods=["POST"])
 @csrf.exempt
 @login_required
+@limiter.limit("20 per minute", key_func=rate_limit_key_user_or_ip)
 def api_chat():
     data = request.get_json(force=True)
     query = (data.get("query") or "").strip()

@@ -37,25 +37,7 @@ def _strip_fences(text: str) -> str:
     text = re.sub(r"\s*```$", "", text)
     return text.strip()
 
-
-def _extract_json(text: str) -> dict | None:
-    for candidate in (text, _strip_fences(text)):
-        try:
-            obj = json.loads(candidate)
-            if isinstance(obj, dict):
-                return obj
-        except (ValueError, TypeError):
-            continue
-    match = re.search(r"\{.*\}", text or "", re.DOTALL)
-    if match:
-        try:
-            obj = json.loads(match.group(0))
-            if isinstance(obj, dict):
-                return obj
-        except (ValueError, TypeError):
-            pass
-    return None
-
+from utils import extract_json
 
 _REFUSAL_MARKER = "I couldn't find this information"
 
@@ -231,7 +213,7 @@ def find_conflicts(target_title: str, target_content: str, candidates: list) -> 
         user = (f"POLICY A ('{target_title}'):\n{target_content[:2500]}\n\n"
                f"POLICY B ('{title}'):\n{content[:2500]}\n\nCompare them now.")
         raw = _llm_text(system, user)
-        parsed = _extract_json(raw) if raw else None
+        parsed = extract_json(raw) if raw else None
         if parsed and parsed.get("conflict"):
             conflicts.append({
                 "policy_id": policy_id, "title": title,
@@ -277,7 +259,7 @@ def generate_insights(content: str, title: str) -> dict:
                "impact_analysis": "", "reading_time_minutes": 0}
 
     raw = _llm_text(INSIGHTS_SYSTEM_PROMPT, f"POLICY TITLE: {title}\n\nPOLICY TEXT:\n{content}\n\nProduce the JSON now.")
-    parsed = _extract_json(raw) if raw else None
+    parsed = extract_json(raw) if raw else None
     if not parsed:
         parsed = _heuristic_insights(content, title)
 

@@ -78,8 +78,11 @@ class SemanticCache:
                     best_score = 1.0
                     
             if not best_match:
-                # 2. Cosine similarity scan
-                for k in self.redis.scan_iter("vssc:*"):
+                # 2. Cosine similarity scan (capped to recent entries)
+                import time
+                recent_keys = self.redis.zrevrange("vssc_index", 0, 499)
+                for key_bytes in recent_keys:
+                    k = f"vssc:{key_bytes.decode()}"
                     data = self.redis.get(k)
                     if data:
                         entry = json.loads(data)
@@ -163,6 +166,8 @@ class SemanticCache:
             self.redis.setex(exact_key, 86400, json.dumps(entry))
             
             key_id = exact_hash
+            import time
+            self.redis.zadd("vssc_index", {key_id: time.time()})
             self.redis.setex(f"vssc:{key_id}", 86400, json.dumps(entry))
         else:
             self.local_cache.append(entry)

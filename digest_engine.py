@@ -98,10 +98,12 @@ def send_weekly_digests() -> dict:
             skipped += 1
             continue
 
+        from datetime import timedelta, datetime, timezone
         already_sent = Notification.query.filter(
             Notification.user_id == user.id,
             Notification.link == f"/policies/{policy.id}",
             Notification.title.like(f"{DIGEST_TITLE_PREFIX}%"),
+            Notification.created_at >= (datetime.now(timezone.utc) - timedelta(days=7)),
         ).first()
         if already_sent:
             skipped += 1

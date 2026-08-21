@@ -18,9 +18,14 @@ CHROMA_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "chrom
 def _get_client():
     try:
         import chromadb
+        chroma_host = os.environ.get("CHROMA_HOST")
+        chroma_port = int(os.environ.get("CHROMA_PORT", 8001))
+        if chroma_host and chroma_host not in ("localhost", "127.0.0.1"):
+            # Use HTTP client for remote/dockerized ChromaDB
+            return chromadb.HttpClient(host=chroma_host, port=chroma_port)
+        # Fall back to embedded persistent client
         os.makedirs(CHROMA_PATH, exist_ok=True)
-        client = chromadb.PersistentClient(path=CHROMA_PATH)
-        return client
+        return chromadb.PersistentClient(path=CHROMA_PATH)
     except ImportError:
         raise ImportError("chromadb not installed. Run: pip install chromadb")
 
@@ -41,6 +46,20 @@ class VectorStore:
         embedder = get_embedder()
         self._client = _get_client()
         self._col = _get_collection(self._client, embedder.dimension)
+        
+        # I2 Fix: Dimension mismatch check
+        import logging
+        collection_meta = self._col.metadata or {}
+        stored_model = collection_meta.get("embedder_model")
+        current_model = embedder.model_name
+        if stored_model and stored_model != current_model:
+            logging.warning(
+                f"[ChromaDB] Dimension mismatch: collection was built with '{stored_model}' "
+                f"but current embedder is '{current_model}'. Search results may be incorrect."
+            )
+        elif not stored_model:
+            # Update metadata if not present
+            self._col.modify(metadata={"embedder_model": current_model})
 
     # ----------------------------------------------------------------
     # Indexing

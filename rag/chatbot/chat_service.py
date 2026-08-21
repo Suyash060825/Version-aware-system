@@ -11,76 +11,83 @@ from rag.chatbot.citations import build_citations
 from rag.chatbot.memory import get_history, add_message
 from rag.cache.semantic_cache import get_cache
 import threading
+import os
 
-RELEVANCE_THRESHOLD = 0.10
+RELEVANCE_THRESHOLD = float(os.environ.get("RELEVANCE_THRESHOLD", "0.01"))
 
 _embed_dedup_cache = {}
 _embed_dedup_lock = threading.Lock()
 
 
 def _run_diff_agent(query: str, session_id: str, q_vec: list, allowed_depts: list, provider, store) -> dict:
-    from models import db, Policy, PolicyVersion
-    from rag.chatbot.memory import add_message
-    
-    hits = store.search(
-        query_embedding=q_vec,
-        query_text=query,
-        top_k=5,
-        active_only=False,
-        allowed_departments=allowed_depts,
-    )
-    if not hits:
-        return None
+    try:
+        from models import db, Policy, PolicyVersion
+        from rag.chatbot.memory import add_message
         
-    policy_ids = [int(h.get("policy_id")) for h in hits[:3] if h.get("policy_id") and str(h.get("policy_id")).isdigit()]
-    if not policy_ids:
-        return None
+        hits = store.search(
+            query_embedding=q_vec,
+            query_text=query,
+            top_k=5,
+            active_only=False,
+            allowed_departments=allowed_depts,
+        )
+        if not hits:
+            return None
+            
+        policy_ids = [int(h.get("policy_id")) for h in hits[:3] if h.get("policy_id") and str(h.get("policy_id")).isdigit()]
+        if not policy_ids:
+            return None
+            
+        from collections import Counter
+        target_policy_id = Counter(policy_ids).most_common(1)[0][0]
         
-    from collections import Counter
-    target_policy_id = Counter(policy_ids).most_common(1)[0][0]
-    
-    policy = db.session.get(Policy, target_policy_id)
-    if not policy:
-        return None
+        policy = db.session.get(Policy, target_policy_id)
+        if not policy:
+            return None
+            
+        versions = policy.versions.order_by(PolicyVersion.version_num.desc()).limit(2).all()
+        if len(versions) < 2:
+            ans = f"The '{policy.title}' policy only has one version (v{versions[0].version_num}), so there are no changes to compare."
+            add_message(session_id, "user", query)
+            add_message(session_id, "assistant", ans)
+            return {
+                "answer": ans,
+                "citations": [],
+                "chunks_used": 0,
+                "session_id": session_id,
+                "fallback": False,
+                "model": "DiffAgent",
+                "cache_hit": False,
+                "confidence": 100,
+                "usage": {}
+            }
+            
+        v_new, v_old = versions[0], versions[1]
+        prompt = f"You are a specialized Policy Diffing Agent.\nThe user is asking about changes in the '{policy.title}' policy.\n\nOLD version (v{v_old.version_num}):\n{v_old.content[:2000]}...\n\nNEW version (v{v_new.version_num}):\n{v_new.content[:2000]}...\n\nQuestion: {query}\nExplain the changes clearly based ONLY on the provided texts."
+
+        messages = [{"role": "system", "content": "You are a helpful HR assistant."}, {"role": "user", "content": prompt}]
+        llm_resp = provider.generate(messages)
         
-    versions = policy.versions.order_by(PolicyVersion.version_num.desc()).limit(2).all()
-    if len(versions) < 2:
-        ans = f"The '{policy.title}' policy only has one version (v{versions[0].version_num}), so there are no changes to compare."
+        ans = llm_resp.text
         add_message(session_id, "user", query)
         add_message(session_id, "assistant", ans)
+        
         return {
             "answer": ans,
-            "citations": [],
-            "chunks_used": 0,
+            "citations": [{"id": "diff", "title": f"Diff: {policy.title}", "version": f"v{v_old.version_num}->v{v_new.version_num}", "section": "Full text analysis"}],
+            "chunks_used": 2,
             "session_id": session_id,
             "fallback": False,
-            "model": "DiffAgent",
+            "model": "DiffAgent_" + (provider.get_model_name() if hasattr(provider, "get_model_name") else getattr(provider, "model", "none")),
             "cache_hit": False,
             "confidence": 100,
             "usage": {}
         }
-        
-    v_new, v_old = versions[0], versions[1]
-    prompt = f"You are a specialized Policy Diffing Agent.\nThe user is asking about changes in the '{policy.title}' policy.\n\nOLD version (v{v_old.version_num}):\n{v_old.content[:2000]}...\n\nNEW version (v{v_new.version_num}):\n{v_new.content[:2000]}...\n\nQuestion: {query}\nExplain the changes clearly based ONLY on the provided texts."
 
-    messages = [{"role": "system", "content": "You are a helpful HR assistant."}, {"role": "user", "content": prompt}]
-    llm_resp = provider.generate(messages)
-    
-    ans = llm_resp.text
-    add_message(session_id, "user", query)
-    add_message(session_id, "assistant", ans)
-    
-    return {
-        "answer": ans,
-        "citations": [{"id": "diff", "title": f"Diff: {policy.title}", "version": f"v{v_old.version_num}->v{v_new.version_num}", "section": "Full text analysis"}],
-        "chunks_used": 2,
-        "session_id": session_id,
-        "fallback": False,
-        "model": "DiffAgent_" + (provider.get_model_name() if hasattr(provider, "get_model_name") else getattr(provider, "model", "none")),
-        "cache_hit": False,
-        "confidence": 100,
-        "usage": {}
-    }
+    except Exception as e:
+        import logging
+        logging.error(f'[DiffAgent] Error: {e}')
+        return None
 
 
 def answer(
@@ -111,7 +118,8 @@ def answer(
     # Role-based department filtering
     allowed_depts = None
     if user_role == "employee" and user_department:
-        allowed_depts = [user_department, ""]  # own dept + company-wide
+        # Include company-wide policies, their own department, and core policy departments
+        allowed_depts = [user_department, "", "Human Resources", "IT", "Legal"]
     elif user_role in ("hr", "admin"):
         allowed_depts = None  # no restriction
 
@@ -205,6 +213,7 @@ def answer(
         return final_res
 
     # 2. Retrieve top-N semantic matches
+    t_retrieve = time.time()
     hits = store.search(
         query_embedding=q_vec,
         query_text=query,
@@ -212,7 +221,7 @@ def answer(
         active_only=not is_diff_query,
         allowed_departments=allowed_depts,
     )
-    RETRIEVAL_LATENCY.observe(time.time() - t0)
+    RETRIEVAL_LATENCY.observe(time.time() - t_retrieve)
 
     # 3. Filter by relevance threshold
     hits = [h for h in hits if h.get("score", 0) >= RELEVANCE_THRESHOLD]
@@ -285,33 +294,11 @@ def answer(
         except Exception as e:
             pass
 
-    # 4.9 Prompt compression
-    # Extract only top-N most query-relevant sentences per chunk before prompting
-    import re
-    compressed_chunks = []
-    q_tokens_cmp = set(re.findall(r"[a-z0-9]+", query.lower()))
-    for c in top_chunks:
-        sentences = re.split(r'(?<=[.!?])\s+', c.get("text", "").strip())
-        if len(sentences) > 3:
-            s_scores = []
-            for s in sentences:
-                s_toks = set(re.findall(r"[a-z0-9]+", s.lower()))
-                overlap = len(q_tokens_cmp & s_toks) / max(len(s_toks), 1)
-                s_scores.append((overlap, s))
-            s_scores.sort(key=lambda x: x[0], reverse=True)
-            # Keep top 3 most relevant sentences in original order
-            top_s = [s[1] for s in sorted(s_scores[:3], key=lambda x: sentences.index(x[1]))]
-            new_c = dict(c)
-            new_c["text"] = " ".join(top_s)
-            compressed_chunks.append(new_c)
-        else:
-            compressed_chunks.append(c)
-
     # 5. Build prompt with conversation memory & prompt engineering guards
     history = get_history(session_id)
     messages = build_prompt(
         augmented_query,
-        compressed_chunks,
+        top_chunks,
         chat_history=history,
         user_role=user_role,
         user_department=user_department,
@@ -337,7 +324,8 @@ def answer(
         # 6. Generate answer via LLMProvider
         t0 = time.time()
         # H1 fix: only pass use_secondary to CascadeProvider
-        kwargs = {"use_secondary": use_secondary} if getattr(provider, "__class__", None).__name__ == "CascadeProvider" else {}
+        from rag.llm_provider import CascadeProvider
+        kwargs = {"use_secondary": use_secondary} if isinstance(provider, CascadeProvider) else {}
         try:
             llm_resp = provider.generate(messages, **kwargs)
         except Exception as e:
@@ -362,7 +350,11 @@ def answer(
     
     # 7.5 Grounding check (Entailment)
     groundedness_score = 1.0
-    if not is_fallback:
+    REFUSAL_STRINGS = {
+        "I couldn't find this information in the available policies.",
+        "I couldn't find sufficient information in the available policies to fully support an answer.",
+    }
+    if not is_fallback and answer_text not in REFUSAL_STRINGS:
         from rag.entailment import verify_entailment
         is_entailed, groundedness_score = verify_entailment(answer_text, top_chunks)
         if not citations or not is_entailed:

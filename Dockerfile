@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Pre-install CPU version of PyTorch to save massive amounts of disk space
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -29,4 +32,4 @@ USER appuser
 
 EXPOSE 5000
 
-CMD ["gunicorn", "--workers=4", "--bind=0.0.0.0:5000", "--timeout=120", "app:create_app()"]
+CMD ["gunicorn", "--workers=4", "--bind=0.0.0.0:5000", "--timeout=600", "wsgi:application"]

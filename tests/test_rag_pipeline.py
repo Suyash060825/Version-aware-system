@@ -87,7 +87,7 @@ class TestRAGPipelineIntegration(unittest.TestCase):
         print("RESULT:", res)
         mock_store_inst.search.assert_called_once()
         _, kwargs = mock_store_inst.search.call_args
-        self.assertEqual(kwargs.get("allowed_departments"), ["Engineering", ""])
+        self.assertEqual(kwargs.get("allowed_departments"), ["Engineering", "", "Human Resources", "IT", "Legal"])
 
         # Assert response structure
         self.assertFalse(res["fallback"])
