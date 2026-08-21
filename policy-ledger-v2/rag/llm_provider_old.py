@@ -64,61 +64,120 @@ class LLMProvider(ABC):
 
 
 class OllamaProvider(LLMProvider):
-    def __init__(self, base_url=None, model=None, timeout=180):
-        self.base_url = (base_url or os.environ.get("OLLAMA_BASE_URL") or os.environ.get("OLLAMA_URL", "http://localhost:11434")).rstrip("/")
-        self.model = (model or os.environ.get("LOCAL_LLM_MODEL") or os.environ.get("OLLAMA_MODEL", "llama3.2:3b-instruct-q4_K_M"))
+    """
+    Provider for local Ollama server (http://localhost:11434 by default).
+    Configurable via OLLAMA_BASE_URL and LOCAL_LLM_MODEL / OLLAMA_MODEL.
+    """
+
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None,
+        timeout: int = 180
+    ):
+        self.base_url = (
+            base_url
+            or os.environ.get("OLLAMA_BASE_URL")
+            or os.environ.get("OLLAMA_URL", "http://localhost:11434")
+        ).rstrip("/")
+        self.model = (
+            model
+            or os.environ.get("LOCAL_LLM_MODEL")
+            or os.environ.get("OLLAMA_MODEL", "llama3.2:3b-instruct-q4_K_M")
+        )
         self.timeout = timeout
 
-    def generate(self, prompt, *, system=None, max_tokens=1024, temperature=0.2, stream=False, **kwargs) -> LLMResponse:
-        import requests, re
+    def generate(
+        self,
+        prompt: str | List[Dict[str, str]],
+        *,
+        system: Optional[str] = None,
+        max_tokens: int = 1024,
+        temperature: float = 0.2,
+        stream: bool = False,
+        **kwargs
+    ) -> LLMResponse:
+        import requests
         if not hasattr(self, "_session"):
             self._session = requests.Session()
+            
         endpoint = f"{self.base_url}/api/chat"
+        
         if isinstance(prompt, str):
             messages = []
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
         else:
-            messages = list(prompt)
+            messages = prompt
             if system and not any(m.get("role") == "system" for m in messages):
                 messages = [{"role": "system", "content": system}] + messages
-        payload = {"model": self.model, "messages": messages, "stream": False, "options": {"num_predict": max_tokens, "temperature": temperature}}
+
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "num_predict": max_tokens,
+                "temperature": temperature,
+                "keep_alive": -1,
+                "num_gpu": 99,
+                "num_thread": 4,
+                "f16_kv": True,
+                "low_vram": False
+            }
+        }
+
         try:
-            resp = self._session.post(endpoint, json=payload, timeout=self.timeout)
+            resp = self._session.post(
+                endpoint,
+                json=payload,
+                timeout=self.timeout
+            )
             resp.raise_for_status()
             data = resp.json()
-            content = data["message"]["content"].strip()
-            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+            content = data.get("message", {}).get("content", "").strip()
             if not content:
-                raise ValueError("Empty response after stripping <think> blocks")
-            return LLMResponse(text=content, raw_response=data, model=self.model, usage={}, fallback=False)
+                raise ValueError("Empty response received from Ollama model")
+            eval_count = data.get("eval_count", 0)
+            prompt_eval_count = data.get("prompt_eval_count", 0)
+            
+            return LLMResponse(
+                text=content,
+                raw_response=data,
+                model=self.model,
+                usage={"prompt_tokens": prompt_eval_count, "completion_tokens": eval_count},
+                fallback=False
+            )
         except Exception as e:
             logger.error(f"[OllamaProvider] Error generating completion: {e}")
+            # Fallback to extractive
             fallback_resp = ExtractiveProvider().generate(prompt, system=system)
             fallback_resp.error = f"Ollama error: {str(e)}"
             return fallback_resp
 
     def embed(self, texts: List[str]) -> List[List[float]]:
-        endpoint = f"{self.base_url}/api/embeddings"
-        results = []
-        for text in texts:
-            payload = {"model": self.model, "prompt": text}
-            try:
-                req = urllib.request.Request(endpoint, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"})
-                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    results.append(data.get("embedding", []))
-            except Exception as e:
-                logger.error(f"[OllamaProvider] Embed error: {e}")
-                results.append([])
-        return results
+        endpoint = f"{self.base_url}/api/embed"
+        embeddings = []
+        try:
+            payload = {"model": self.model, "input": texts}
+            req = urllib.request.Request(
+                endpoint,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # nosec B310
+                data = json.loads(resp.read().decode("utf-8"))
+                return data.get("embeddings", [])
+        except Exception as e:
+            logger.error(f"[OllamaProvider] Error creating embeddings: {e}")
+            return []
 
     def health_check(self) -> bool:
         endpoint = f"{self.base_url}/api/tags"
         try:
-            req = urllib.request.Request(endpoint)
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            req = urllib.request.Request(endpoint, headers={"User-Agent": "PolicyLedger/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310
                 return resp.status == 200
         except Exception as e:
             logger.warning(f"[OllamaProvider] Health check failed: {e}")
@@ -127,41 +186,87 @@ class OllamaProvider(LLMProvider):
 
 class VLLMProvider(LLMProvider):
     """
-    Provider for vLLM server (OpenAI-compatible API, e.g. http://localhost:8000/v1).
-    Configurable via VLLM_BASE_URL, VLLM_API_KEY, and LOCAL_LLM_MODEL.
+    Provider for vLLM OpenAI-compatible endpoint (http://localhost:8000/v1 by default).
+    Configurable via VLLM_BASE_URL and LOCAL_LLM_MODEL / VLLM_MODEL.
     """
-    def __init__(self, base_url=None, model=None, api_key=None, timeout=180):
-        self.base_url = (base_url or os.environ.get("VLLM_BASE_URL", "http://localhost:8000/v1")).rstrip("/")
-        self.model = model or os.environ.get("LOCAL_LLM_MODEL", "local-model")
+
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None,
+        api_key: Optional[str] = None,
+        timeout: int = 60
+    ):
+        self.base_url = (
+            base_url
+            or os.environ.get("VLLM_BASE_URL")
+            or "http://localhost:8000/v1"
+        ).rstrip("/")
+        self.model = (
+            model
+            or os.environ.get("LOCAL_LLM_MODEL")
+            or os.environ.get("VLLM_MODEL", "meta-llama/Meta-Llama-3.1-8B-Instruct")
+        )
         self.api_key = api_key or os.environ.get("VLLM_API_KEY", "EMPTY")
         self.timeout = timeout
 
-    def generate(self, prompt, *, system=None, max_tokens=1024, temperature=0.2, stream=False, **kwargs) -> LLMResponse:
-        import requests, re
+    def generate(
+        self,
+        prompt: str | List[Dict[str, str]],
+        *,
+        system: Optional[str] = None,
+        max_tokens: int = 1024,
+        temperature: float = 0.2,
+        stream: bool = False,
+        **kwargs
+    ) -> LLMResponse:
+        import requests
         if not hasattr(self, "_session"):
             self._session = requests.Session()
+            
         endpoint = f"{self.base_url}/chat/completions"
+
         if isinstance(prompt, str):
             messages = []
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
         else:
-            messages = list(prompt)
+            messages = prompt
             if system and not any(m.get("role") == "system" for m in messages):
                 messages = [{"role": "system", "content": system}] + messages
-        payload = {"model": self.model, "messages": messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False}
-        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": stream
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}"
+        }
+
         try:
-            resp = self._session.post(endpoint, json=payload, headers=headers, timeout=self.timeout)
+            resp = self._session.post(
+                endpoint,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout
+            )
             resp.raise_for_status()
             data = resp.json()
-            content = data["choices"][0]["message"]["content"].strip()
-            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
-            if not content:
-                raise ValueError("Empty response after stripping <think> blocks")
+            choice = data["choices"][0]
+            content = choice["message"]["content"].strip()
             usage = data.get("usage", {})
-            return LLMResponse(text=content, raw_response=data, model=self.model, usage=usage, fallback=False)
+            return LLMResponse(
+                text=content,
+                raw_response=data,
+                model=self.model,
+                usage=usage,
+                fallback=False
+            )
         except Exception as e:
             logger.error(f"[VLLMProvider] Error generating completion: {e}")
             fallback_resp = ExtractiveProvider().generate(prompt, system=system)
@@ -171,10 +276,17 @@ class VLLMProvider(LLMProvider):
     def embed(self, texts: List[str]) -> List[List[float]]:
         endpoint = f"{self.base_url}/embeddings"
         payload = {"model": self.model, "input": texts}
-        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
         try:
-            req = urllib.request.Request(endpoint, data=json.dumps(payload).encode("utf-8"), headers=headers)
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            req = urllib.request.Request(
+                endpoint,
+                data=json.dumps(payload).encode("utf-8"),
+                headers=headers
+            )
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # nosec B310
                 data = json.loads(resp.read().decode("utf-8"))
                 return [d["embedding"] for d in data.get("data", [])]
         except Exception as e:
@@ -186,7 +298,7 @@ class VLLMProvider(LLMProvider):
         headers = {"Authorization": f"Bearer {self.api_key}"}
         try:
             req = urllib.request.Request(endpoint, headers=headers)
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310
                 return resp.status == 200
         except Exception as e:
             logger.warning(f"[VLLMProvider] Health check failed: {e}")
@@ -258,7 +370,7 @@ class GeminiProvider(LLMProvider):
             return fallback_resp
 
     def embed(self, texts: List[str]) -> List[List[float]]:
-        logger.warning("[GeminiProvider] embed() not supported via OpenRouter — returning empty. Use OllamaProvider or VLLMProvider for embeddings.")
+        # Fall back or return empty if not supported
         return []
 
     def health_check(self) -> bool:

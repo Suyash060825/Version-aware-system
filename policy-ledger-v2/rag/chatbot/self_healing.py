@@ -3,11 +3,12 @@ from models import db, ChatMessage
 from rag.llm_provider import get_llm_provider
 from rag.cache.semantic_cache import get_cache
 from rag.embeddings.embedder import get_embedder
-from app import create_app
 
 def trigger_self_healing(msg_id: int):
-    # Setup context
-    app = create_app("development")
+    import os
+    from app import create_app  # deferred to avoid circular import at module load
+    env = os.environ.get("FLASK_ENV", "development")
+    app = create_app(env)
     with app.app_context():
         msg = db.session.get(ChatMessage, msg_id)
         if not msg or msg.role != "assistant":

@@ -176,7 +176,7 @@ def policy_create():
                 policy.tags.append(tag)
 
             db.session.add(policy)
-            db.session.flush()  # get policy.id
+            # db.session.flush()  # get policy.id
 
             # First version
             version = PolicyVersion(
@@ -185,6 +185,8 @@ def policy_create():
                 version_label="v1.0",
                 content=content,
                 summary=request.form.get("change_summary", "Initial version"),
+                # PolicyVersion.query.filter_by(policy_id=policy.id, is_active=True).update({"is_active": False})
+                # db.session.flush()
                 change_reason="Policy created",
                 created_by_id=current_user.id,
                 is_active=True,
@@ -424,6 +426,8 @@ def version_create(policy_id):
                 content=content,
                 summary=summary,
                 diff_json=json.dumps(diff),
+                # PolicyVersion.query.filter_by(policy_id=policy.id, is_active=True).update({"is_active": False})
+                # db.session.flush()
                 change_reason=change_reason,
                 created_by_id=current_user.id,
                 is_active=True,
@@ -586,7 +590,7 @@ def policy_duplicate(policy_id):
         status=PolicyStatus.DRAFT,
     )
     db.session.add(new_policy)
-    db.session.flush()
+    # db.session.flush()
 
     if orig_ver:
         new_ver = PolicyVersion(
@@ -594,6 +598,8 @@ def policy_duplicate(policy_id):
             version_num=1.0,
             version_label="v1.0",
             content=orig_ver.content,
+            # PolicyVersion.query.filter_by(policy_id=new_policy.id, is_active=True).update({"is_active": False})
+            # db.session.flush()
             summary=f"Duplicated from {orig.policy_id} {orig.current_version}",
             created_by_id=current_user.id,
             is_active=True,

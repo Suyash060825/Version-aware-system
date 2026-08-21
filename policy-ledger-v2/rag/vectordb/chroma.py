@@ -18,9 +18,14 @@ CHROMA_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "chrom
 def _get_client():
     try:
         import chromadb
+        chroma_host = os.environ.get("CHROMA_HOST")
+        chroma_port = int(os.environ.get("CHROMA_PORT", 8001))
+        if chroma_host and chroma_host not in ("localhost", "127.0.0.1"):
+            # Use HTTP client for remote/dockerized ChromaDB
+            return chromadb.HttpClient(host=chroma_host, port=chroma_port)
+        # Fall back to embedded persistent client
         os.makedirs(CHROMA_PATH, exist_ok=True)
-        client = chromadb.PersistentClient(path=CHROMA_PATH)
-        return client
+        return chromadb.PersistentClient(path=CHROMA_PATH)
     except ImportError:
         raise ImportError("chromadb not installed. Run: pip install chromadb")
 

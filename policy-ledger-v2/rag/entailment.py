@@ -3,6 +3,9 @@ rag/entailment.py
 Entailment-based grounding check for RAG responses.
 """
 import re
+import os
+
+ENTAILMENT_ENABLED = os.environ.get('ENTAILMENT_ENABLED', 'true').lower() == 'true'
 
 _nli_model = None
 _use_nli = True
@@ -30,6 +33,8 @@ def verify_entailment(answer: str, chunks: list[dict]) -> tuple[bool, float]:
     Verify if claims in answer are entailed by the provided chunks.
     Returns (is_entailed, groundedness_score).
     """
+    if not ENTAILMENT_ENABLED:
+        return True, 1.0
     if not answer or not chunks:
         return False, 0.0
         
@@ -53,7 +58,8 @@ def verify_entailment(answer: str, chunks: list[dict]) -> tuple[bool, float]:
                 return e_x / e_x.sum(axis=-1, keepdims=True)
             
             probs = softmax(scores) if len(scores.shape) > 1 else softmax(np.array([scores]))[0]
-            entailment_idx = nli.config.label2id.get('entailment', 1)
+                        label2id = {k.lower(): v for k, v in nli.config.label2id.items()}
+            entailment_idx = label2id.get('entailment', 2)
             
             if len(probs.shape) > 1:
                 entailment_scores = probs[:, entailment_idx]

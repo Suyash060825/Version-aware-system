@@ -51,7 +51,10 @@ def api_chat():
     if is_stream:
         from flask import Response
         import json
-        
+
+        # We need to capture the final result to persist it
+        final_holder = {}
+
         def generate_stream():
             for chunk in rag_answer(
                 query=query,
@@ -60,9 +63,25 @@ def api_chat():
                 user_department=dept,
                 stream=True
             ):
+                if "final" in chunk:
+                    final_holder["result"] = chunk["final"]
                 yield f"data: {json.dumps(chunk)}\n\n"
-        
-        return Response(generate_stream(), mimetype="text/event-stream")
+
+        response = Response(generate_stream(), mimetype="text/event-stream")
+
+        @response.call_on_close
+        def persist_after_stream():
+            result = final_holder.get("result")
+            if result:
+                _save_message(
+                    session_id, query, result["answer"], result["citations"],
+                    result["chunks_used"], model_name=result.get("model"),
+                    cache_hit=result.get("cache_hit", False),
+                    usage=result.get("usage", {})
+                )
+                _save_search_history(query, result)
+
+        return response
         
     result = rag_answer(
         query=query,

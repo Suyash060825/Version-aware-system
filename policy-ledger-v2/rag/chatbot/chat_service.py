@@ -1,3 +1,4 @@
+import time
 """
 rag/chatbot/chat_service.py
 Full RAG pipeline: question → embed → retrieve → rerank → prompt → pluggable LLM → cite
@@ -20,68 +21,74 @@ _embed_dedup_lock = threading.Lock()
 
 
 def _run_diff_agent(query: str, session_id: str, q_vec: list, allowed_depts: list, provider, store) -> dict:
-    from models import db, Policy, PolicyVersion
-    from rag.chatbot.memory import add_message
-    
-    hits = store.search(
-        query_embedding=q_vec,
-        query_text=query,
-        top_k=5,
-        active_only=False,
-        allowed_departments=allowed_depts,
-    )
-    if not hits:
-        return None
+    try:
+        from models import db, Policy, PolicyVersion
+        from rag.chatbot.memory import add_message
         
-    policy_ids = [int(h.get("policy_id")) for h in hits[:3] if h.get("policy_id") and str(h.get("policy_id")).isdigit()]
-    if not policy_ids:
-        return None
+        hits = store.search(
+            query_embedding=q_vec,
+            query_text=query,
+            top_k=5,
+            active_only=False,
+            allowed_departments=allowed_depts,
+        )
+        if not hits:
+            return None
+            
+        policy_ids = [int(h.get("policy_id")) for h in hits[:3] if h.get("policy_id") and str(h.get("policy_id")).isdigit()]
+        if not policy_ids:
+            return None
+            
+        from collections import Counter
+        target_policy_id = Counter(policy_ids).most_common(1)[0][0]
         
-    from collections import Counter
-    target_policy_id = Counter(policy_ids).most_common(1)[0][0]
-    
-    policy = db.session.get(Policy, target_policy_id)
-    if not policy:
-        return None
+        policy = db.session.get(Policy, target_policy_id)
+        if not policy:
+            return None
+            
+        versions = policy.versions.order_by(PolicyVersion.version_num.desc()).limit(2).all()
+        if len(versions) < 2:
+            ans = f"The '{policy.title}' policy only has one version (v{versions[0].version_num}), so there are no changes to compare."
+            add_message(session_id, "user", query)
+            add_message(session_id, "assistant", ans)
+            return {
+                "answer": ans,
+                "citations": [],
+                "chunks_used": 0,
+                "session_id": session_id,
+                "fallback": False,
+                "model": "DiffAgent",
+                "cache_hit": False,
+                "confidence": 100,
+                "usage": {}
+            }
+            
+        v_new, v_old = versions[0], versions[1]
+        prompt = f"You are a specialized Policy Diffing Agent.\nThe user is asking about changes in the '{policy.title}' policy.\n\nOLD version (v{v_old.version_num}):\n{v_old.content[:2000]}...\n\nNEW version (v{v_new.version_num}):\n{v_new.content[:2000]}...\n\nQuestion: {query}\nExplain the changes clearly based ONLY on the provided texts."
+
+        messages = [{"role": "system", "content": "You are a helpful HR assistant."}, {"role": "user", "content": prompt}]
+        llm_resp = provider.generate(messages)
         
-    versions = policy.versions.order_by(PolicyVersion.version_num.desc()).limit(2).all()
-    if len(versions) < 2:
-        ans = f"The '{policy.title}' policy only has one version (v{versions[0].version_num}), so there are no changes to compare."
+        ans = llm_resp.text
         add_message(session_id, "user", query)
         add_message(session_id, "assistant", ans)
+        
         return {
             "answer": ans,
-            "citations": [],
-            "chunks_used": 0,
+            "citations": [{"id": "diff", "title": f"Diff: {policy.title}", "version": f"v{v_old.version_num}->v{v_new.version_num}", "section": "Full text analysis"}],
+            "chunks_used": 2,
             "session_id": session_id,
             "fallback": False,
-            "model": "DiffAgent",
+            "model": "DiffAgent_" + (provider.get_model_name() if hasattr(provider, "get_model_name") else getattr(provider, "model", "none")),
             "cache_hit": False,
             "confidence": 100,
             "usage": {}
         }
-        
-    v_new, v_old = versions[0], versions[1]
-    prompt = f"You are a specialized Policy Diffing Agent.\nThe user is asking about changes in the '{policy.title}' policy.\n\nOLD version (v{v_old.version_num}):\n{v_old.content[:2000]}...\n\nNEW version (v{v_new.version_num}):\n{v_new.content[:2000]}...\n\nQuestion: {query}\nExplain the changes clearly based ONLY on the provided texts."
 
-    messages = [{"role": "system", "content": "You are a helpful HR assistant."}, {"role": "user", "content": prompt}]
-    llm_resp = provider.generate(messages)
-    
-    ans = llm_resp.text
-    add_message(session_id, "user", query)
-    add_message(session_id, "assistant", ans)
-    
-    return {
-        "answer": ans,
-        "citations": [{"id": "diff", "title": f"Diff: {policy.title}", "version": f"v{v_old.version_num}->v{v_new.version_num}", "section": "Full text analysis"}],
-        "chunks_used": 2,
-        "session_id": session_id,
-        "fallback": False,
-        "model": "DiffAgent_" + (provider.get_model_name() if hasattr(provider, "get_model_name") else getattr(provider, "model", "none")),
-        "cache_hit": False,
-        "confidence": 100,
-        "usage": {}
-    }
+    except Exception as e:
+        import logging
+        logging.error(f'[DiffAgent] Error: {e}')
+        return None
 
 
 def answer(
@@ -117,12 +124,7 @@ def answer(
     elif user_role in ("hr", "admin"):
         allowed_depts = None  # no restriction
 
-    import time
-    from rag.metrics import RETRIEVAL_LATENCY, RERANK_LATENCY, CACHE_LATENCY, GUARDRAIL_LATENCY, GENERATION_LATENCY
-
-
     # Guardrails: Input check
-    from rag.guardrails import check_input_guardrails, apply_output_guardrails
     t0 = time.time()
     is_allowed, fallback_msg = check_input_guardrails(query)
     GUARDRAIL_LATENCY.observe(time.time() - t0)
@@ -207,6 +209,7 @@ def answer(
         return final_res
 
     # 2. Retrieve top-N semantic matches
+    t_retrieve = time.time()
     hits = store.search(
         query_embedding=q_vec,
         query_text=query,
@@ -214,7 +217,7 @@ def answer(
         active_only=not is_diff_query,
         allowed_departments=allowed_depts,
     )
-    RETRIEVAL_LATENCY.observe(time.time() - t0)
+    RETRIEVAL_LATENCY.observe(time.time() - t_retrieve)
 
     # 3. Filter by relevance threshold
     hits = [h for h in hits if h.get("score", 0) >= RELEVANCE_THRESHOLD]
@@ -264,8 +267,9 @@ def answer(
                     diffs.append(f"Diff for Policy {pid} (v{versions[1].version_label} -> v{versions[0].version_label}): {versions[0].diff_json or 'None'}")
             if diffs:
                 augmented_query = augmented_query + "\n\nPolicy Diffs:\n" + "\n".join(diffs) + "\n\nPlease contrast the versions based on the above diffs and excerpts."
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger("rag.chat_service").warning(f"[DiffAugment] Failed: {e}")
 
     # 4.8 Contradiction-aware generation
     if top_chunks:
@@ -285,7 +289,8 @@ def answer(
                         flag_texts.append(f"Policies {f.policy_a_id} and {f.policy_b_id} have an open contradiction flag: {f.description}")
                     augmented_query = augmented_query + "\n\nWARNING: " + "\n".join(flag_texts) + "\n\nDo not silently pick one side. Explicitly state the contradiction in your answer."
         except Exception as e:
-            pass
+            import logging
+            logging.getLogger("rag.chat_service").warning(f"[ContradictionCheck] Failed: {e}")
 
     # 5. Build prompt with conversation memory & prompt engineering guards
     history = get_history(session_id)
@@ -343,7 +348,11 @@ def answer(
     
     # 7.5 Grounding check (Entailment)
     groundedness_score = 1.0
-    if not is_fallback:
+    REFUSAL_STRINGS = {
+        "I couldn't find this information in the available policies.",
+        "I couldn't find sufficient information in the available policies to fully support an answer.",
+    }
+    if not is_fallback and answer_text not in REFUSAL_STRINGS:
         from rag.entailment import verify_entailment
         is_entailed, groundedness_score = verify_entailment(answer_text, top_chunks)
         if not citations or not is_entailed:
