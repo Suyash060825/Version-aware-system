@@ -4,28 +4,12 @@ Run: python app.py
 """
 import os
 from flask import Flask, redirect, url_for, Response, jsonify
-from flask_login import LoginManager, current_user
-from flask_limiter import Limiter
+from flask_login import current_user
 from flask_limiter.util import get_remote_address
-from flask_wtf.csrf import CSRFProtect
 
 from config import config
-from models import db, bcrypt, User
-
-login_manager = LoginManager()
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri=os.environ.get("REDIS_URL", "memory://"),
-)
-csrf = CSRFProtect()
-
-
-def rate_limit_key_user_or_ip():
-    """Key builder for Flask-Limiter: per-user when authenticated, per-IP otherwise."""
-    if current_user and current_user.is_authenticated:
-        return f"user:{current_user.id}"
-    return get_remote_address() or "127.0.0.1"
+from extensions import db, bcrypt, login_manager, limiter, csrf
+from models import User
 
 
 def validate_production_env(app: Flask):
@@ -128,10 +112,6 @@ def create_app(env="default"):
     app.register_blueprint(blast_radius_bp)
     app.register_blueprint(rag_bp)
 
-    # Rate limit is applied back to the view_functions dict
-    if "rag.api_chat" in app.view_functions:
-        app.view_functions["rag.api_chat"] = limiter.limit("20 per minute", key_func=rate_limit_key_user_or_ip)(app.view_functions["rag.api_chat"])
-
     # Prometheus Metrics endpoint
     @app.route("/metrics")
     def metrics():
@@ -159,9 +139,12 @@ def create_app(env="default"):
     def ratelimit_handler(e):
         return jsonify({"error": "Rate limit exceeded. Please wait before asking more questions."}), 429
 
-    # Create tables on first run
+    # Create tables on first run (with try-except for gunicorn worker race conditions)
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+        except Exception as e:
+            pass
 
     return app
 

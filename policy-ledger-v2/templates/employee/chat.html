@@ -181,7 +181,10 @@ async function sendQuery() {
   try {
     const res = await fetch('/rag/api/chat', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      },
       body: JSON.stringify({ query: q, session_id: sessionId })
     });
     const data = await res.json();
@@ -204,7 +207,10 @@ async function sendFeedback(btn) {
   btn.closest('.feedback-bar').querySelectorAll('.fb-btn').forEach(b => b.disabled = true);
   await fetch('/rag/api/feedback', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token() }}'
+    },
     body: JSON.stringify({ message_id: msgId, vote })
   });
   showToast(vote === 'up' ? 'Thanks for the feedback!' : "Thanks — we'll improve this answer");
@@ -214,7 +220,10 @@ async function clearChat() {
   if (sessionId) {
     await fetch('/rag/api/sessions/clear', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      },
       body: JSON.stringify({ session_id: sessionId })
     });
   }

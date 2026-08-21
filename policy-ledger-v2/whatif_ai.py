@@ -31,24 +31,7 @@ from rag.llm_provider import get_llm_provider
 RELEVANCE_THRESHOLD = 0.10
 
 
-def _extract_json(text: str) -> dict | None:
-    if not text:
-        return None
-    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
-    text = re.sub(r"\s*```$", "", text)
-    try:
-        obj = json.loads(text)
-        return obj if isinstance(obj, dict) else None
-    except (ValueError, TypeError):
-        pass
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if match:
-        try:
-            obj = json.loads(match.group(0))
-            return obj if isinstance(obj, dict) else None
-        except (ValueError, TypeError):
-            pass
-    return None
+from utils import extract_json
 
 
 VERDICT_SYSTEM_PROMPT = """You are a corporate compliance decision-support assistant. An employee \
@@ -168,24 +151,28 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
             if getattr(raw_resp, "fallback", False):
                 parsed = {
                     "verdict": "depends",
-                    "confidence": 50,
+                    "confidence": 40,
                     "explanation": raw if raw != "I couldn't find this information in the available policies." else "The closest matching policy content does not clearly authorize or prohibit this scenario. Please check with HR.",
                     "required_actions": ["Review the policy manually or ask HR."],
                     "applicable_sections": [f"{top_chunks[0].get('policy_name', 'Policy')} - {top_chunks[0].get('section', 'General')}"]
                 }
             else:
-                parsed = _extract_json(raw)
+                parsed = extract_json(raw)
                 if parsed and (int(parsed.get("confidence", 0) or 0) < 55 or parsed.get("verdict") in ("depends", "unclear")):
                     # Escalate to secondary model due to ambiguity
-                    kwargs = {"use_secondary": True} if getattr(llm, "__class__", None).__name__ == "CascadeProvider" else {}
+                    from rag.llm_provider import CascadeProvider
+                    kwargs = {"use_secondary": True} if isinstance(llm, CascadeProvider) else {}
                     raw_resp = llm.generate(prompt_msgs, **kwargs)
                     raw = raw_resp.text
-                    parsed = _extract_json(raw)
-        except Exception:
+                    parsed = extract_json(raw)
+        except Exception as exc:
+            import logging
+            logging.warning(f"[whatif_ai] LLM error: {exc}")
             raw = ""
             parsed = None
+            raw_resp = None
             
-        if not getattr(raw_resp, "fallback", False) and (not parsed or "I couldn't find this information" in (raw or "")):
+        if raw_resp is None or (not getattr(raw_resp, "fallback", False) and (not parsed or "I couldn't find this information" in (raw or ""))):
             result = _heuristic_verdict(scenario, top_chunks)
         else:
             result = {

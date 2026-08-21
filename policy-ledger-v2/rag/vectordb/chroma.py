@@ -41,6 +41,20 @@ class VectorStore:
         embedder = get_embedder()
         self._client = _get_client()
         self._col = _get_collection(self._client, embedder.dimension)
+        
+        # I2 Fix: Dimension mismatch check
+        import logging
+        collection_meta = self._col.metadata or {}
+        stored_model = collection_meta.get("embedder_model")
+        current_model = embedder.model_name
+        if stored_model and stored_model != current_model:
+            logging.warning(
+                f"[ChromaDB] Dimension mismatch: collection was built with '{stored_model}' "
+                f"but current embedder is '{current_model}'. Search results may be incorrect."
+            )
+        elif not stored_model:
+            # Update metadata if not present
+            self._col.modify(metadata={"embedder_model": current_model})
 
     # ----------------------------------------------------------------
     # Indexing

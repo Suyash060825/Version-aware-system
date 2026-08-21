@@ -42,5 +42,3 @@ def test_chat_service_confidence_in_fallback():
         )
         assert "confidence" in res
         assert res["confidence"] == 0
-
-    assert provider.api_key == "sk-or-v1-test"

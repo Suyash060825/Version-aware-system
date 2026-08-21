@@ -227,10 +227,11 @@ class TestParseDueDate(unittest.TestCase):
     def test_relative_next_week_unhandled(self):
         """Documents L4 bug: 'next week' returns None instead of a date."""
         from meeting_ai import parse_due_date
+        from datetime import date, timedelta
         result = parse_due_date("next week")
         # Current behaviour: None (unfixed). After fix this should return a date.
-        self.assertIsNone(result,
-            "L4: 'next week' not yet handled — this test documents the gap")
+        self.assertIsNotNone(result)
+        self.assertEqual(result, date.today() + timedelta(weeks=1))
 
 
 # ─────────────────────────────────────────────────────────────────────────────

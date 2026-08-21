@@ -195,7 +195,7 @@ def check_reminders_and_escalations(reminder_lead_hours: int = 24):
         all Admins (the escalation path, since this app has no per-user "manager" link).
     Returns a summary dict for display.
     """
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     reminders_sent, escalations_made = 0, 0
 
     pending = WorkflowStageInstance.query.filter_by(status=WorkflowStageStatus.PENDING).filter(
@@ -210,10 +210,11 @@ def check_reminders_and_escalations(reminder_lead_hours: int = 24):
                 notify_user(admin.id, NotificationType.APPROVAL_NEEDED,
                            f"⚠ Escalated: {policy.title} — {stage.name} is overdue",
                            link=f"/admin/policies/{policy.id}")
-            audit("workflow.escalate", "policy", policy.id, {"stage": stage.name})
+            audit("workflow.escalate", "policy", policy.id, {"stage": stage.name}, commit=False)
             escalations_made += 1
         elif not stage.escalated and not stage.reminder_sent_at:
-            hours_left = (stage.sla_due_at - now).total_seconds() / 3600
+            sla_aware = stage.sla_due_at.replace(tzinfo=timezone.utc) if stage.sla_due_at.tzinfo is None else stage.sla_due_at
+            hours_left = (sla_aware - now).total_seconds() / 3600
             if 0 < hours_left <= reminder_lead_hours:
                 stage.reminder_sent_at = now
                 _notify_stage_approvers(stage, policy)

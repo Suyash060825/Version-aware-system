@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from whatif_ai import evaluate_scenario, _heuristic_verdict, _extract_json
+from whatif_ai import evaluate_scenario, _heuristic_verdict
+from utils import extract_json
 
 class StubLLMResponse:
     def __init__(self, text, fallback=False):
@@ -20,16 +21,16 @@ class TestWhatIfAI(unittest.TestCase):
     def test_extract_json(self):
         # Valid JSON block
         text = '```json\n{"verdict": "compliant", "confidence": 95}\n```'
-        res = _extract_json(text)
+        res = extract_json(text)
         self.assertEqual(res, {"verdict": "compliant", "confidence": 95})
 
         # Embedded JSON
         text2 = 'Here is the result: {"verdict": "not_compliant", "confidence": 100}'
-        res2 = _extract_json(text2)
+        res2 = extract_json(text2)
         self.assertEqual(res2, {"verdict": "not_compliant", "confidence": 100})
         
         # Invalid JSON
-        self.assertIsNone(_extract_json("Just text no json"))
+        self.assertIsNone(extract_json("Just text no json"))
 
     @patch("whatif_ai.get_llm_provider")
     @patch("whatif_ai.get_embedder")
@@ -87,7 +88,7 @@ class TestWhatIfAI(unittest.TestCase):
         res = evaluate_scenario("Can I buy a laptop?")
         
         self.assertEqual(res["verdict"], "depends")
-        self.assertEqual(res["confidence"], 50)
+        self.assertEqual(res["confidence"], 40)
         self.assertTrue(res["flagged_for_hr"])
 
     @patch("whatif_ai.get_llm_provider")

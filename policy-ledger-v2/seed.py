@@ -18,6 +18,10 @@ from utils import generate_policy_id
 from config import Config
 from datetime import date
 
+if Config.DEFAULT_ADMIN_PASSWORD in ("Admin@1234", "Admin@1234!"):
+    print("[WARNING] DEFAULT_ADMIN_PASSWORD appears to be the default value.")
+    print("  Set DEFAULT_ADMIN_PASSWORD in your .env file before seeding production.")
+
 app = create_app("development")
 
 DEPARTMENTS = [

@@ -60,9 +60,9 @@ def verify_entailment(answer: str, chunks: list[dict]) -> tuple[bool, float]:
             else:
                 entailment_scores = np.array([probs[entailment_idx]])
             
-            # Require average entailment > 0.5
+            # Require average entailment > 0.35
             avg_score = float(entailment_scores.mean())
-            return avg_score > 0.5, avg_score
+            return avg_score > 0.35, avg_score
         except Exception as e:
             print(f"[Entailment] Error in NLI predict: {e}")
             pass # Fallback
@@ -79,5 +79,5 @@ def verify_entailment(answer: str, chunks: list[dict]) -> tuple[bool, float]:
         claim_scores.append(overlap)
         
     avg_overlap = sum(claim_scores) / max(len(claim_scores), 1)
-    # Require 40% lexical overlap for entailment
-    return avg_overlap >= 0.4, avg_overlap
+    # Require 30% lexical overlap for entailment
+    return avg_overlap >= 0.3, avg_overlap

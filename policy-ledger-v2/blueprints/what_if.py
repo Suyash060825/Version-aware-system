@@ -106,10 +106,12 @@ def review_queue():
     q = WhatIfQuery.query.filter_by(flagged_for_hr=True)
     if status == "open":
         pass  # flagged_for_hr stays True until resolved (we clear the flag on resolve)
-    queries = q.order_by(WhatIfQuery.created_at.desc()).limit(200).all()
+    page = request.args.get("page", 1, type=int)
+    pagination = q.order_by(WhatIfQuery.created_at.desc()).paginate(page=page, per_page=50, error_out=False)
+    queries = pagination.items
     total_runs = WhatIfQuery.query.count()
     return render_template("admin/what_if_queue.html",
-        queries=queries, total_runs=total_runs)
+        queries=queries, total_runs=total_runs, pagination=pagination)
 
 
 @what_if_bp.route("/admin/what-if/<int:query_id>/resolve", methods=["POST"])

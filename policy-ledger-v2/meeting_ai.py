@@ -53,20 +53,7 @@ def _strip_json_fences(text: str) -> str:
     return text.strip()
 
 
-def _extract_json_object(text: str) -> dict | None:
-    """Try progressively looser strategies to pull a JSON object out of LLM output."""
-    candidates = [text, _strip_json_fences(text)]
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if match:
-        candidates.append(match.group(0))
-    for c in candidates:
-        try:
-            obj = json.loads(c)
-            if isinstance(obj, dict):
-                return obj
-        except (ValueError, TypeError):
-            continue
-    return None
+from utils import extract_json
 
 
 def _heuristic_fallback(raw_notes: str) -> dict:
@@ -150,7 +137,7 @@ def generate_mom(raw_notes: str, meeting_title: str = "", agenda: str = "") -> d
     except Exception:
         raw_response = ""
 
-    parsed = _extract_json_object(raw_response) if raw_response else None
+    parsed = extract_json(raw_response) if raw_response else None
 
     if not parsed or "I couldn't find this information" in (raw_response or ""):
         parsed = _heuristic_fallback(raw_notes)
@@ -193,6 +180,18 @@ def parse_due_date(due_date_str: str):
         return date.today()
     if due_date_str.lower() in ("tomorrow",):
         return date.today() + timedelta(days=1)
+    if "next week" in due_date_str.lower():
+        return date.today() + timedelta(weeks=1)
+    if "end of month" in due_date_str.lower() or "end of the month" in due_date_str.lower():
+        import calendar
+        today = date.today()
+        last_day = calendar.monthrange(today.year, today.month)[1]
+        return date(today.year, today.month, last_day)
+    try:
+        from dateutil.parser import parse as dateutil_parse
+        return dateutil_parse(due_date_str, fuzzy=True).date()
+    except Exception:
+        pass
     return None
 
 
@@ -212,6 +211,8 @@ def match_owner(owner_name: str, candidate_users: list):
             return u
     for u in candidate_users:
         first_name = u.name.strip().lower().split()[0] if u.name.strip() else ""
-        if needle == first_name or needle in u.name.lower() or u.name.lower() in needle:
+        from difflib import SequenceMatcher
+        ratio = SequenceMatcher(None, needle, u.name.strip().lower()).ratio()
+        if needle == first_name or ratio >= 0.85:
             return u
     return None

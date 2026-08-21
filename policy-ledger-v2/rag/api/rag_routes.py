@@ -8,7 +8,8 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template, session
 from flask_login import login_required, current_user
 from models import db, ChatSession, ChatMessage, SearchHistory, Feedback, IndexingJob, PolicyChunk
-from app import csrf
+from extensions import csrf, limiter
+from utils import rate_limit_key_user_or_ip
 
 rag_bp = Blueprint("rag", __name__, url_prefix="/rag")
 
@@ -30,6 +31,7 @@ def chat_page():
 @rag_bp.route("/api/chat", methods=["POST"])
 @csrf.exempt
 @login_required
+@limiter.limit("20 per minute", key_func=rate_limit_key_user_or_ip)
 def api_chat():
     data = request.get_json(force=True)
     query = (data.get("query") or "").strip()
@@ -258,9 +260,18 @@ def admin_index_policy(policy_id, version_id):
     if not current_user.can_manage_policies():
         return jsonify({"error": "Forbidden"}), 403
     from tasks import index_policy_version_task
-    # Send to Celery queue, return immediate accepted status
-    index_policy_version_task.delay(policy_id, version_id)
-    return jsonify({"success": True, "message": "Indexing job queued"})
+    try:
+        index_policy_version_task.delay(policy_id, version_id)
+        return jsonify({"success": True, "message": "Indexing job queued"})
+    except Exception as celery_err:
+        from flask import current_app
+        current_app.logger.warning(f"Celery enqueue failed: {celery_err}. Indexing synchronously.")
+        from rag.indexing.index_policy import index_policy_version
+        result = index_policy_version(policy_id, version_id)
+        if result.get("success"):
+            return jsonify({"success": True, "message": "Indexing completed synchronously"})
+        else:
+            return jsonify({"success": False, "error": result.get("error") or "Sync indexing failed"}), 500
 
 
 @rag_bp.route("/admin/delete/<int:policy_id>", methods=["POST"])
