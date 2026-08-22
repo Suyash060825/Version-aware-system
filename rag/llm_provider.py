@@ -73,19 +73,23 @@ class OllamaProvider(LLMProvider):
         self,
         base_url: Optional[str] = None,
         model: Optional[str] = None,
-        timeout: int = 180
+        timeout: Optional[int] = None
     ):
         self.base_url = (
             base_url
+            or os.environ.get("LOCAL_LLM_BASE_URL")
             or os.environ.get("OLLAMA_BASE_URL")
             or os.environ.get("OLLAMA_URL", "http://localhost:11434")
         ).rstrip("/")
         self.model = (
             model
             or os.environ.get("LOCAL_LLM_MODEL")
-            or os.environ.get("OLLAMA_MODEL", "llama3.2:3b-instruct-q4_K_M")
+            or os.environ.get("OLLAMA_MODEL", "qwen3:4b-q4_K_M")
         )
-        self.timeout = timeout
+        self.api_key = os.environ.get("OLLAMA_API_KEY", "")
+        self.timeout = timeout if timeout is not None else int(os.environ.get("OLLAMA_TIMEOUT", "10"))
+        import requests
+        self._session = requests.Session()
 
     def generate(
         self,
@@ -97,10 +101,6 @@ class OllamaProvider(LLMProvider):
         stream: bool = False,
         **kwargs
     ) -> LLMResponse:
-        import requests
-        if not hasattr(self, "_session"):
-            self._session = requests.Session()
-            
         endpoint = f"{self.base_url}/api/chat"
         
         if isinstance(prompt, str):
@@ -109,22 +109,23 @@ class OllamaProvider(LLMProvider):
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
         else:
-            messages = prompt
+            messages = list(prompt)
             if system and not any(m.get("role") == "system" for m in messages):
                 messages = [{"role": "system", "content": system}] + messages
 
         payload = {
             "model": self.model,
             "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
             "stream": False,
-            "enable_thinking": False
+            "options": {
+                "num_predict": max_tokens,
+                "temperature": temperature
+            }
         }
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}"
-        }
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
 
         try:
             resp = self._session.post(
@@ -135,16 +136,30 @@ class OllamaProvider(LLMProvider):
             )
             resp.raise_for_status()
             data = resp.json()
-            choice = data["choices"][0]
-            content = choice["message"]["content"].strip()
+            
+            content = ""
+            if "message" in data and isinstance(data["message"], dict):
+                content = data["message"].get("content", "").strip()
+                if not content and "thinking" in data["message"]:
+                    content = data["message"].get("thinking", "").strip()
+            elif "choices" in data and len(data["choices"]) > 0:
+                content = data["choices"][0].get("message", {}).get("content", "").strip()
+            elif "response" in data:
+                content = data.get("response", "").strip()
             
             import re
             # Strip Qwen3 chain-of-thought thinking blocks
-            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
-            if not content:
-                raise ValueError("Empty response after stripping <think> blocks")
+            cleaned_content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+            if cleaned_content:
+                content = cleaned_content
+            else:
+                # If model only returned thinking tags, extract inner thinking as answer
+                content = re.sub(r"</?think>", "", content).strip()
                 
-            usage = data.get("usage", {})
+            usage = {
+                "prompt_tokens": data.get("prompt_eval_count", 0),
+                "completion_tokens": data.get("eval_count", 0)
+            }
             return LLMResponse(
                 text=content,
                 raw_response=data,
@@ -155,32 +170,23 @@ class OllamaProvider(LLMProvider):
         except Exception as e:
             logger.error(f"[OllamaProvider] Error generating completion: {e}")
             fallback_resp = ExtractiveProvider().generate(prompt, system=system)
-            fallback_resp.error = f"vLLM error: {str(e)}"
+            fallback_resp.error = f"Ollama error: {str(e)}"
             return fallback_resp
 
     def embed(self, texts: List[str]) -> List[List[float]]:
-        endpoint = f"{self.base_url}/embeddings"
-        payload = {"model": self.model, "input": texts}
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
+        from rag.embeddings.embedder import get_embedder
         try:
-            req = urllib.request.Request(
-                endpoint,
-                data=json.dumps(payload).encode("utf-8"),
-                headers=headers
-            )
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # nosec B310
-                data = json.loads(resp.read().decode("utf-8"))
-                return [d["embedding"] for d in data.get("data", [])]
+            embedder = get_embedder()
+            return embedder.embed(texts)
         except Exception as e:
             logger.error(f"[OllamaProvider] Error generating embeddings: {e}")
             return []
 
     def health_check(self) -> bool:
-        endpoint = f"{self.base_url}/models"
-        headers = {"Authorization": f"Bearer {self.api_key}"}
+        endpoint = f"{self.base_url}/api/version"
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
         try:
             req = urllib.request.Request(endpoint, headers=headers)
             with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310
@@ -507,7 +513,7 @@ def get_llm_provider(force_reload: bool = False) -> LLMProvider:
         _provider_instance = CascadeProvider(primary, secondary)
     elif backend == "ollama":
         logger.info("[LLMProvider] Initializing OllamaProvider")
-        _provider_instance = OllamaProvider(timeout=180)
+        _provider_instance = OllamaProvider(timeout=10)
     elif backend == "vllm":
         logger.info("[LLMProvider] Initializing OllamaProvider")
         _provider_instance = OllamaProvider()

@@ -108,13 +108,29 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
     if user_role == "employee" and user_department:
         allowed_depts = [user_department, ""]
 
-    q_vec = embedder.embed_query(scenario)
-    hits = store.search(
-        query_embedding=q_vec, query_text=scenario, top_k=top_k_retrieve,
-        active_only=True, allowed_departments=allowed_depts,
-    )
-    hits = [h for h in hits if h.get("score", 0) >= RELEVANCE_THRESHOLD]
-    top_chunks = reranker.rerank(scenario, hits, top_k=top_k_rerank) if hits else []
+    hits = []
+    try:
+        q_vec = embedder.embed_query(scenario)
+        try:
+            hits = store.search(
+                query_embedding=q_vec, query_text=scenario, top_k=top_k_retrieve,
+                active_only=True, allowed_departments=allowed_depts
+            )
+        except TypeError:
+            hits = store.search(embedding=q_vec, filters={}, top_k=top_k_retrieve)
+    except Exception:
+        try:
+            from rag.retrieval.hybrid import HybridRetriever
+            hits = HybridRetriever().search(scenario, top_k=top_k_retrieve)
+        except Exception:
+            hits = []
+
+    hits = [h for h in hits if h.get("score", 0) >= RELEVANCE_THRESHOLD or h.get("hybrid_score", 0) >= RELEVANCE_THRESHOLD]
+    
+    if hasattr(reranker, "rerank"):
+        top_chunks = reranker.rerank(scenario, hits, top_k=top_k_rerank) if hits else []
+    else:
+        top_chunks = reranker.rank(scenario, hits, top_k=top_k_rerank) if hits else []
 
     citations = []
     seen = set()

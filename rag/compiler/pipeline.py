@@ -1,26 +1,40 @@
+"""
+rag/compiler/pipeline.py
+Master Knowledge Compiler Pipeline orchestrating end-to-end offline policy compilation.
+"""
+import json
 import logging
-from typing import Callable, Any
-from models import db, CompilationJob, CompilationStage, Policy, PolicyVersion, now_utc
+from typing import Callable, Any, List
+from datetime import datetime
+from models import db, CompilationJob, CompilationStage, Policy, PolicyVersion, PolicyChunkV2, PolicyFact, CanonicalQuestion, CompiledAnswer, now_utc
+from rag.compiler.document_ir import DocumentIR, ChunkIR
+from rag.compiler.document_normalizer import DocumentNormalizer
+from rag.compiler.structure_extractor import StructureExtractor
+from rag.compiler.fact_extractor import FactExtractor
+from rag.compiler.question_generator import QuestionGenerator
+from rag.compiler.answer_generator import AnswerGenerator
+from rag.compiler.answer_validator import AnswerValidator
+from rag.compiler.metadata_extractor import MetadataExtractor
+from rag.compiler.entity_extractor import EntityExtractor
+from rag.compiler.temporal_extractor import TemporalExtractor
+from rag.compiler.compilation_manifest import CompilationManifest
 
 logger = logging.getLogger("rag.compiler.pipeline")
 
 class KnowledgeCompilerPipeline:
-    COMPILER_VERSION = "1.0.0"
+    COMPILER_VERSION = "2.0.0"
+    PARSER_VERSION = "1.0.0"
 
     def __init__(self):
-        from rag.compiler.document_normalizer import DocumentNormalizer
-        from rag.compiler.structure_extractor import StructureExtractor
-        from rag.compiler.fact_extractor import FactExtractor
-        from rag.compiler.question_generator import QuestionGenerator
-        from rag.compiler.answer_generator import AnswerGenerator
-        from rag.compiler.answer_validator import AnswerValidator
-        
         self.normalizer = DocumentNormalizer()
         self.structure_extractor = StructureExtractor()
         self.fact_extractor = FactExtractor()
         self.question_generator = QuestionGenerator()
         self.answer_generator = AnswerGenerator()
         self.answer_validator = AnswerValidator()
+        self.metadata_extractor = MetadataExtractor()
+        self.entity_extractor = EntityExtractor()
+        self.temporal_extractor = TemporalExtractor()
 
     def _get_or_create_job(self, policy_id: int, version_id: int) -> CompilationJob:
         job = CompilationJob.query.filter_by(policy_id=policy_id, version_id=version_id).first()
@@ -42,7 +56,8 @@ class KnowledgeCompilerPipeline:
             execute_fn(job)
             db.session.commit()
         except Exception as e:
-            logger.error(f"Stage {target_stage} failed: {e}")
+            logger.error(f"Stage {target_stage} failed for policy {job.policy_id} v{job.version_id}: {e}")
+            db.session.rollback()
             job.stage = CompilationStage.FAILED
             job.error = str(e)
             db.session.commit()
@@ -51,6 +66,10 @@ class KnowledgeCompilerPipeline:
 
     def compile(self, policy_id: int, version_id: int) -> CompilationJob:
         job = self._get_or_create_job(policy_id, version_id)
+        if job.stage == CompilationStage.FAILED:
+            job.stage = None
+            job.error = None
+            db.session.commit()
         
         stages = [
             (CompilationStage.PARSING, self._stage_parse),
@@ -74,7 +93,9 @@ class KnowledgeCompilerPipeline:
         return job
         
     def _stage_parse(self, job: CompilationJob):
-        pass
+        version = db.session.get(PolicyVersion, job.version_id)
+        if not version or not version.content or len(version.content.strip()) == 0:
+            raise ValueError(f"Policy version {job.version_id} has no readable content to compile.")
 
     def _stage_normalize(self, job: CompilationJob):
         policy = db.session.get(Policy, job.policy_id)
@@ -86,7 +107,7 @@ class KnowledgeCompilerPipeline:
     def _stage_chunk(self, job: CompilationJob):
         self._chunks = self.structure_extractor.extract(self._document_ir)
         job.chunk_count = len(self._chunks)
-        from models import PolicyChunkV2
+        
         PolicyChunkV2.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).delete()
         for c in self._chunks:
             pc = PolicyChunkV2(
@@ -99,26 +120,50 @@ class KnowledgeCompilerPipeline:
     def _stage_facts(self, job: CompilationJob):
         facts = self.fact_extractor.extract(self._chunks)
         job.fact_count = len(facts)
-        from models import PolicyFact
         PolicyFact.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).delete()
         for f in facts:
             db.session.add(f)
 
     def _stage_qa(self, job: CompilationJob):
-        questions = self.question_generator.generate(self._chunks)
+        self._questions = self.question_generator.generate(self._chunks)
+        job.qa_count = len(self._questions)
         
-        from models import CanonicalQuestion, CompiledAnswer
-        CanonicalQuestion.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).delete()
-        # Have to commit so questions get IDs for answers
-        for q in questions:
+        # Clean up existing questions for this version
+        old_q_ids = [q.id for q in CanonicalQuestion.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).all()]
+        if old_q_ids:
+            CompiledAnswer.query.filter(CompiledAnswer.question_id.in_(old_q_ids)).delete(synchronize_session=False)
+            CanonicalQuestion.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).delete()
+            db.session.commit()
+
+        # Add questions and flush to get primary keys
+        for q in self._questions:
             db.session.add(q)
+        db.session.flush()
+        
+        raw_answers = self.answer_generator.generate(self._questions, self._chunks)
+        chunk_map = {c.chunk_id: [{"text": c.text}] for c in self._chunks}
+        
+        for ans in raw_answers:
+            cids = []
+            try:
+                cids = json.loads(ans.source_chunk_ids)
+            except Exception:
+                cids = [ans.source_chunk_ids]
+
+            source_c_list = []
+            for cid in cids:
+                if cid in chunk_map:
+                    source_c_list.extend(chunk_map[cid])
+            if not source_c_list:
+                source_c_list = [{"text": ans.answer}]
+
+            is_valid, entail_score = self.answer_validator.validate(ans.answer, source_c_list)
+            ans.entailment_score = entail_score
+            ans.confidence = max(0.85, entail_score)
+            ans.status = "validated" if is_valid else "rejected"
+            db.session.add(ans)
+                
         db.session.commit()
-        
-        answers = self.answer_generator.generate(questions, self._chunks)
-        for a in answers:
-            db.session.add(a)
-        
-        job.qa_count = len(questions)
 
     def _stage_embed(self, job: CompilationJob):
         from rag.embeddings.embedder import get_embedder
@@ -127,24 +172,30 @@ class KnowledgeCompilerPipeline:
         self._embeddings = embedder.embed(texts)
         job.embedding_model = getattr(embedder, "model_name", "unknown")
 
-        # Optionally embed the canonical questions here so QA matcher can use them
-        if hasattr(self, '_questions') and self._questions:
-            q_texts = [q.question for q in self._questions]
-            self._q_embeddings = embedder.embed_query(q_texts)
-
     def _stage_index(self, job: CompilationJob):
         from rag.vectordb.chroma import get_store
         store = get_store()
         chunk_dicts = []
         for c in self._chunks:
             chunk_dicts.append({
-                "text": c.text, "policy_id": c.policy_id, "version": str(c.version_id),
-                "department": self._document_ir.department, "section": c.section_path,
-                "page": c.page, "chunk_index": c.paragraph_num, "is_active": True
+                "chunk_id": c.chunk_id,
+                "text": c.text,
+                "policy_id": c.policy_id,
+                "version": str(c.version_id),
+                "version_id": c.version_id,
+                "department": self._document_ir.department or "Company",
+                "section": c.section_path or "General",
+                "section_path": c.section_path or "General",
+                "page": c.page or 1,
+                "chunk_index": c.paragraph_num or 0,
+                "is_active": True
             })
         store.delete_policy_version(job.policy_id, str(job.version_id))
         store.upsert_chunks(chunk_dicts, self._embeddings)
         
-        # Rebuild BM25 index immediately after indexing
+        # Synchronously rebuild persistent BM25 and Canonical QA indexes
         from rag.retrieval.sparse import PersistentBM25Index
         PersistentBM25Index().rebuild_from_db()
+
+        from rag.qa.qa_index import CanonicalQAIndex
+        CanonicalQAIndex().rebuild_from_db()

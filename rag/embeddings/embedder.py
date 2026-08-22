@@ -1,9 +1,30 @@
+"""
+rag/embeddings/embedder.py
+Configurable, hardware-aware embedding provider with CPU/CUDA device support.
+"""
 import os
 import logging
 from abc import ABC, abstractmethod
 from typing import List
 
 logger = logging.getLogger(__name__)
+
+def _get_target_device(env_var: str = "EMBEDDING_DEVICE") -> str:
+    device = os.environ.get(env_var)
+    if device:
+        return device
+    import sys
+    if sys.version_info >= (3, 14):
+        return "cpu"
+    import torch
+    if torch.cuda.is_available():
+        # Check if CUDA actually works for simple ops or if triton fails
+        try:
+            torch.zeros(1).cuda()
+            return "cuda"
+        except Exception:
+            return "cpu"
+    return "cpu"
 
 class BaseEmbedder(ABC):
     @abstractmethod
@@ -18,7 +39,13 @@ class SentenceTransformerEmbedder(BaseEmbedder):
     def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5"):
         from sentence_transformers import SentenceTransformer
         self.model_name = model_name
-        self._model = SentenceTransformer(model_name)
+        self.device = _get_target_device("EMBEDDING_DEVICE")
+        try:
+            self._model = SentenceTransformer(model_name, device=self.device)
+        except Exception as e:
+            logger.warning(f"Failed to load {model_name} on {self.device}: {e}. Falling back to CPU.")
+            self.device = "cpu"
+            self._model = SentenceTransformer(model_name, device="cpu")
         self.dimension = self._model.get_sentence_embedding_dimension()
         
     def embed(self, texts: List[str]) -> List[List[float]]:
@@ -31,21 +58,30 @@ class Qwen3Embedder(BaseEmbedder):
     def __init__(self, model_name: str = "Qwen/Qwen3-Embedding-0.6B"):
         from sentence_transformers import SentenceTransformer
         self.model_name = model_name
-        self._model = SentenceTransformer(model_name)
+        self.device = _get_target_device("EMBEDDING_DEVICE")
+        try:
+            self._model = SentenceTransformer(model_name, device=self.device)
+        except Exception as e:
+            logger.warning(f"Failed to load {model_name} on {self.device}: {e}. Falling back to CPU.")
+            self.device = "cpu"
+            self._model = SentenceTransformer(model_name, device="cpu")
         self.dimension = self._model.get_sentence_embedding_dimension()
         
     def embed(self, texts: List[str]) -> List[List[float]]:
         return self._model.encode(texts, normalize_embeddings=True, show_progress_bar=False).tolist()
         
     def embed_query(self, query: str) -> List[float]:
-        return self._model.encode(query, prompt_name="query", normalize_embeddings=True).tolist()
+        try:
+            return self._model.encode(query, prompt_name="query", normalize_embeddings=True).tolist()
+        except Exception:
+            return self._model.encode(query, normalize_embeddings=True).tolist()
 
 _EMBEDDER = None
 
 def get_embedder() -> BaseEmbedder:
     global _EMBEDDER
     if _EMBEDDER is None:
-        model = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+        model = os.environ.get("EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-0.6B")
         if "Qwen" in model:
             _EMBEDDER = Qwen3Embedder(model)
         else:

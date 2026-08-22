@@ -1,38 +1,45 @@
-import requests
-import json
+"""
+rag/generation/qwen.py
+Qwen local provider connecting to Ollama with structured JSON response extraction.
+"""
 import os
-from typing import Optional
+import json
+import logging
+from typing import Optional, Dict, Any
+from rag.generation.provider import LocalLLMProvider, OllamaProvider
+from rag.generation.prompts import SYSTEM_POLICY_GROUNDING_PROMPT, build_grounded_qa_prompt
 
-class QwenLocalProvider:
-    """
-    Connects to local Ollama running qwen3:4b-q4_K_M.
-    """
-    def __init__(self, base_url=os.environ.get("LOCAL_LLM_BASE_URL", "http://localhost:11434")):
-        self.base_url = base_url
-        self.model = "qwen2.5-coder:1.5b" # Or whichever small fast model is available
-        # The prompt requested qwen3:4b-q4_K_M. Ollama naming conventions might just be qwen2.5 or qwen.
-        # We will use the model specified in environment or default to a known good one.
-        import os
-        self.model = os.environ.get("LOCAL_LLM_MODEL", "qwen3:4b-q4_K_M")
+logger = logging.getLogger("rag.generation.qwen")
 
-    def generate(self, prompt: str) -> Optional[str]:
-        try:
-            response = requests.post(
-                f"{self.base_url}/api/generate",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.1,
-                        "num_predict": 256
-                    }
-                },
-                timeout=30
-            )
-            response.raise_for_status()
-            return response.json().get("response", "").strip()
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Ollama generation failed: {e}")
+class QwenLocalProvider(OllamaProvider):
+    def generate_grounded_answer(self, query: str, chunks: list) -> Optional[Dict[str, Any]]:
+        prompt = build_grounded_qa_prompt(query, chunks)
+        raw_output = self.generate(prompt, system_prompt=SYSTEM_POLICY_GROUNDING_PROMPT)
+        if not raw_output:
             return None
+
+        # Attempt to parse structured JSON
+        try:
+            # Clean markdown codeblocks if wrapped in ```json ... ```
+            cleaned = raw_output.strip()
+            if cleaned.startswith("```json"):
+                cleaned = cleaned[7:]
+            if cleaned.startswith("```"):
+                cleaned = cleaned[3:]
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3]
+            cleaned = cleaned.strip()
+
+            parsed = json.loads(cleaned)
+            if isinstance(parsed, dict) and "answer" in parsed:
+                return parsed
+        except Exception:
+            pass
+
+        # Fallback to raw text
+        return {
+            "answer": raw_output,
+            "reasoning_summary": "Extracted from local LLM response.",
+            "used_evidence_ids": [c.get("chunk_id") for c in chunks if c.get("chunk_id")],
+            "needs_clarification": False
+        }

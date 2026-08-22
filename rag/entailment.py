@@ -58,7 +58,7 @@ def verify_entailment(answer: str, chunks: list[dict]) -> tuple[bool, float]:
                 return e_x / e_x.sum(axis=-1, keepdims=True)
             
             probs = softmax(scores) if len(scores.shape) > 1 else softmax(np.array([scores]))[0]
-                        label2id = {k.lower(): v for k, v in nli.config.label2id.items()}
+            label2id = {k.lower(): v for k, v in nli.config.label2id.items()}
             entailment_idx = label2id.get('entailment', 2)
             
             if len(probs.shape) > 1:

@@ -253,6 +253,10 @@ class PolicyVersion(db.Model):
     created_by = db.relationship("User", foreign_keys=[created_by_id])
     approved_by = db.relationship("User", foreign_keys=[approved_by_id])
 
+    @property
+    def version_number(self):
+        return self.version_label.lstrip("v") if self.version_label else str(self.version_num)
+
     __table_args__ = (
         db.Index(
             "uix_one_active_version_per_policy",
@@ -1171,7 +1175,7 @@ class CanonicalQuestion(db.Model):
     version_id = db.Column(db.Integer, db.ForeignKey("policy_version.id"), nullable=False, index=True)
     source_chunk_id = db.Column(db.String(100))
     question = db.Column(db.Text, nullable=False)
-    question_hash = db.Column(db.String(64), unique=True, index=True)
+    question_hash = db.Column(db.String(64), index=True)
     quality_score = db.Column(db.Float, default=1.0)
     created_at = db.Column(db.DateTime, default=now_utc)
 

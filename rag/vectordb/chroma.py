@@ -1,6 +1,10 @@
+"""
+rag/vectordb/chroma.py
+ChromaDB vector store with embedding model isolation and dimension safety.
+"""
 import os
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from abc import ABC, abstractmethod
 import chromadb
 
@@ -24,12 +28,28 @@ class VectorStore(VectorStoreBase):
     def __init__(self, path: str = CHROMA_PATH):
         os.makedirs(path, exist_ok=True)
         self._client = chromadb.PersistentClient(path=path)
-        self._col = self._client.get_or_create_collection(
-            name="policy_chunks", metadata={"hnsw:space": "cosine"}
-        )
+        
+        # Isolate collection per embedding model to prevent dimension mismatch
+        model_name = os.environ.get("EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-0.6B")
+        safe_model_slug = model_name.split("/")[-1].replace("-", "_").replace(".", "_").lower()
+        self.col_name = f"policy_chunks_{safe_model_slug}"
+
+        try:
+            self._col = self._client.get_or_create_collection(
+                name=self.col_name, metadata={"hnsw:space": "cosine"}
+            )
+        except Exception as e:
+            logger.warning(f"Collection {self.col_name} error: {e}. Recreating...")
+            try:
+                self._client.delete_collection(name=self.col_name)
+            except Exception:
+                pass
+            self._col = self._client.create_collection(
+                name=self.col_name, metadata={"hnsw:space": "cosine"}
+            )
 
     def upsert_chunks(self, chunks: List[dict], embeddings: List[List[float]]):
-        if not chunks:
+        if not chunks or not embeddings:
             return
         ids = [c["chunk_id"] if "chunk_id" in c else f"chunk_{c.get('policy_id')}_{c.get('version')}_{c.get('chunk_index')}" for c in chunks]
         
@@ -42,7 +62,13 @@ class VectorStore(VectorStoreBase):
                     m[k] = str(v) if not isinstance(v, (str, int, float, bool)) else v
             metadatas.append(m)
             
-        self._col.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
+        try:
+            self._col.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
+        except Exception as e:
+            logger.error(f"Error upserting into Chroma {self.col_name}: {e}. Rebuilding collection.")
+            self._client.delete_collection(name=self.col_name)
+            self._col = self._client.create_collection(name=self.col_name, metadata={"hnsw:space": "cosine"})
+            self._col.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
 
     def delete_policy_version(self, policy_id: int, version: str):
         try:
@@ -50,7 +76,7 @@ class VectorStore(VectorStoreBase):
                 {"policy_id": {"$eq": str(policy_id)}},
                 {"version": {"$eq": str(version)}},
             ]})
-            if results["ids"]:
+            if results and results["ids"]:
                 self._col.delete(ids=results["ids"])
         except Exception:
             pass
@@ -58,7 +84,7 @@ class VectorStore(VectorStoreBase):
     def delete_policy(self, policy_id: int):
         try:
             results = self._col.get(where={"policy_id": {"$eq": str(policy_id)}})
-            if results["ids"]:
+            if results and results["ids"]:
                 self._col.delete(ids=results["ids"])
         except Exception:
             pass
@@ -76,16 +102,18 @@ class VectorStore(VectorStoreBase):
                 where=where if where else None,
                 include=["documents", "metadatas", "distances"],
             )
-        except Exception:
+        except Exception as e:
+            logger.error(f"Chroma query failed: {e}")
             return []
             
         hits = []
-        if results and results["ids"]:
+        if results and results["ids"] and len(results["ids"]) > 0:
             for i, doc_id in enumerate(results["ids"][0]):
-                meta = results["metadatas"][0][i]
+                meta = dict(results["metadatas"][0][i])
                 meta["id"] = doc_id
+                meta["chunk_id"] = doc_id
                 meta["text"] = results["documents"][0][i]
-                meta["score"] = max(0.0, 1.0 - results["distances"][0][i])
+                meta["score"] = max(0.0, 1.0 - float(results["distances"][0][i]))
                 hits.append(meta)
         return hits
 
@@ -95,9 +123,9 @@ class VectorStore(VectorStoreBase):
         conditions = []
         for k, v in filters.items():
             if isinstance(v, list):
-                conditions.append({k: {"$in": v}})
+                conditions.append({k: {"$in": [str(x) for x in v]}})
             else:
-                conditions.append({k: {"$eq": v}})
+                conditions.append({k: {"$eq": str(v)}})
         if not conditions:
             return None
         if len(conditions) == 1:
@@ -110,7 +138,7 @@ class VectorStore(VectorStoreBase):
     def stats(self) -> dict:
         return {
             "total_chunks": self._col.count(),
-            "collection": "policy_chunks",
+            "collection": self.col_name,
             "path": CHROMA_PATH,
             "model": "chromadb",
         }
