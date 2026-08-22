@@ -1,0 +1,2 @@
+class FactResolver:
+    pass

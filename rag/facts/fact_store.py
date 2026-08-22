@@ -1,0 +1,2 @@
+class FactStore:
+    pass

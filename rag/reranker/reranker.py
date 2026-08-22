@@ -1,61 +1,47 @@
-"""
-rag/reranker/reranker.py
-Cross-encoder reranker. Takes top-N semantic hits and reranks for precision.
-Primary: BAAI/bge-reranker-base
-Fallback: simple token-overlap scoring
-"""
+import os
+from typing import List, Dict
 
-_reranker = None
-
-
-class CrossEncoderReranker:
-    def __init__(self, model_name: str = "BAAI/bge-reranker-base"):
+class Qwen3Reranker:
+    """
+    Qwen3-Reranker-0.6B via CrossEncoder.
+    Run AFTER metadata filtering and fusion, not on full corpus.
+    """
+    MODEL_NAME = "Qwen/Qwen3-Reranker-0.6B"
+    
+    def __init__(self):
         from sentence_transformers import CrossEncoder
-        self._model = CrossEncoder(model_name)
-        self._model_name = model_name
-
-    def rerank(self, query: str, hits: list[dict], top_k: int = 5) -> list[dict]:
-        if not hits:
+        self._model = CrossEncoder(self.MODEL_NAME)
+    
+    def rank(self, query: str, candidates: List[dict], top_k: int = 8) -> List[dict]:
+        """Reranks top-N candidates from BM25+dense to top-K."""
+        if not candidates:
             return []
-        pairs = [(query, h["text"]) for h in hits]
+            
+        pairs = [(query, c.get("text", "")) for c in candidates]
         scores = self._model.predict(pairs)
-        for hit, score in zip(hits, scores):
-            hit["rerank_score"] = float(score)
-        hits.sort(key=lambda h: h["rerank_score"], reverse=True)
-        return hits[:top_k]
+        
+        ranked = sorted(zip(scores, candidates), reverse=True, key=lambda x: x[0])
+        
+        results = []
+        for s, c in ranked[:top_k]:
+            c_copy = dict(c)
+            c_copy["rerank_score"] = float(s)
+            results.append(c_copy)
+            
+        return results
 
+class MockReranker:
+    def rank(self, query: str, candidates: List[dict], top_k: int = 8) -> List[dict]:
+        return candidates[:top_k]
 
-class FallbackReranker:
-    """Token overlap reranker — no deps needed."""
-    import re as _re
-
-    def rerank(self, query: str, hits: list[dict], top_k: int = 5) -> list[dict]:
-        import re
-        q_tokens = set(re.findall(r"[a-z0-9]+", query.lower()))
-        for hit in hits:
-            doc_tokens = set(re.findall(r"[a-z0-9]+", hit["text"].lower()))
-            overlap = len(q_tokens & doc_tokens) / max(len(q_tokens), 1)
-            hit["rerank_score"] = hit.get("score", 0) * 0.7 + overlap * 0.3
-        hits.sort(key=lambda h: h["rerank_score"], reverse=True)
-        return hits[:top_k]
-
+_RERANKER = None
 
 def get_reranker():
-    global _reranker
-    if _reranker:
-        return _reranker
-    import os
-    model_name = os.environ.get("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
-    
-    if os.environ.get("USE_FALLBACK_RERANKER") == "true":
-        _reranker = FallbackReranker()
-        print("[Reranker] Using fallback token-overlap reranker (forced via env)")
-        return _reranker
-
-    try:
-        _reranker = CrossEncoderReranker(model_name)
-        print(f"[Reranker] Using {model_name}")
-    except Exception:
-        _reranker = FallbackReranker()
-        print("[Reranker] Using fallback token-overlap reranker")
-    return _reranker
+    global _RERANKER
+    if _RERANKER is None:
+        model = os.environ.get("RERANKER_MODEL", "mock")
+        if "Qwen" in model:
+            _RERANKER = Qwen3Reranker()
+        else:
+            _RERANKER = MockReranker()
+    return _RERANKER

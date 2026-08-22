@@ -1,55 +1,40 @@
 """
 tasks.py
-Celery background worker configuration and tasks for async document indexing.
-Run worker: celery -A tasks.celery_app worker --loglevel=info
+Celery task definitions for background processing.
 """
 import os
+import logging
 from celery import Celery
 
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+logger = logging.getLogger(__name__)
 
-celery_app = Celery(
-    "policy_ledger_tasks",
-    broker=REDIS_URL,
-    backend=REDIS_URL
-)
+def make_celery(app_name=__name__):
+    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+    celery = Celery(app_name, broker=redis_url, backend=redis_url)
+    celery.conf.update(
+        task_serializer='json',
+        accept_content=['json'],
+        result_serializer='json',
+        timezone='UTC',
+        enable_utc=True,
+    )
+    return celery
 
-celery_app.conf.update(
-    task_serializer="json",
-    accept_content=["json"],
-    result_serializer="json",
-    timezone="UTC",
-    enable_utc=True,
-    task_track_started=True,
-    task_time_limit=300,  # 5 min hard limit per indexing job
-)
+celery_app = make_celery()
 
-
-@celery_app.task(name="tasks.index_policy_version_task", bind=True, max_retries=3, default_retry_delay=10)
-def index_policy_version_task(self, policy_id: int, version_id: int):
+@celery_app.task(name="tasks.compile_policy_version_task", bind=True, max_retries=3)
+def compile_policy_version_task(self, policy_id: int, version_id: int):
     """
-    Asynchronous Celery task for policy indexing.
-    Offloads heavy sentence-transformer embedding & ChromaDB upserts off Flask request threads.
+    Full knowledge compilation pipeline as Celery task.
+    Replaces simple index_policy_version_task for new architecture.
     """
     from app import create_app
-    env = os.environ.get("FLASK_ENV") or os.environ.get("APP_ENV", "production")
-    app = create_app(env)
-    
+    app = create_app()
     with app.app_context():
-        from rag.indexing.index_policy import index_policy_version
-        import logging
-        logger = logging.getLogger("celery.tasks")
-        
-        result = index_policy_version(policy_id, version_id)
-        if not result.get("success"):
-            error_msg = result.get("error", "Unknown indexing failure")
-            logger.error(f"[Celery] index_policy_version_task failed for policy {policy_id} "
-                         f"version {version_id}: {error_msg}")
-            # Only retry on transient errors, not on "policy not found" etc.
-            transient_errors = ["connection", "timeout", "unavailable"]
-            if any(t in error_msg.lower() for t in transient_errors):
-                raise self.retry(exc=RuntimeError(error_msg))
-            else:
-                # Non-retryable: fail immediately with a clear message
-                raise RuntimeError(f"Non-retryable indexing failure: {error_msg}")
-        return result
+        from rag.compiler.pipeline import KnowledgeCompilerPipeline
+        from models import CompilationStage
+        pipeline = KnowledgeCompilerPipeline()
+        job = pipeline.compile(policy_id, version_id)
+        if job.stage == CompilationStage.FAILED:
+            raise self.retry(exc=RuntimeError(job.error))
+        return {"stage": job.stage, "chunks": job.chunk_count, "facts": job.fact_count}

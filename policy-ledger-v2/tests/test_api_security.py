@@ -11,8 +11,8 @@ def app():
     app.config["WTF_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
     with app.app_context():
         db.create_all()
-        u1 = User(id=1, email="user1@company.com", name="User 1")
-        u2 = User(id=2, email="user2@company.com", name="User 2")
+        u1 = User(id=1, email="user1@company.com", name="User 1", password_hash="dummy")
+        u2 = User(id=2, email="user2@company.com", name="User 2", password_hash="dummy")
         db.session.add_all([u1, u2])
         
         c1 = ChatSession(id="sess-user1", user_id=1)
@@ -31,17 +31,27 @@ def app():
 def client(app):
     return app.test_client()
 
+def get_csrf(app, client):
+    with app.test_request_context():
+        from flask_wtf.csrf import generate_csrf
+        # Actually flask_wtf generate_csrf relies on the session from the current request context.
+        # So we need to generate it from the client via a route or mock it.
+        pass
+
+# A better approach to testing CSRF in Flask is to fetch a page that has the CSRF token.
+# But since we're just testing the API, we can bypass CSRF for the unit test, OR just make a GET request to a page to extract the CSRF token.
+# Let's extract the CSRF token via a mock route or disable CSRF for non-CSRF tests.
+def fetch_csrf(client):
+    res = client.get("/auth/login")
+    import re
+    match = re.search(b'name="csrf_token" value="([^"]+)"', res.data)
+    if match:
+        return match.group(1).decode("utf-8")
+    return ""
+
 def login(client, user_id):
     with client.session_transaction() as sess:
         sess["_user_id"] = str(user_id)
-        # Add a CSRF token to the session
-        from flask_wtf.csrf import generate_csrf
-        sess["csrf_token"] = generate_csrf()
-
-def get_csrf(client):
-    with client.session_transaction() as sess:
-        from flask_wtf.csrf import generate_csrf
-        return generate_csrf()
 
 def test_csrf_missing(client, app):
     login(client, 1)
@@ -52,7 +62,7 @@ def test_csrf_missing(client, app):
 
 def test_session_ownership_enforced(client, app):
     login(client, 1)
-    token = get_csrf(client)
+    token = fetch_csrf(client)
     headers = {"X-CSRFToken": token}
     
     # Try to use User 2's session as User 1
@@ -62,7 +72,7 @@ def test_session_ownership_enforced(client, app):
 
 def test_feedback_ownership(client, app):
     login(client, 2)
-    token = get_csrf(client)
+    token = fetch_csrf(client)
     headers = {"X-CSRFToken": token}
     
     # User 2 tries to feedback User 1's message (msg_id 10)

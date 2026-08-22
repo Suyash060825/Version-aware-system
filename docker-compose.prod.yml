@@ -32,7 +32,10 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - HF_HOME=/app/data/huggingface
       - LLM_BACKEND=${LLM_BACKEND:-ollama}
-      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-llama3.1:8b-instruct-q4_K_M}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}
+      - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-http://ollama:11434}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
+      - RERANKER_MODEL=${RERANKER_MODEL:-Qwen/Qwen3-Reranker-0.6B}
       - OLLAMA_BASE_URL=http://ollama:11434
       - VLLM_BASE_URL=http://vllm:8000/v1
       - LMSTUDIO_BASE_URL=http://host.docker.internal:1234/v1
@@ -81,6 +84,9 @@ services:
       - HF_HOME=/app/data/huggingface
       - LLM_BACKEND=${LLM_BACKEND:-ollama}
       - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL}
+      - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-http://ollama:11434}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
+      - RERANKER_MODEL=${RERANKER_MODEL:-Qwen/Qwen3-Reranker-0.6B}
       - LMSTUDIO_BASE_URL=http://host.docker.internal:1234/v1
     depends_on:
       postgres:

@@ -325,14 +325,18 @@ def health_check():
         from sqlalchemy import text
         db.session.execute(text("SELECT 1"))
     except Exception as e:
-        db_status = f"error: {str(e)}"
+        import logging
+        logging.getLogger("rag.health").error(f"DB Health Check Failed: {e}")
+        db_status = "error"
 
     chroma_status = "ok"
     try:
         from rag.vectordb.chroma import get_store
         get_store().stats()
     except Exception as e:
-        chroma_status = f"error: {str(e)}"
+        import logging
+        logging.getLogger("rag.health").error(f"Chroma Health Check Failed: {e}")
+        chroma_status = "error"
 
     healthy = (db_status == "ok" and chroma_status == "ok")
     return jsonify({
@@ -345,15 +349,11 @@ def health_check():
 
 @rag_bp.route("/health/llm", methods=["GET"])
 def llm_health_check():
-    import os
     from rag.llm_provider import get_llm_provider
     provider = get_llm_provider()
     is_healthy = provider.health_check()
-    model = getattr(provider, "model", "unknown")
     return jsonify({
         "healthy": is_healthy,
-        "backend": os.environ.get("LLM_BACKEND", os.environ.get("LLM_PROVIDER", "ollama")),
-        "model": model,
         "timestamp": datetime.utcnow().isoformat()
     }), (200 if is_healthy else 503)
 

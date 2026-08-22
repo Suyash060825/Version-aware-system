@@ -660,11 +660,32 @@ def submit_for_review(policy_id):
 
 @admin_bp.route("/approvals/<int:approval_id>/act", methods=["POST"])
 @login_required
-@hr_required
 def approval_act(approval_id):
     approval = ApprovalWorkflow.query.get_or_404(approval_id)
     action = request.form.get("action")  # "approve" or "reject"
     comment = request.form.get("comment", "").strip()
+
+    if approval.status != ApprovalStatus.PENDING:
+        flash("Approval is not pending.", "danger")
+        return redirect(url_for("admin.policy_detail", policy_id=approval.policy_id))
+
+    # Check eligible role
+    is_authorized = current_user.is_admin()
+    if not is_authorized:
+        if approval.stage == ApprovalStage.HR_REVIEW and current_user.role == UserRole.HR:
+            is_authorized = True
+        elif approval.stage == ApprovalStage.MANAGEMENT and current_user.role == UserRole.MANAGER:
+            is_authorized = True
+        # LEGAL_REVIEW requires Admin since there is no Legal role
+
+    if not is_authorized or not current_user.is_active:
+        abort(403)
+
+    # Validate active version context
+    active_ver = PolicyVersion.query.filter_by(policy_id=approval.policy_id, is_active=True).first()
+    if not active_ver or active_ver.id != approval.version_id:
+        flash("This approval applies to an older version.", "danger")
+        return redirect(url_for("admin.policy_detail", policy_id=approval.policy_id))
 
     approval.actor_id = current_user.id
     approval.comment = comment

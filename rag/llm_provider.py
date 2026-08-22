@@ -153,7 +153,7 @@ class OllamaProvider(LLMProvider):
                 fallback=False
             )
         except Exception as e:
-            logger.error(f"[VLLMProvider] Error generating completion: {e}")
+            logger.error(f"[OllamaProvider] Error generating completion: {e}")
             fallback_resp = ExtractiveProvider().generate(prompt, system=system)
             fallback_resp.error = f"vLLM error: {str(e)}"
             return fallback_resp
@@ -175,7 +175,7 @@ class OllamaProvider(LLMProvider):
                 data = json.loads(resp.read().decode("utf-8"))
                 return [d["embedding"] for d in data.get("data", [])]
         except Exception as e:
-            logger.error(f"[VLLMProvider] Error generating embeddings: {e}")
+            logger.error(f"[OllamaProvider] Error generating embeddings: {e}")
             return []
 
     def health_check(self) -> bool:
@@ -186,11 +186,11 @@ class OllamaProvider(LLMProvider):
             with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310
                 return resp.status == 200
         except Exception as e:
-            logger.warning(f"[VLLMProvider] Health check failed: {e}")
+            logger.warning(f"[OllamaProvider] Health check failed: {e}")
             return False
 
 
-class LMStudioProvider(VLLMProvider):
+class LMStudioProvider(OllamaProvider):
     """
     Provider for LM Studio local server (http://localhost:1234/v1 by default).
     Configurable via LMSTUDIO_BASE_URL and LOCAL_LLM_MODEL.
@@ -509,8 +509,8 @@ def get_llm_provider(force_reload: bool = False) -> LLMProvider:
         logger.info("[LLMProvider] Initializing OllamaProvider")
         _provider_instance = OllamaProvider(timeout=180)
     elif backend == "vllm":
-        logger.info("[LLMProvider] Initializing VLLMProvider")
-        _provider_instance = VLLMProvider()
+        logger.info("[LLMProvider] Initializing OllamaProvider")
+        _provider_instance = OllamaProvider()
     elif backend == "lmstudio":
         logger.info("[LLMProvider] Initializing LMStudioProvider")
         provider = LMStudioProvider()

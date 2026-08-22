@@ -141,12 +141,13 @@ def create_app(env="default"):
     def ratelimit_handler(e):
         return jsonify({"error": "Rate limit exceeded. Please wait before asking more questions."}), 429
 
-    # Create tables on first run (with try-except for gunicorn worker race conditions)
+    # Create tables on first run (only in development/testing, production uses Alembic)
     with app.app_context():
-        try:
-            db.create_all()
-        except Exception as e:
-            pass
+        if os.environ.get("FLASK_ENV") != "production" and os.environ.get("APP_ENV") != "production":
+            try:
+                db.create_all()
+            except Exception:
+                pass
 
     return app
 

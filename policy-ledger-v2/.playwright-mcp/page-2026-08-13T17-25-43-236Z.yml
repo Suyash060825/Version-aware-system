@@ -1,0 +1,97 @@
+- generic [ref=f6e2]:
+  - generic [ref=f6e3]:
+    - generic [ref=f6e4]:
+      - generic [ref=f6e5]: §
+      - generic [ref=f6e6]:
+        - generic [ref=f6e7]: Policy Ledger
+        - generic [ref=f6e8]: Acme Corp
+    - navigation [ref=f6e9]:
+      - generic [ref=f6e10]: Admin
+      - link [ref=f6e11] [cursor=pointer]:
+        - /url: /admin/
+      - link [ref=f6e18] [cursor=pointer]:
+        - /url: /admin/policies
+      - link [ref=f6e25] [cursor=pointer]:
+        - /url: /admin/policies/new
+      - link [ref=f6e30] [cursor=pointer]:
+        - /url: /admin/users
+      - link [ref=f6e37] [cursor=pointer]:
+        - /url: /admin/categories
+      - link [ref=f6e42] [cursor=pointer]:
+        - /url: /admin/audit-center
+      - link [ref=f6e50] [cursor=pointer]:
+        - /url: /admin/compliance
+      - link [ref=f6e56] [cursor=pointer]:
+        - /url: /admin/governance
+      - link [ref=f6e62] [cursor=pointer]:
+        - /url: /admin/confusion-index
+      - link [ref=f6e68] [cursor=pointer]:
+        - /url: /admin/contradictions
+      - link [ref=f6e74] [cursor=pointer]:
+        - /url: /admin/knowledge-graph
+      - link [ref=f6e86] [cursor=pointer]:
+        - /url: /admin/what-if-queue
+      - link [ref=f6e92] [cursor=pointer]:
+        - /url: /rag/admin/dashboard
+      - link [ref=f6e100] [cursor=pointer]:
+        - /url: /admin/ai-analytics
+      - link [ref=f6e106] [cursor=pointer]:
+        - /url: /admin/search-analytics
+      - link [ref=f6e112] [cursor=pointer]:
+        - /url: /admin/bi-dashboard
+      - link [ref=f6e117] [cursor=pointer]:
+        - /url: /admin/workflows
+      - link [ref=f6e124] [cursor=pointer]:
+        - /url: /admin/leaderboard
+      - generic [ref=f6e129]: Employee
+      - link [ref=f6e130] [cursor=pointer]:
+        - /url: /dashboard
+      - link [ref=f6e135] [cursor=pointer]:
+        - /url: /onboarding
+      - link [ref=f6e140] [cursor=pointer]:
+        - /url: /meetings
+      - link [ref=f6e147] [cursor=pointer]:
+        - /url: /my-action-items
+      - link [ref=f6e152] [cursor=pointer]:
+        - /url: /rag/chat
+      - link [ref=f6e160] [cursor=pointer]:
+        - /url: /what-if
+      - link [ref=f6e166] [cursor=pointer]:
+        - /url: /policies
+      - link [ref=f6e171] [cursor=pointer]:
+        - /url: /search
+      - link [ref=f6e176] [cursor=pointer]:
+        - /url: /search/advanced
+      - link [ref=f6e182] [cursor=pointer]:
+        - /url: /saved
+      - link [ref=f6e186] [cursor=pointer]:
+        - /url: /rewards
+      - link [ref=f6e191] [cursor=pointer]:
+        - /url: /notifications
+    - generic [ref=f6e196]:
+      - generic [ref=f6e197]: System Admin
+      - generic [ref=f6e198]: admin
+      - generic [ref=f6e199]:
+        - link "Profile" [ref=f6e200] [cursor=pointer]:
+          - /url: /auth/profile
+        - link "Sign out" [ref=f6e201] [cursor=pointer]:
+          - /url: /auth/logout
+  - generic [ref=f6e202]:
+    - generic [ref=f6e203]:
+      - textbox "Search policies…" [ref=f6e211]
+      - generic [ref=f6e212]:
+        - link "Notifications" [ref=f6e213] [cursor=pointer]:
+          - /url: /notifications
+        - link "System Admin" [ref=f6e218] [cursor=pointer]:
+          - /url: /auth/profile
+    - generic [ref=f6e219]:
+      - generic [ref=f6e220]:
+        - generic [ref=f6e221]:
+          - heading "What-If Simulator" [level=1] [ref=f6e222]
+          - paragraph [ref=f6e223]: Describe something you're considering doing — get a clear verdict, not just a paragraph to interpret yourself.
+        - link "My history" [ref=f6e225] [cursor=pointer]:
+          - /url: /what-if/history
+      - generic [ref=f6e227]:
+        - generic [ref=f6e228]: DESCRIBE YOUR SCENARIO
+        - textbox "e.g. \"I want to work remotely from another country for 6 weeks\" or \"Can I expense a personal laptop under $500?\"" [ref=f6e229]
+        - button "Check against policy →" [ref=f6e231] [cursor=pointer]

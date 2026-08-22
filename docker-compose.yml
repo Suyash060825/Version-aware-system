@@ -8,17 +8,20 @@ services:
       dockerfile: Dockerfile
     container_name: policy_ledger_app
     restart: unless-stopped
+    user: root
     ports:
       - "5000:5000"
     environment:
       - FLASK_ENV=development
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-prod}
-      - LLM_BACKEND=${LLM_BACKEND:-lmstudio}
-      - LMSTUDIO_BASE_URL=http://host.docker.internal:1234/v1
-      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-local-model}
+      - LLM_BACKEND=${LLM_BACKEND:-ollama}
+      - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
+      - RERANKER_MODEL=${RERANKER_MODEL:-Qwen/Qwen3-Reranker-0.6B}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-devpassword123}@redis:6379/0
       - HF_HOME=/app/data/huggingface
-      - DATABASE_URL=sqlite:///data/ledger.db
+      - DATABASE_URL=sqlite:////app/data/ledger.db
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -38,15 +41,18 @@ services:
     container_name: policy_ledger_celery
     command: celery -A tasks.celery_app worker --loglevel=info --concurrency=2
     restart: unless-stopped
+    user: root
     environment:
       - FLASK_ENV=development
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-prod}
+      - LLM_BACKEND=${LLM_BACKEND:-ollama}
+      - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
+      - RERANKER_MODEL=${RERANKER_MODEL:-Qwen/Qwen3-Reranker-0.6B}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-devpassword123}@redis:6379/0
-      - LLM_BACKEND=${LLM_BACKEND:-lmstudio}
-      - LMSTUDIO_BASE_URL=http://host.docker.internal:1234/v1
-      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-local-model}
       - HF_HOME=/app/data/huggingface
-      - DATABASE_URL=sqlite:///data/ledger.db
+      - DATABASE_URL=sqlite:////app/data/ledger.db
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -71,6 +77,33 @@ services:
     volumes:
       - redis_data:/data
 
+  # ============================================================================
+  # Ollama Local LLM Service (Dev)
+  # ============================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: policy_ledger_ollama_dev
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
 volumes:
   app_data:
   redis_data:
+  ollama_data:

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>AI Review Queue</h2>
+    <p>Review AI-generated content before it becomes authoritative or visible to end-users.</p>
+
+    <ul class="nav nav-tabs" id="reviewTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="minutes-tab" data-bs-toggle="tab" data-bs-target="#minutes" type="button" role="tab">Meeting Minutes ({{ pending_minutes|length }})</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="insights-tab" data-bs-toggle="tab" data-bs-target="#insights" type="button" role="tab">Policy Insights ({{ pending_insights|length }})</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="reviewTabsContent">
+        <div class="tab-pane fade show active p-3 border border-top-0 rounded-bottom bg-white" id="minutes" role="tabpanel">
+            {% if pending_minutes %}
+                <ul class="list-group">
+                {% for item in pending_minutes %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Meeting:</strong> {{ item.meeting.title }}<br>
+                            <small class="text-muted">Generated: {{ item.generated_at.strftime('%Y-%m-%d %H:%M') if item.generated_at else 'Unknown' }}</small>
+                        </div>
+                        <div>
+                            <form action="{{ url_for('admin.ai_review_approve', item_type='minutes', item_id=item.id) }}" method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted">No meeting minutes pending review.</p>
+            {% endif %}
+        </div>
+        
+        <div class="tab-pane fade p-3 border border-top-0 rounded-bottom bg-white" id="insights" role="tabpanel">
+            {% if pending_insights %}
+                <ul class="list-group">
+                {% for item in pending_insights %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Policy:</strong> {{ item.policy.title }}<br>
+                            <small class="text-muted">Generated: {{ item.generated_at.strftime('%Y-%m-%d %H:%M') if item.generated_at else 'Unknown' }}</small>
+                        </div>
+                        <div>
+                            <form action="{{ url_for('admin.ai_review_approve', item_type='insights', item_id=item.id) }}" method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted">No policy insights pending review.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

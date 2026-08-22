@@ -1093,3 +1093,112 @@ class OnboardingChecklistItem(db.Model):
 
     def __repr__(self):
         return f"<OnboardingChecklistItem user={self.user_id} policy={self.policy_id} done={self.is_done}>"
+
+# ================================================================
+# New: Knowledge Compiler Models
+# ================================================================
+
+class CompilationStage:
+    UPLOADED    = "uploaded"
+    PARSING     = "parsing"
+    NORMALIZED  = "normalized"
+    CHUNKED     = "chunked"
+    EMBEDDING   = "embedding"
+    INDEXING    = "indexing"
+    FACT_EXTRACTION = "fact_extraction"
+    QA_COMPILATION  = "qa_compilation"
+    VALIDATING  = "validating"
+    READY       = "ready"
+    FAILED      = "failed"
+
+class CompilationJob(db.Model):
+    """State machine for the full compilation pipeline per policy version."""
+    id = db.Column(db.Integer, primary_key=True)
+    policy_id = db.Column(db.Integer, db.ForeignKey("policy.id"), nullable=False, index=True)
+    version_id = db.Column(db.Integer, db.ForeignKey("policy_version.id"), nullable=False, unique=True)
+    stage = db.Column(db.String(30), default=CompilationStage.UPLOADED, index=True)
+    error = db.Column(db.Text)
+    started_at = db.Column(db.DateTime, default=now_utc)
+    completed_at = db.Column(db.DateTime)
+    # Stats
+    chunk_count = db.Column(db.Integer, default=0)
+    fact_count = db.Column(db.Integer, default=0)
+    entity_count = db.Column(db.Integer, default=0)
+    qa_count = db.Column(db.Integer, default=0)
+    # Manifest
+    document_hash = db.Column(db.String(64))
+    compiler_version = db.Column(db.String(20))
+    embedding_model = db.Column(db.String(100))
+
+class PolicyFact(db.Model):
+    """Structured extracted fact from a policy version."""
+    id = db.Column(db.Integer, primary_key=True)
+    policy_id = db.Column(db.Integer, db.ForeignKey("policy.id"), nullable=False, index=True)
+    version_id = db.Column(db.Integer, db.ForeignKey("policy_version.id"), nullable=False, index=True)
+    subject = db.Column(db.String(200))
+    predicate = db.Column(db.String(100), index=True)  # "annual_leave_entitlement", "notice_period"
+    value = db.Column(db.String(500))                   # "30", "2 months"
+    unit = db.Column(db.String(50))                     # "days", "months", "INR"
+    scope = db.Column(db.String(200))                   # "per_calendar_year", "probation_period"
+    source_chunk_id = db.Column(db.String(100))         # chunk_id string reference
+    confidence = db.Column(db.Float, default=1.0)
+    created_at = db.Column(db.DateTime, default=now_utc)
+
+class PolicyEntity(db.Model):
+    """Named entities extracted from policy versions."""
+    id = db.Column(db.Integer, primary_key=True)
+    policy_id = db.Column(db.Integer, db.ForeignKey("policy.id"), nullable=False, index=True)
+    version_id = db.Column(db.Integer, db.ForeignKey("policy_version.id"), nullable=False)
+    entity_type = db.Column(db.String(50), index=True)  # ORG, PERSON, ROLE, DATE, AMOUNT, FORM
+    entity_name = db.Column(db.String(300))
+    normalized_name = db.Column(db.String(300), index=True)
+    source_chunk_id = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=now_utc)
+
+class PolicyRelationship(db.Model):
+    """Relationships between entities in policy graph."""
+    id = db.Column(db.Integer, primary_key=True)
+    source_entity_id = db.Column(db.Integer, db.ForeignKey("policy_entity.id"), nullable=False)
+    relation = db.Column(db.String(100))  # "superseded_by", "applies_to", "references"
+    target_entity_id = db.Column(db.Integer, db.ForeignKey("policy_entity.id"), nullable=False)
+    policy_id = db.Column(db.Integer, db.ForeignKey("policy.id"), nullable=False)
+    version_id = db.Column(db.Integer, db.ForeignKey("policy_version.id"), nullable=False)
+
+class CanonicalQuestion(db.Model):
+    """Precomputed questions with embeddings for fast QA matching."""
+    id = db.Column(db.Integer, primary_key=True)
+    policy_id = db.Column(db.Integer, db.ForeignKey("policy.id"), nullable=False, index=True)
+    version_id = db.Column(db.Integer, db.ForeignKey("policy_version.id"), nullable=False, index=True)
+    source_chunk_id = db.Column(db.String(100))
+    question = db.Column(db.Text, nullable=False)
+    question_hash = db.Column(db.String(64), unique=True, index=True)
+    quality_score = db.Column(db.Float, default=1.0)
+    created_at = db.Column(db.DateTime, default=now_utc)
+
+class CompiledAnswer(db.Model):
+    """Validated precomputed answers linked to canonical questions."""
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(db.Integer, db.ForeignKey("canonical_question.id"), nullable=False, unique=True)
+    answer = db.Column(db.Text, nullable=False)
+    source_chunk_ids = db.Column(db.Text)       # JSON list
+    confidence = db.Column(db.Float, default=0.0)
+    entailment_score = db.Column(db.Float, default=0.0)
+    status = db.Column(db.String(20), default="validated")  # validated / rejected
+    created_at = db.Column(db.DateTime, default=now_utc)
+
+class PolicyChunkV2(db.Model):
+    """Enriched chunk store with section path and content hash for incremental recompilation."""
+    __tablename__ = "policy_chunk_v2"
+    id = db.Column(db.Integer, primary_key=True)
+    chunk_id = db.Column(db.String(100), unique=True, index=True)  # "p42-v8-s4-2-c3"
+    policy_id = db.Column(db.Integer, db.ForeignKey("policy.id"), nullable=False, index=True)
+    version_id = db.Column(db.Integer, db.ForeignKey("policy_version.id"), nullable=False, index=True)
+    section_path = db.Column(db.String(500))    # "4.2 Eligibility > Sub-clause"
+    page = db.Column(db.Integer)
+    paragraph_num = db.Column(db.Integer)
+    text = db.Column(db.Text, nullable=False)
+    text_hash = db.Column(db.String(64), index=True)     # SHA256 for dedup
+    embedding_hash = db.Column(db.String(64), index=True) # hash(text+model+version)
+    char_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=now_utc)
+
