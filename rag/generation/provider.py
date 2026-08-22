@@ -29,7 +29,7 @@ class OllamaProvider(LocalLLMProvider):
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
         self.base_url = base_url or os.environ.get("LOCAL_LLM_BASE_URL", "http://localhost:11434")
         self.model = model or os.environ.get("LOCAL_LLM_MODEL", "qwen3:4b-q4_K_M")
-        self.timeout = int(os.environ.get("LLM_TIMEOUT", "6"))
+        self.timeout = float(os.environ.get("LLM_TIMEOUT", "2.5"))
         self._last_health_time = 0
         self._is_healthy = None
 
@@ -102,8 +102,10 @@ class OllamaProvider(LocalLLMProvider):
 
     def health_check(self) -> bool:
         import requests, time
+        if self._is_healthy is False and (time.time() - self._last_health_time < 30):
+            return False
         try:
-            resp = requests.get(f"{self.base_url}/api/tags", timeout=1.5)
+            resp = requests.get(f"{self.base_url}/api/tags", timeout=0.8)
             if resp.status_code == 200:
                 data = resp.json()
                 models = [m.get("name", "") for m in data.get("models", [])]

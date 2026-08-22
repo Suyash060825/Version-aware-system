@@ -51,10 +51,12 @@ class Qwen3Reranker:
             return candidates[:top_k]
 
         try:
-            pairs = [(query, c.get("text", "")) for c in candidates]
+            # Score top candidates to keep CPU latency low
+            eval_candidates = candidates[:min(len(candidates), 16)]
+            pairs = [(query, c.get("text", "")) for c in eval_candidates]
             scores = self._model.predict(pairs)
             
-            ranked = sorted(zip(scores, candidates), reverse=True, key=lambda x: x[0])
+            ranked = sorted(zip(scores, eval_candidates), reverse=True, key=lambda x: x[0])
             
             results = []
             for s, c in ranked[:top_k]:
@@ -121,9 +123,11 @@ def get_reranker():
         engine = os.environ.get("RERANKER_ENGINE", "auto").lower()
         if mode == "mock":
             _RERANKER = MockReranker()
-        elif engine == "flashrank":
+        elif engine in ("flashrank", "auto"):
             try:
                 _RERANKER = FlashRankReranker(os.environ.get("FLASHRANK_MODEL", "ms-marco-TinyBERT-L-2-v2"))
+                if _RERANKER._ranker is None:
+                    _RERANKER = Qwen3Reranker()
             except Exception:
                 _RERANKER = Qwen3Reranker()
         else:
