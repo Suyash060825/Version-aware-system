@@ -87,7 +87,7 @@ class OllamaProvider(LLMProvider):
             or os.environ.get("OLLAMA_MODEL", "qwen3:4b-q4_K_M")
         )
         self.api_key = os.environ.get("OLLAMA_API_KEY", "")
-        self.timeout = timeout if timeout is not None else int(os.environ.get("OLLAMA_TIMEOUT", "10"))
+        self.timeout = timeout if timeout is not None else (2.0, 3.5)
         import requests
         self._session = requests.Session()
 

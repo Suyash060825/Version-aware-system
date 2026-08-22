@@ -49,6 +49,8 @@
       <label style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;font-size:13px;cursor:pointer">
         <input type="checkbox" name="participant_ids" value="{{ u.id }}"> {{ u.name }} <span class="text-faint">({{ u.role }}{% if u.department %} · {{ u.department.name }}{% endif %})</span>
       </label>
+      {% else %}
+      <div style="color:var(--faint);font-size:12.5px;padding:.5rem 0">No eligible participants found.</div>
       {% endfor %}
     </div>
     <div class="field-hint">You're added automatically as organizer.</div>
@@ -57,7 +59,11 @@
   <div class="field">
     <label>Related policies (optional)</label>
     <select name="policy_ids" multiple style="min-height:100px">
-      {% for p in policies %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}
+      {% for p in policies %}
+      <option value="{{ p.id }}">{{ p.title }}</option>
+      {% else %}
+      <option disabled>No active policies available</option>
+      {% endfor %}
     </select>
     <div class="field-hint">Hold Ctrl/Cmd to select multiple.</div>
   </div>

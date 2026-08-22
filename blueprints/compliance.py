@@ -38,17 +38,24 @@ def _compute_compliance_data():
     # Policies overdue for review
     overdue_review = [p for p in active_policies if p.review_date and p.review_date < today]
 
-    # Violations: mandatory active policies with unacknowledged employees
+    # Violations & Acks: mandatory active policies with unacknowledged employees (Batched)
+    from sqlalchemy import func
     total_employees = User.query.filter_by(role=UserRole.EMPLOYEE, is_active=True).count()
+    acked_counts = dict(
+        db.session.query(PolicyAcknowledgement.policy_id, func.count(PolicyAcknowledgement.id))
+        .filter(PolicyAcknowledgement.is_mandatory == True, PolicyAcknowledgement.acknowledged_at.isnot(None))
+        .group_by(PolicyAcknowledgement.policy_id).all()
+    )
     violations = []
+    ack_scores = []
     for p in active_policies:
         if not p.is_mandatory:
             continue
-        acked = PolicyAcknowledgement.query.filter_by(
-            policy_id=p.id, is_mandatory=True).filter(PolicyAcknowledgement.acknowledged_at.isnot(None)).count()
+        acked = acked_counts.get(p.id, 0)
         outstanding = max(0, total_employees - acked)
         if outstanding > 0:
             violations.append({"policy": p, "outstanding": outstanding, "acked": acked, "total": total_employees})
+        ack_scores.append(100 * acked / total_employees if total_employees else 100)
     violations.sort(key=lambda v: -v["outstanding"])
 
     # Aggregated AI compliance issues (from Module 3's PolicyAIReview, already computed elsewhere)
@@ -61,12 +68,6 @@ def _compute_compliance_data():
 
     # Audit readiness score (composite, 0-100)
     framework_coverage = round(100 * (len(frameworks) - len(gaps)) / len(frameworks)) if frameworks else 100
-    mandatory_active = [p for p in active_policies if p.is_mandatory]
-    ack_scores = []
-    for p in mandatory_active:
-        acked = PolicyAcknowledgement.query.filter_by(
-            policy_id=p.id, is_mandatory=True).filter(PolicyAcknowledgement.acknowledged_at.isnot(None)).count()
-        ack_scores.append(100 * acked / total_employees if total_employees else 100)
     ack_score = round(sum(ack_scores) / len(ack_scores)) if ack_scores else 100
     expiry_score = round(100 * (len(active_policies) - len(expired_policies)) / len(active_policies)) if active_policies else 100
     review_score = round(100 * (len(active_policies) - len(overdue_review)) / len(active_policies)) if active_policies else 100

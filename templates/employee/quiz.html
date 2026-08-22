@@ -19,7 +19,16 @@
     </label>
     {% endfor %}
   </div>
+  {% else %}
+  <div class="card mb2" style="text-align:center;padding:2.5rem 1rem">
+    <div style="font-size:2rem;margin-bottom:.5rem">📝</div>
+    <div style="font-weight:600;font-size:14px;color:var(--ink);margin-bottom:.3rem">No Quiz Questions Available</div>
+    <p style="font-size:13px;color:var(--faint);max-width:400px;margin:0 auto 1.5rem">A comprehension quiz has not been generated for this policy version yet.</p>
+    <a href="{{ url_for('employee.policy_view', policy_id=policy.id) }}" class="btn btn-ghost">← Return to Policy View</a>
+  </div>
   {% endfor %}
+  {% if quiz %}
   <button type="submit" class="btn btn-primary">Submit Quiz</button>
+  {% endif %}
 </form>
 {% endblock %}

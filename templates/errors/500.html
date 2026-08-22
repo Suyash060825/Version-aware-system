@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}500 Server Error — Policy Ledger{% endblock %}
+{% block content %}
+<div style="max-width: 600px; margin: 4rem auto; text-align: center; background: var(--paper2); padding: 3rem 2rem; border-radius: var(--r); border: 1px solid var(--rule); box-shadow: var(--shadow);">
+  <div style="font-size: 3.5rem; margin-bottom: 1rem;">⚙️</div>
+  <h1 style="font-family: var(--font-serif); font-size: 1.8rem; margin-bottom: 0.75rem; color: var(--red);">500 — System Processing Error</h1>
+  <p style="color: var(--ink2); font-size: 14px; line-height: 1.6; margin-bottom: 2rem;">
+    An unexpected error occurred while processing this ledger request. The incident has been recorded in the audit trail.
+  </p>
+  <div style="display: flex; gap: 1rem; justify-content: center;">
+    <a href="{{ url_for('employee.dashboard') }}" style="background: var(--archive); color: #fff; padding: 0.65rem 1.3rem; border-radius: var(--r); font-weight: 600; font-size: 13.5px; text-decoration: none;">Return to Dashboard</a>
+    <a href="javascript:history.back()" style="background: var(--paper); color: var(--ink); border: 1px solid var(--rule2); padding: 0.65rem 1.3rem; border-radius: var(--r); font-weight: 600; font-size: 13.5px; text-decoration: none;">Go Back</a>
+  </div>
+</div>
+{% endblock %}

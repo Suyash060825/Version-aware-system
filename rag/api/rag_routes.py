@@ -37,7 +37,7 @@ def api_chat_stream():
     
     if session_id:
         from models import ChatSession
-        cs = ChatSession.query.get(session_id)
+        cs = db.session.get(ChatSession, session_id)
         if not cs or cs.user_id != current_user.id:
             return jsonify({"error": "Unauthorized session_id"}), 403
     else:
@@ -120,7 +120,7 @@ def api_chat():
     
     if session_id:
         from models import ChatSession
-        cs = ChatSession.query.get(session_id)
+        cs = db.session.get(ChatSession, session_id)
         if not cs or cs.user_id != current_user.id:
             return jsonify({"error": "Unauthorized session_id"}), 403
     else:

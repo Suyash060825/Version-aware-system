@@ -7,13 +7,14 @@ app.py  —  Policy Ledger v2 (Production Hardened)
 Run: python app.py
 """
 import os
-from flask import Flask, redirect, url_for, Response, jsonify
-from flask_login import current_user
+from flask import Flask, redirect, url_for, Response, jsonify, render_template
+from flask_login import current_user, login_required
 from flask_limiter.util import get_remote_address
 
 from config import config
 from extensions import db, bcrypt, login_manager, limiter, csrf
-from models import User
+from models import User, UserRole
+from utils import role_required
 
 
 def validate_production_env(app: Flask):
@@ -120,8 +121,10 @@ def create_app(env="default"):
     app.register_blueprint(blast_radius_bp)
     app.register_blueprint(rag_bp)
 
-    # Prometheus Metrics endpoint
+    # Prometheus Metrics endpoint (Protected - Admin only)
     @app.route("/metrics")
+    @login_required
+    @role_required(UserRole.ADMIN)
     def metrics():
         try:
             from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
@@ -151,11 +154,15 @@ def create_app(env="default"):
     # Error pages
     @app.errorhandler(403)
     def forbidden(e):
-        return "<h2>403 — You don't have permission to access this page.</h2><a href='/'>Home</a>", 403
+        return render_template("errors/403.html"), 403
 
     @app.errorhandler(404)
     def not_found(e):
-        return "<h2>404 — Page not found.</h2><a href='/'>Home</a>", 404
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        return render_template("errors/500.html"), 500
 
     @app.errorhandler(429)
     def ratelimit_handler(e):

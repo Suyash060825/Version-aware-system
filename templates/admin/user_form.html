@@ -18,7 +18,14 @@
         <select name="role">{% for r in roles %}<option value="{{ r }}">{{ r.title() }}</option>{% endfor %}</select>
       </div>
       <div class="field"><label>Department</label>
-        <select name="department_id"><option value="">— Select —</option>{% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select>
+        <select name="department_id">
+          <option value="">— Select —</option>
+          {% for d in departments %}
+          <option value="{{ d.id }}">{{ d.name }}</option>
+          {% else %}
+          <option value="" disabled>No departments configured</option>
+          {% endfor %}
+        </select>
       </div>
     </div>
     <div class="field"><label>Password *</label><input type="password" name="password" placeholder="Min. 8 characters" required></div>

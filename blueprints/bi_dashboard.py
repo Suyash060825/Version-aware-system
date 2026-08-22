@@ -53,31 +53,62 @@ def _count_by_month(rows_with_dates, n_months=12):
 
 
 def _generate_insight(stats: dict) -> str:
-    """Short natural-language callout, generated via the LLM abstraction with a
-    deterministic fallback (same graceful-degradation pattern as policy_ai.py)."""
+    """Short natural-language callout with Redis caching and deterministic fallback."""
+    import os, json
+    # Check cache first
+    redis_client = None
+    cache_key = "bi_dashboard:insight"
     try:
-        from policy_ai import _llm_text
-        prompt = (
-            f"Dashboard stats: {stats}. In ONE short sentence, surface the single most "
-            f"actionable insight for a policy compliance manager (e.g. a bottleneck, a "
-            f"compliance gap, or a trend). Plain text, no preamble."
-        )
-        result = _llm_text("You write terse, specific one-sentence insights from dashboard metrics.", prompt)
-        if result and len(result) < 300:
+        import redis
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        redis_client = redis.Redis.from_url(redis_url, socket_timeout=1.0)
+        cached = redis_client.get(cache_key)
+        if cached:
+            return cached.decode("utf-8")
+    except Exception:
+        pass
+
+    result = None
+    try:
+        from rag.llm_provider import get_llm_provider
+        llm = get_llm_provider()
+        if llm.health_check():
+            from policy_ai import _llm_text
+            prompt = (
+                f"Dashboard stats: {stats}. In ONE short sentence, surface the single most "
+                f"actionable insight for a policy compliance manager (e.g. a bottleneck, a "
+                f"compliance gap, or a trend). Plain text, no preamble."
+            )
+            result = _llm_text("You write terse, specific one-sentence insights from dashboard metrics.", prompt)
+            if result and len(result) < 300:
+                if redis_client:
+                    try:
+                        redis_client.setex(cache_key, 3600, result)
+                    except Exception:
+                        pass
+                return result
             return result
     except Exception:
         pass
 
     # Deterministic fallback: pick the most notable metric ourselves
     if stats.get("overdue_stages", 0) > 0:
-        return f"{stats['overdue_stages']} approval stage(s) are past their SLA — check Workflow Analytics."
-    if stats.get("compliance_rate", 100) < 70:
-        return f"Mandatory-policy compliance is at {stats['compliance_rate']}% — below the 70% healthy threshold."
-    if stats.get("zero_result_searches", 0) > 3:
-        return f"{stats['zero_result_searches']} searches recently returned nothing — possible content gaps."
-    if stats.get("top_category"):
-        return f"\"{stats['top_category']}\" is your most active department by policy count."
-    return "No standout risks detected — metrics look steady."
+        fallback = f"{stats['overdue_stages']} approval stage(s) are past their SLA — check Workflow Analytics."
+    elif stats.get("compliance_rate", 100) < 70:
+        fallback = f"Mandatory-policy compliance is at {stats['compliance_rate']}% — below the 70% healthy threshold."
+    elif stats.get("zero_result_searches", 0) > 3:
+        fallback = f"{stats['zero_result_searches']} searches recently returned nothing — possible content gaps."
+    elif stats.get("top_category"):
+        fallback = f"\"{stats['top_category']}\" is your most active department by policy count."
+    else:
+        fallback = "No standout risks detected — metrics look steady."
+
+    if redis_client:
+        try:
+            redis_client.setex(cache_key, 3600, fallback)
+        except Exception:
+            pass
+    return fallback
 
 
 @bi_bp.route("/bi-dashboard")
@@ -88,9 +119,9 @@ def bi_dashboard():
     thirty_days_ago = now - timedelta(days=30)
 
     # ---------- Policy Growth & Version Growth ----------
-    policy_dates = [p.created_at for p in Policy.query.with_entities(Policy.created_at).all()]
+    policy_dates = [p[0] for p in Policy.query.with_entities(Policy.created_at).all()]
     policy_growth = _count_by_month(policy_dates)
-    version_dates = [v.created_at for v in PolicyVersion.query.with_entities(PolicyVersion.created_at).all()]
+    version_dates = [v[0] for v in PolicyVersion.query.with_entities(PolicyVersion.created_at).all()]
     version_growth = _count_by_month(version_dates)
 
     # ---------- Employee Compliance / Read Rate ----------
@@ -106,17 +137,35 @@ def bi_dashboard():
     total_acks_all = PolicyAcknowledgement.query.count()
     read_rate = round(100 * total_reads / max(total_acks_all, 1)) if total_acks_all else 0
 
-    # ---------- Department Analytics ----------
+    # ---------- Department Analytics (Batched Queries) ----------
+    dept_emp_counts = dict(
+        db.session.query(User.department_id, func.count(User.id))
+        .filter(User.role == UserRole.EMPLOYEE, User.is_active == True)
+        .group_by(User.department_id).all()
+    )
+    dept_pol_counts = dict(
+        db.session.query(Policy.department_id, func.count(Policy.id))
+        .group_by(Policy.department_id).all()
+    )
+    dept_mand_counts = dict(
+        db.session.query(Policy.department_id, func.count(Policy.id))
+        .filter(Policy.is_mandatory == True, Policy.status == PolicyStatus.ACTIVE)
+        .group_by(Policy.department_id).all()
+    )
+    dept_ack_counts = dict(
+        db.session.query(Policy.department_id, func.count(PolicyAcknowledgement.id))
+        .join(Policy, PolicyAcknowledgement.policy_id == Policy.id)
+        .filter(PolicyAcknowledgement.acknowledged_at.isnot(None))
+        .group_by(Policy.department_id).all()
+    )
+
     dept_data = []
-    for d in Department.query.all():
-        dept_employees = User.query.filter_by(department_id=d.id, role=UserRole.EMPLOYEE, is_active=True).count()
-        dept_policies = Policy.query.filter_by(department_id=d.id).count()
-        dept_mandatory = Policy.query.filter_by(department_id=d.id, is_mandatory=True, status=PolicyStatus.ACTIVE).count()
+    for d in Department.query.order_by(Department.name).all():
+        dept_employees = dept_emp_counts.get(d.id, 0)
+        dept_policies = dept_pol_counts.get(d.id, 0)
+        dept_mandatory = dept_mand_counts.get(d.id, 0)
         dept_required = dept_employees * dept_mandatory
-        dept_acked = (db.session.query(func.count(PolicyAcknowledgement.id))
-                     .join(Policy, PolicyAcknowledgement.policy_id == Policy.id)
-                     .filter(Policy.department_id == d.id, PolicyAcknowledgement.acknowledged_at.isnot(None))
-                     .scalar()) or 0
+        dept_acked = dept_ack_counts.get(d.id, 0)
         dept_compliance = round(100 * dept_acked / dept_required) if dept_required else None
         dept_data.append({"name": d.name, "policies": dept_policies, "employees": dept_employees,
                           "compliance": dept_compliance})
@@ -146,18 +195,26 @@ def bi_dashboard():
         search_trend.append({"label": d.strftime("%d %b"), "value": search_by_day.get(d, 0)})
 
     # ---------- Meeting Trends (Module 5) ----------
-    meeting_dates = [m.scheduled_at for m in Meeting.query.with_entities(Meeting.scheduled_at).all()]
+    meeting_dates = [m[0] for m in Meeting.query.with_entities(Meeting.scheduled_at).all() if m[0]]
     meeting_trend = _count_by_month(meeting_dates, n_months=6)
 
-    # ---------- Risk Heatmap: Category x Priority ----------
+    # ---------- Risk Heatmap: Category x Priority (Batched) ----------
     categories = PolicyCategory.query.order_by(PolicyCategory.name).all()
     priorities = [Priority.LOW, Priority.MEDIUM, Priority.HIGH, Priority.CRITICAL]
+    heatmap_data = (
+        db.session.query(Policy.category_id, Policy.priority, func.count(Policy.id))
+        .filter(Policy.status == PolicyStatus.ACTIVE)
+        .group_by(Policy.category_id, Policy.priority).all()
+    )
+    heatmap_lookup = defaultdict(lambda: defaultdict(int))
+    for cid, prio, cnt in heatmap_data:
+        heatmap_lookup[cid][prio] = cnt
+
     heatmap = []
     for c in categories:
         row = {"category": c.name, "cells": []}
         for p in priorities:
-            count = Policy.query.filter_by(category_id=c.id, priority=p, status=PolicyStatus.ACTIVE).count()
-            row["cells"].append(count)
+            row["cells"].append(heatmap_lookup[c.id][p])
         if sum(row["cells"]):
             heatmap.append(row)
 
@@ -182,15 +239,12 @@ def bi_dashboard():
     )[:6]
     overdue_stages = sum(1 for s in WorkflowStageInstance.query.filter_by(status="pending").all() if s.is_overdue)
 
-    # ---------- Employee Activity (last 30 days) ----------
-    activity_rows = (db.session.query(AuditLog.user_id, func.count(AuditLog.id).label("cnt"))
-                     .filter(AuditLog.timestamp >= thirty_days_ago, AuditLog.user_id.isnot(None))
-                     .group_by(AuditLog.user_id).order_by(func.count(AuditLog.id).desc()).limit(8).all())
-    most_active = []
-    for uid, cnt in activity_rows:
-        u = db.session.get(User, uid)
-        if u:
-            most_active.append({"name": u.name, "count": cnt})
+    # ---------- Employee Activity (last 30 days - Joined) ----------
+    activity_rows = (db.session.query(User.name, func.count(AuditLog.id).label("cnt"))
+                     .join(User, AuditLog.user_id == User.id)
+                     .filter(AuditLog.timestamp >= thirty_days_ago)
+                     .group_by(User.name).order_by(func.count(AuditLog.id).desc()).limit(8).all())
+    most_active = [{"name": name, "count": cnt} for name, cnt in activity_rows]
 
     # ---------- Most Viewed Policies ----------
     most_viewed = (Policy.query.filter_by(status=PolicyStatus.ACTIVE)

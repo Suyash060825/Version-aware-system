@@ -104,7 +104,9 @@ class QueryEngine:
                     v2 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, (PolicyVersion.version_num == float(v2_num)) | (PolicyVersion.version_label.ilike(f"%{v2_num}%"))).first()
                     if v1 and v2:
                         diff_res = self.diff_engine.compute_diff(v1.content or "", v2.content or "")
-                        diff_summary = f"Comparison of {p.title} v{v1.version_number} vs v{v2.version_number}:\n"
+                        v1_label = v1.version_label or f"v{v1.version_num}"
+                        v2_label = v2.version_label or f"v{v2.version_num}"
+                        diff_summary = f"Comparison of {p.title} {v1_label} vs {v2_label}:\n"
                         if diff_res.get("added_clauses"):
                             diff_summary += f"\n- Added ({len(diff_res['added_clauses'])} clauses): " + "; ".join(diff_res['added_clauses'][:3])
                         if diff_res.get("removed_clauses"):
@@ -115,15 +117,15 @@ class QueryEngine:
                             diff_summary += "\nNo structural text differences detected between these two versions."
                             
                         cits = self.citation_validator.validate_and_enrich([
-                            {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": v1.version_number, "section": "Version Comparison", "page": 1},
-                            {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": v2.version_number, "section": "Version Comparison", "page": 1},
+                            {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1},
+                            {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
                         ])
                         return QueryResult(
                             answer=diff_summary,
                             route="TEMPORAL_COMPARISON",
                             confidence=0.95,
                             citations=cits,
-                            policy_versions=[str(v1.version_number), str(v2.version_number)],
+                            policy_versions=[str(v1.version_num), str(v2.version_num)],
                             latency_ms=(time.time() - t_start) * 1000,
                             llm_used=False,
                             retrieval_count=2,
@@ -235,12 +237,11 @@ class QueryEngine:
         # Compute answer via fast-path / hybrid engine
         res = self.answer(query, user=user, session_id=session_id)
         
-        # Tokenize answer by words to simulate/deliver real-time streaming cadence
+        # Tokenize answer by words to deliver streaming cadence
         words = res.answer.split(" ")
         for i, word in enumerate(words):
             chunk = word if i == len(words) - 1 else word + " "
             yield {"type": "token", "token": chunk}
-            time.sleep(0.012)  # smooth 12ms token cadence for instant visual feedback
 
         # Deliver final result payload with citations, confidence, and route info
         yield {

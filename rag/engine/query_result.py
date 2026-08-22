@@ -33,11 +33,23 @@ class QueryResult:
 
     @classmethod
     def from_compiled_qa(cls, qa_match: dict, latency_ms: float):
+        import json
+        source_ids = qa_match.get("source_chunk_ids", [])
+        if isinstance(source_ids, str):
+            try:
+                chunk_ids = json.loads(source_ids)
+            except (json.JSONDecodeError, TypeError):
+                chunk_ids = []
+        elif isinstance(source_ids, (list, tuple)):
+            chunk_ids = source_ids
+        else:
+            chunk_ids = []
+
         return cls(
             answer=qa_match["answer"],
             route="FAST_QA",
             confidence=qa_match["confidence"],
-            citations=[{"chunk_id": cid} for cid in eval(qa_match.get("source_chunk_ids", "[]"))],
+            citations=[{"chunk_id": cid} for cid in chunk_ids],
             policy_versions=[],
             latency_ms=latency_ms,
             llm_used=False,

@@ -46,6 +46,10 @@
       <div style="font-weight:600;font-size:12.5px;margin-top:.35rem">{{ label }}</div>
       <div style="font-size:11px;color:var(--faint);margin-top:.2rem">{{ desc }}</div>
     </div>
+    {% else %}
+    <div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--faint);font-size:13px">
+      No badge categories configured yet.
+    </div>
     {% endfor %}
   </div>
 </div>

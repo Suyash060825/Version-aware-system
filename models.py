@@ -71,7 +71,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(200), nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(20), nullable=False, default=UserRole.EMPLOYEE)
-    department_id = db.Column(db.Integer, db.ForeignKey("department.id"), nullable=True)
+    department_id = db.Column(db.Integer, db.ForeignKey("department.id"), nullable=True, index=True)
     designation = db.Column(db.String(100))
     phone = db.Column(db.String(20))
     avatar_url = db.Column(db.String(300))
@@ -172,11 +172,11 @@ class Policy(db.Model):
     policy_id = db.Column(db.String(30), unique=True, nullable=False)  # e.g. POL-2024-001
     title = db.Column(db.String(300), nullable=False, index=True)
     description = db.Column(db.Text)
-    category_id = db.Column(db.Integer, db.ForeignKey("policy_category.id"), nullable=True)
-    department_id = db.Column(db.Integer, db.ForeignKey("department.id"), nullable=True)
+    category_id = db.Column(db.Integer, db.ForeignKey("policy_category.id"), nullable=True, index=True)
+    department_id = db.Column(db.Integer, db.ForeignKey("department.id"), nullable=True, index=True)
 
     # People
-    author_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    author_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     reviewer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     approver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
@@ -309,9 +309,9 @@ class ApprovalWorkflow(db.Model):
 # ---------- PolicyAcknowledgement (Phase 13) ----------
 class PolicyAcknowledgement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    policy_id = db.Column(db.Integer, db.ForeignKey("policy.id"), nullable=False)
+    policy_id = db.Column(db.Integer, db.ForeignKey("policy.id"), nullable=False, index=True)
     version_id = db.Column(db.Integer, db.ForeignKey("policy_version.id"), nullable=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     read_at = db.Column(db.DateTime)
     acknowledged_at = db.Column(db.DateTime)
     digital_signature = db.Column(db.String(300))  # "Full Name — YYYY-MM-DD HH:MM"
@@ -340,7 +340,7 @@ class NotificationType:
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     type = db.Column(db.String(40), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     message = db.Column(db.Text)
@@ -390,7 +390,7 @@ class ChatMessage(db.Model):
 
 class SearchHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
     query_text = db.Column(db.String(500), nullable=False)
     answered = db.Column(db.Boolean, default=True)
     chunks_found = db.Column(db.Integer, default=0)
@@ -451,7 +451,7 @@ class IndexingJob(db.Model):
 
 class AuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
     action = db.Column(db.String(100), nullable=False)  # e.g. "policy.create", "user.login"
     resource_type = db.Column(db.String(50))             # "policy", "user", "version"
     resource_id = db.Column(db.Integer)

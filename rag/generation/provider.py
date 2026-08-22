@@ -36,7 +36,7 @@ class OllamaProvider(LocalLLMProvider):
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
         import requests, time
         # Fast check if server is available
-        if self._is_healthy is False and (time.time() - self._last_health_time < 10):
+        if self._is_healthy is False and (time.time() - self._last_health_time < 30):
             return None
 
         try:
@@ -52,7 +52,7 @@ class OllamaProvider(LocalLLMProvider):
             if system_prompt:
                 payload["system"] = system_prompt
 
-            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=self.timeout)
+            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(2.0, float(self.timeout)))
             resp.raise_for_status()
             data = resp.json()
             self._is_healthy = True
@@ -66,7 +66,7 @@ class OllamaProvider(LocalLLMProvider):
 
     def stream(self, prompt: str, system_prompt: Optional[str] = None):
         import requests, json, time
-        if self._is_healthy is False and (time.time() - self._last_health_time < 10):
+        if self._is_healthy is False and (time.time() - self._last_health_time < 30):
             return
 
         try:
@@ -82,7 +82,7 @@ class OllamaProvider(LocalLLMProvider):
             if system_prompt:
                 payload["system"] = system_prompt
 
-            with requests.post(f"{self.base_url}/api/generate", json=payload, timeout=self.timeout, stream=True) as resp:
+            with requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(2.0, float(self.timeout)), stream=True) as resp:
                 if resp.status_code == 200:
                     self._is_healthy = True
                     self._last_health_time = time.time()
@@ -103,11 +103,19 @@ class OllamaProvider(LocalLLMProvider):
     def health_check(self) -> bool:
         import requests, time
         try:
-            resp = requests.get(f"{self.base_url}/api/tags", timeout=1)
-            healthy = (resp.status_code == 200)
-            self._is_healthy = healthy
+            resp = requests.get(f"{self.base_url}/api/tags", timeout=1.5)
+            if resp.status_code == 200:
+                data = resp.json()
+                models = [m.get("name", "") for m in data.get("models", [])]
+                # Check if model is pulled or if any model exists
+                model_base = self.model.split(":")[0].lower()
+                has_model = any(model_base in m.lower() for m in models) if models else False
+                self._is_healthy = has_model
+                self._last_health_time = time.time()
+                return has_model
+            self._is_healthy = False
             self._last_health_time = time.time()
-            return healthy
+            return False
         except Exception:
             self._is_healthy = False
             self._last_health_time = time.time()
