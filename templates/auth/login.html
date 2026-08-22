@@ -48,6 +48,13 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;background-im
       <label class="remember"><input type="checkbox" name="remember"> Remember me for 30 days</label>
       <button type="submit" class="btn">Sign in →</button>
     </form>
+
+    <div class="divider">or continue with</div>
+    <div style="display:flex;gap:.5rem">
+      <a href="{{ url_for('auth.sso_login', provider='google') }}" class="btn" style="flex:1;background:var(--paper);color:var(--ink);border:1px solid var(--rule2);text-decoration:none;text-align:center;font-size:12.5px;padding:.55rem;margin-top:0">Google Workspace</a>
+      <a href="{{ url_for('auth.sso_login', provider='okta') }}" class="btn" style="flex:1;background:var(--paper);color:var(--ink);border:1px solid var(--rule2);text-decoration:none;text-align:center;font-size:12.5px;padding:.55rem;margin-top:0">Okta SSO</a>
+    </div>
+
     <div class="links">
       <a href="{{ url_for('auth.register') }}">Create account</a>
     </div>

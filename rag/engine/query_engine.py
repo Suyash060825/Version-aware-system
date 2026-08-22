@@ -227,6 +227,36 @@ class QueryEngine:
             abstained=False
         )
 
+    def stream_answer(self, query: str, user=None, session_id: str = None):
+        """
+        Streaming generator yielding token events and final result metadata for SSE.
+        """
+        t_start = time.time()
+        # Compute answer via fast-path / hybrid engine
+        res = self.answer(query, user=user, session_id=session_id)
+        
+        # Tokenize answer by words to simulate/deliver real-time streaming cadence
+        words = res.answer.split(" ")
+        for i, word in enumerate(words):
+            chunk = word if i == len(words) - 1 else word + " "
+            yield {"type": "token", "token": chunk}
+            time.sleep(0.012)  # smooth 12ms token cadence for instant visual feedback
+
+        # Deliver final result payload with citations, confidence, and route info
+        yield {
+            "type": "done",
+            "result": {
+                "answer": res.answer,
+                "citations": res.citations,
+                "confidence": res.confidence * 100,
+                "route": res.route,
+                "llm_used": res.llm_used,
+                "latency_ms": (time.time() - t_start) * 1000,
+                "fallback": res.abstained,
+                "model": "qwen3" if res.llm_used else "deterministic-rag"
+            }
+        }
+
 _ENGINE = None
 def get_query_engine() -> QueryEngine:
     global _ENGINE

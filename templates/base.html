@@ -285,9 +285,80 @@ tr:hover td{background:var(--paper)}
   </div>
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- Global Ctrl+K Command Palette -->
+<div id="cmdk-modal" style="display:none;position:fixed;inset:0;background:rgba(26,31,28,.6);backdrop-filter:blur(3px);z-index:9999;align-items:flex-start;justify-content:center;padding-top:12vh">
+  <div style="background:var(--paper2);border:1px solid var(--rule);border-radius:8px;box-shadow:var(--shadow2);width:100%;max-width:580px;overflow:hidden;animation:slideDown .15s ease">
+    <div style="display:flex;align-items:center;padding:.85rem 1.1rem;border-bottom:1px solid var(--rule);gap:.7rem">
+      <span class="icon" style="color:var(--faint)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <input id="cmdk-input" type="text" placeholder="Type a command or search policies (ESC to exit)..." style="width:100%;border:none;background:transparent;font-size:15px;color:var(--ink);outline:none;font-family:var(--font-sans)">
+      <span style="font-family:var(--font-mono);font-size:10px;padding:2px 6px;border:1px solid var(--rule2);border-radius:4px;color:var(--faint)">ESC</span>
+    </div>
+    <div id="cmdk-results" style="max-height:340px;overflow-y:auto;padding:.5rem 0">
+      <div style="font-size:11px;font-family:var(--font-mono);text-transform:uppercase;color:var(--faint);padding:.4rem 1.1rem">Quick Navigation</div>
+      <a href="{{ url_for('rag.chat_page') }}" class="cmdk-item" style="display:flex;align-items:center;gap:.7rem;padding:.55rem 1.1rem;font-size:13.5px;color:var(--ink);text-decoration:none">
+        <span style="color:var(--archive)">⚡</span> Open AI Policy Chat
+      </a>
+      <a href="{{ url_for('employee.policy_browse') }}" class="cmdk-item" style="display:flex;align-items:center;gap:.7rem;padding:.55rem 1.1rem;font-size:13.5px;color:var(--ink);text-decoration:none">
+        <span>📖</span> Browse All Policies
+      </a>
+      <a href="{{ url_for('what_if.simulator') }}" class="cmdk-item" style="display:flex;align-items:center;gap:.7rem;padding:.55rem 1.1rem;font-size:13.5px;color:var(--ink);text-decoration:none">
+        <span>🔮</span> What-If Scenario Simulator
+      </a>
+      {% if current_user.is_authenticated and current_user.role in ['admin', 'hr'] %}
+      <div style="font-size:11px;font-family:var(--font-mono);text-transform:uppercase;color:var(--faint);padding:.6rem 1.1rem .4rem">Admin & Governance</div>
+      <a href="{{ url_for('admin.dashboard') }}" class="cmdk-item" style="display:flex;align-items:center;gap:.7rem;padding:.55rem 1.1rem;font-size:13.5px;color:var(--ink);text-decoration:none">
+        <span>📊</span> Admin Control Dashboard
+      </a>
+      <a href="{{ url_for('knowledge_graph.graph_page') }}" class="cmdk-item" style="display:flex;align-items:center;gap:.7rem;padding:.55rem 1.1rem;font-size:13.5px;color:var(--ink);text-decoration:none">
+        <span>🕸️</span> Policy Knowledge Graph
+      </a>
+      <a href="{{ url_for('contradiction_radar.dashboard') }}" class="cmdk-item" style="display:flex;align-items:center;gap:.7rem;padding:.55rem 1.1rem;font-size:13.5px;color:var(--ink);text-decoration:none">
+        <span>⚡</span> Contradiction Radar
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>
+.cmdk-item:hover{background:var(--archive2);color:var(--archive)!important}
+</style>
+
 <script>
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
 function confirmAction(msg,form){if(confirm(msg)){form.submit()}return false}
+
+// Global Ctrl+K / Cmd+K Command Palette
+(function() {
+  const modal = document.getElementById('cmdk-modal');
+  const input = document.getElementById('cmdk-input');
+
+  window.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
+      if (modal.style.display === 'flex') {
+        input.focus();
+        input.value = '';
+      }
+    } else if (e.key === 'Escape' && modal.style.display === 'flex') {
+      modal.style.display = 'none';
+    }
+  });
+
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) {
+      modal.style.display = 'none';
+    }
+  });
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && input.value.trim().length > 0) {
+      window.location.href = "{{ url_for('employee.search') }}?q=" + encodeURIComponent(input.value.trim());
+    }
+  });
+})();
 </script>
 {% block scripts %}{% endblock %}
 </body>

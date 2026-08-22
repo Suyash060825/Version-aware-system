@@ -5,7 +5,7 @@ Flask blueprint for all RAG endpoints. Preserves original layout, updated to Que
 import uuid
 import json
 from datetime import datetime
-from flask import Blueprint, request, jsonify, render_template, session
+from flask import Blueprint, request, jsonify, render_template, session, Response, stream_with_context
 from flask_login import login_required, current_user
 from models import db, ChatSession, ChatMessage, SearchHistory, Feedback, IndexingJob, PolicyChunk
 from extensions import csrf, limiter
@@ -25,6 +25,89 @@ def chat_page():
     except Exception:
         doc_count = 0
     return render_template("employee/chat.html", unread_count=unread_count, doc_count=doc_count)
+
+
+@rag_bp.route("/api/chat/stream", methods=["POST"])
+@login_required
+@limiter.limit("30 per minute", key_func=rate_limit_key_user_or_ip)
+def api_chat_stream():
+    data = request.get_json(force=True)
+    query = (data.get("query") or "").strip()
+    session_id = data.get("session_id")
+    
+    if session_id:
+        from models import ChatSession
+        cs = ChatSession.query.get(session_id)
+        if not cs or cs.user_id != current_user.id:
+            return jsonify({"error": "Unauthorized session_id"}), 403
+    else:
+        session_id = _get_or_create_session()
+
+    if not query:
+        return jsonify({"error": "Empty query"}), 400
+
+    if len(query) > 1000:
+        return jsonify({"error": "Query too long (max 1000 chars)"}), 400
+
+    # User object and context for generator
+    user_obj = current_user._get_current_object()
+
+    def generate_events():
+        from rag.engine.query_engine import get_query_engine
+        engine = get_query_engine()
+        full_answer = ""
+        final_result_data = None
+
+        try:
+            for event in engine.stream_answer(query, user=user_obj, session_id=session_id):
+                if event["type"] == "token":
+                    full_answer += event["token"]
+                    yield f"data: {json.dumps(event)}\n\n"
+                elif event["type"] == "done":
+                    final_result_data = event["result"]
+                    
+                    # Format citations
+                    formatted_citations = []
+                    for cit in final_result_data.get("citations", []):
+                        formatted_citations.append({
+                            "policy_id": cit.get("policy_id", 0),
+                            "version_id": cit.get("version_id", 0),
+                            "policy_name": cit.get("policy_name", "Policy"),
+                            "version": cit.get("version", "1.0"),
+                            "section": cit.get("section", "General"),
+                            "page": cit.get("page", 1)
+                        })
+
+                    message_id = _save_message(
+                        session_id, query, final_result_data["answer"], formatted_citations,
+                        len(formatted_citations), model_name=final_result_data.get("model", "qwen3"),
+                        cache_hit=False
+                    )
+
+                    _save_search_history(query, {
+                        "fallback": final_result_data.get("fallback", False),
+                        "chunks_used": len(formatted_citations)
+                    })
+
+                    event_payload = {
+                        "type": "done",
+                        "answer": final_result_data["answer"],
+                        "citations": formatted_citations,
+                        "confidence": final_result_data.get("confidence", 100),
+                        "route": final_result_data.get("route", "HYBRID_RAG"),
+                        "llm_used": final_result_data.get("llm_used", False),
+                        "latency_ms": final_result_data.get("latency_ms", 0),
+                        "session_id": session_id,
+                        "message_id": message_id,
+                        "fallback": final_result_data.get("fallback", False)
+                    }
+                    yield f"data: {json.dumps(event_payload)}\n\n"
+        except Exception as e:
+            import logging
+            logging.getLogger("rag.api").exception("Stream error in api_chat_stream")
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+
+    return Response(stream_with_context(generate_events()), mimetype="text/event-stream")
 
 
 @rag_bp.route("/api/chat", methods=["POST"])

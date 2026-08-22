@@ -70,3 +70,22 @@ def test_query_engine(app):
     
     assert res.abstained is False
     assert "30 days" in res.answer or "30" in res.answer
+
+    # Test stream_answer generator
+    events = list(engine.stream_answer("How many days of annual leave?"))
+    assert len(events) > 0
+    token_events = [e for e in events if e["type"] == "token"]
+    done_events = [e for e in events if e["type"] == "done"]
+    assert len(token_events) > 0
+    assert len(done_events) == 1
+    assert done_events[0]["result"]["fallback"] is False
+    assert "30" in done_events[0]["result"]["answer"]
+
+    # Test MultiLevelCache
+    from rag.cache.semantic_cache import get_cache
+    cache = get_cache()
+    q_vec = embedder.embed_query("How many days of annual leave?")
+    cache.put(q_vec, "Test cached 30 days leave", [{"policy_id": p.id, "version": "1.0"}], 1)
+    cached_hit = cache.get(q_vec)
+    assert cached_hit is not None
+    assert "30 days" in cached_hit["answer"]

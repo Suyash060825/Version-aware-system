@@ -57,11 +57,15 @@ def create_app(env="default"):
     bcrypt.init_app(app)
     
     # Configure rate limiter storage URI dynamically
-    redis_url = os.environ.get("REDIS_URL")
-    if (os.environ.get("FLASK_ENV") == "production" or not app.debug) and not redis_url:
-        redis_url = "redis://localhost:6379/0"
-    if redis_url:
-        app.config["RATELIMIT_STORAGE_URI"] = redis_url
+    if app.config.get("TESTING"):
+        app.config["RATELIMIT_STORAGE_URI"] = "memory://"
+        app.config["RATELIMIT_ENABLED"] = False
+    else:
+        redis_url = os.environ.get("REDIS_URL")
+        if (os.environ.get("FLASK_ENV") == "production" or not app.debug) and not redis_url:
+            redis_url = "redis://localhost:6379/0"
+        if redis_url:
+            app.config["RATELIMIT_STORAGE_URI"] = redis_url
         
     limiter.init_app(app)
     csrf.init_app(app)
@@ -124,6 +128,20 @@ def create_app(env="default"):
             return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
         except Exception as e:
             return f"Metrics unavailable: {str(e)}", 500
+
+    @app.route("/health/live")
+    def health_live():
+        """Kubernetes liveness probe — checks if application process is alive."""
+        return jsonify({"status": "ok", "service": "policy-ledger"}), 200
+
+    @app.route("/health/ready")
+    def health_ready():
+        """Kubernetes readiness probe — checks database and core service connectivity."""
+        try:
+            db.session.execute(db.text("SELECT 1"))
+            return jsonify({"status": "ready", "database": "connected"}), 200
+        except Exception as e:
+            return jsonify({"status": "unhealthy", "error": str(e)}), 503
 
     # Root redirect
     @app.route("/")

@@ -69,6 +69,42 @@ class Qwen3Reranker:
     def rerank(self, query: str, candidates: List[Dict[str, Any]], top_k: int = 8) -> List[Dict[str, Any]]:
         return self.rank(query, candidates, top_k=top_k)
 
+class FlashRankReranker:
+    def __init__(self, model_name: str = "ms-marco-TinyBERT-L-2-v2"):
+        self.model_name = model_name
+        try:
+            from flashrank import Ranker, RerankRequest
+            self._ranker = Ranker(model_name=model_name)
+            self._rerank_request_cls = RerankRequest
+            logger.info(f"Loaded FlashRank ONNX Reranker: {model_name}")
+        except Exception as e:
+            logger.warning(f"FlashRank load failed: {e}. Falling back to Qwen3 / CrossEncoder.")
+            self._ranker = None
+
+    def rank(self, query: str, candidates: List[Dict[str, Any]], top_k: int = 8) -> List[Dict[str, Any]]:
+        if not candidates:
+            return []
+        if not self._ranker:
+            return candidates[:top_k]
+        try:
+            passages = [{"id": i, "text": c.get("text", "")} for i, c in enumerate(candidates)]
+            req = self._rerank_request_cls(query=query, passages=passages)
+            ranked_passages = self._ranker.rerank(req)
+            
+            results = []
+            for item in ranked_passages[:top_k]:
+                idx = item["id"]
+                c_copy = dict(candidates[idx])
+                c_copy["rerank_score"] = float(item["score"])
+                results.append(c_copy)
+            return results
+        except Exception as e:
+            logger.error(f"Error in FlashRank reranking: {e}")
+            return candidates[:top_k]
+
+    def rerank(self, query: str, candidates: List[Dict[str, Any]], top_k: int = 8) -> List[Dict[str, Any]]:
+        return self.rank(query, candidates, top_k=top_k)
+
 class MockReranker:
     def rank(self, query: str, candidates: List[Dict[str, Any]], top_k: int = 8) -> List[Dict[str, Any]]:
         return candidates[:top_k]
@@ -81,10 +117,15 @@ _RERANKER = None
 def get_reranker():
     global _RERANKER
     if _RERANKER is None:
-        model = os.environ.get("RERANKER_MODEL", "Qwen/Qwen3-Reranker-0.6B")
-        mode = os.environ.get("RERANKER_MODE", "real")
+        mode = os.environ.get("RERANKER_MODE", "real").lower()
+        engine = os.environ.get("RERANKER_ENGINE", "auto").lower()
         if mode == "mock":
             _RERANKER = MockReranker()
+        elif engine == "flashrank":
+            try:
+                _RERANKER = FlashRankReranker(os.environ.get("FLASHRANK_MODEL", "ms-marco-TinyBERT-L-2-v2"))
+            except Exception:
+                _RERANKER = Qwen3Reranker()
         else:
             _RERANKER = Qwen3Reranker()
     return _RERANKER

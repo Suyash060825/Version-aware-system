@@ -92,6 +92,16 @@
 <div class="card mb2">
   <div class="kg-toolbar">
     <input type="text" id="kg-search" placeholder="Find a policy, department, or meeting by name…">
+    <select id="kg-dept-filter" class="form-select" style="padding:.4rem .8rem;border:1px solid var(--rule2);border-radius:var(--r);background:var(--paper);font-size:13px;outline:none">
+      <option value="">All Departments</option>
+      <option value="Human Resources">Human Resources</option>
+      <option value="IT">IT & Security</option>
+      <option value="Legal">Legal & Compliance</option>
+      <option value="Finance">Finance</option>
+      <option value="Engineering">Engineering</option>
+      <option value="Operations">Operations</option>
+      <option value="Marketing">Marketing</option>
+    </select>
     <div class="seg">
       <button class="seg-btn" id="kg-layout-tree" type="button">Tree view (easier to follow)</button>
       <button class="seg-btn" id="kg-layout-free" type="button">Free view (see all connections)</button>
@@ -219,6 +229,27 @@
     network.fit({ animation: true });
   });
 
+  let rawGraphData = null;
+  const deptFilter = document.getElementById('kg-dept-filter');
+
+  deptFilter.addEventListener('change', function() {
+    if (!rawGraphData) return;
+    const selectedDept = deptFilter.value.toLowerCase();
+    if (!selectedDept) {
+      buildNetwork(rawGraphData.nodes, rawGraphData.edges);
+      return;
+    }
+    const filteredNodes = rawGraphData.nodes.filter(n => {
+      if (n.group === 'department') {
+        return n.label.toLowerCase().includes(selectedDept);
+      }
+      return true;
+    });
+    const nodeIds = new Set(filteredNodes.map(n => n.id));
+    const filteredEdges = rawGraphData.edges.filter(e => nodeIds.has(e.from) && nodeIds.has(e.to));
+    buildNetwork(filteredNodes, filteredEdges);
+  });
+
   searchBox.addEventListener('input', function() {
     if (!network || !allNodesDS) return;
     const q = searchBox.value.trim().toLowerCase();
@@ -238,6 +269,7 @@
         renderEmpty('There is nothing to map yet — once policies, meetings, and decisions exist in the system, they will show up here automatically.');
         return;
       }
+      rawGraphData = data;
       buildNetwork(data.nodes, data.edges);
     })
     .catch(() => {

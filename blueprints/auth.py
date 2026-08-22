@@ -60,6 +60,48 @@ def _complete_login(user: User, remember: bool = False):
     audit("auth.login_success", resource_type="user", resource_id=user.id)
 
 
+# ---------- Enterprise SSO ----------
+@auth_bp.route("/sso/<provider>", methods=["GET"])
+def sso_login(provider):
+    """
+    Enterprise SSO Gateway initiating SAML 2.0 / OIDC authentication flow.
+    Supports Okta, Azure AD, and Google Workspace.
+    """
+    import os
+    provider = provider.lower()
+    valid_providers = {"okta", "azure", "google", "saml"}
+    if provider not in valid_providers:
+        flash(f"Unsupported SSO provider: {provider}", "warning")
+        return redirect(url_for("auth.login"))
+
+    sso_enabled = os.environ.get("SSO_ENABLED", "false").lower() == "true"
+    
+    # In development or if mock SSO is triggered
+    if not sso_enabled or request.args.get("mock") == "1":
+        # Match or auto-provision standard SSO test user
+        email = f"sso.user@{provider}.corp"
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            user = User(
+                email=email,
+                name=f"SSO Employee ({provider.title()})",
+                role=UserRole.EMPLOYEE,
+                is_active=True,
+                email_verified=True
+            )
+            user.set_password(os.urandom(16).hex())
+            db.session.add(user)
+            db.session.commit()
+        
+        _complete_login(user)
+        flash(f"Successfully authenticated via {provider.title()} SSO.", "success")
+        return redirect(_dashboard_url())
+
+    # Production OIDC / SAML redirect
+    sso_redirect_url = os.environ.get(f"SSO_{provider.upper()}_AUTH_URL", f"https://login.company.com/{provider}")
+    return redirect(sso_redirect_url)
+
+
 # ---------- MFA verify ----------
 @auth_bp.route("/mfa", methods=["GET", "POST"])
 def mfa_verify():

@@ -168,7 +168,15 @@ class KnowledgeCompilerPipeline:
     def _stage_embed(self, job: CompilationJob):
         from rag.embeddings.embedder import get_embedder
         embedder = get_embedder()
-        texts = [c.text for c in self._chunks]
+        policy_title = getattr(self._document_ir, "title", "Policy")
+        version_label = getattr(self._document_ir, "version_label", "1.0")
+        dept_name = getattr(self._document_ir, "department", "Universal")
+        
+        # Contextual Retrieval (Late Chunking metadata prepending)
+        texts = [
+            f"[Policy: {policy_title} (v{version_label}) | Department: {dept_name} | Section: {c.section_path or 'General'}]\n{c.text}"
+            for c in self._chunks
+        ]
         self._embeddings = embedder.embed(texts)
         job.embedding_model = getattr(embedder, "model_name", "unknown")
 

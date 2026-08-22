@@ -42,6 +42,29 @@
   <div class="stat-card {% if conflicts %}red{% endif %}"><div class="stat-val">{{ conflicts|length }}</div><div class="stat-label">Open contradiction flags</div></div>
 </div>
 
+<div class="card mb3">
+  <div class="card-label">Visual Impact Topology</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:1.5rem;background:var(--paper2);border:1px solid var(--rule);border-radius:6px;margin-top:.6rem;flex-wrap:wrap;gap:1rem">
+    <div style="flex:1;min-width:180px;text-align:center;padding:1rem;background:var(--paper);border:1px solid var(--rule);border-radius:6px">
+      <div style="font-size:11px;font-family:var(--font-mono);color:var(--faint);text-transform:uppercase">Upstream Decisions</div>
+      <div style="font-size:16px;font-weight:700;color:#7a2a8a;margin-top:.3rem">{{ meeting_rows|length }} Meetings</div>
+      <div style="font-size:12px;color:var(--ink2)">Originating source</div>
+    </div>
+    <div style="font-size:20px;color:var(--faint)">➔</div>
+    <div style="flex:1.2;min-width:200px;text-align:center;padding:1rem;background:var(--archive2);border:2px solid var(--archive);border-radius:6px">
+      <div style="font-size:11px;font-family:var(--font-mono);color:var(--archive3);text-transform:uppercase">Target Change</div>
+      <div style="font-size:16px;font-weight:700;color:var(--archive);margin-top:.3rem">{{ policy.title }}</div>
+      <div style="font-size:12px;color:var(--ink2)">v{{ policy.latest_version_number or '1.0' }} ({{ policy.status }})</div>
+    </div>
+    <div style="font-size:20px;color:var(--faint)">➔</div>
+    <div style="flex:1;min-width:180px;text-align:center;padding:1rem;background:var(--paper);border:1px solid var(--rule);border-radius:6px">
+      <div style="font-size:11px;font-family:var(--font-mono);color:var(--faint);text-transform:uppercase">Downstream Impact</div>
+      <div style="font-size:16px;font-weight:700;color:{% if impact_score >= 65 %}var(--red){% elif impact_score >= 35 %}var(--amber){% else %}var(--green){% endif %};margin-top:.3rem">{{ audience }} Users</div>
+      <div style="font-size:12px;color:var(--ink2)">{{ reack_count }} Re-acks · {{ whatif.total }} Scenarios</div>
+    </div>
+  </div>
+</div>
+
 <div class="grid2 mb3">
   <div class="card">
     <div class="card-label">Linked meetings ({{ meeting_rows|length }})</div>

@@ -28,3 +28,6 @@ rank-bm25
 requests
 matplotlib
 pandas
+fastembed>=0.3.0
+flashrank>=0.2.0
+pgvector>=0.2.5

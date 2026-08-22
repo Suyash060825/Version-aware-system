@@ -15,6 +15,12 @@ class LocalLLMProvider(ABC):
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
         pass
 
+    def stream(self, prompt: str, system_prompt: Optional[str] = None):
+        """Default fallback generator yielding the full response."""
+        res = self.generate(prompt, system_prompt)
+        if res:
+            yield res
+
     @abstractmethod
     def health_check(self) -> bool:
         pass
@@ -57,6 +63,42 @@ class OllamaProvider(LocalLLMProvider):
             self._last_health_time = time.time()
             logger.warning(f"Ollama offline/busy ({self.model} at {self.base_url}): {e}. Fast failover active.")
             return None
+
+    def stream(self, prompt: str, system_prompt: Optional[str] = None):
+        import requests, json, time
+        if self._is_healthy is False and (time.time() - self._last_health_time < 10):
+            return
+
+        try:
+            payload = {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": True,
+                "options": {
+                    "temperature": 0.1,
+                    "num_predict": int(os.environ.get("LLM_MAX_NEW_TOKENS", "256"))
+                }
+            }
+            if system_prompt:
+                payload["system"] = system_prompt
+
+            with requests.post(f"{self.base_url}/api/generate", json=payload, timeout=self.timeout, stream=True) as resp:
+                if resp.status_code == 200:
+                    self._is_healthy = True
+                    self._last_health_time = time.time()
+                    for line in resp.iter_lines():
+                        if line:
+                            try:
+                                chunk = json.loads(line.decode("utf-8"))
+                                token = chunk.get("response", "")
+                                if token:
+                                    yield token
+                            except Exception:
+                                pass
+        except Exception as e:
+            self._is_healthy = False
+            self._last_health_time = time.time()
+            logger.warning(f"Ollama streaming failed: {e}")
 
     def health_check(self) -> bool:
         import requests, time
