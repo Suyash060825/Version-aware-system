@@ -1,7 +1,7 @@
 # Version-Aware Enterprise Policy Intelligence: Grounded Retrieval-Augmented Generation over Evolving Institutional Knowledge (Draft v2)
 
 ## Abstract
-Enterprise policy management systems operate in continuous flux: human resources, legal compliance, and IT security guidelines are frequently amended, creating discrete, temporally bounded policy versions. Standard Retrieval-Augmented Generation (RAG) architectures assume static corpora, frequently causing temporal version inversion (retrieving superseded guidelines for historical inquiries or obsolete policies for current requests), high computational latency on deterministic queries, and security violations across organizational departments. In this work, we introduce **PolicyLedger**, a publication-hardened, version-aware policy intelligence architecture featuring: (1) a multi-tier adaptive router combining structured fact resolution ($O(1)$ SQL lookup), persistent approximate nearest neighbor search via FAISS HNSW over precompiled canonical question-answer pairs, and cross-encoder reranked hybrid retrieval; (2) authoritative date-interval version validity $[effective\_from, effective\_to]$ enforced at the schema and retrieval layer; (3) an incremental knowledge compiler achieving $230\times$ faster updates ($18.4\text{ ms}$ vs. $4,250\text{ ms}$) without global index rebuilds; and (4) calibrated multi-factor confidence gating achieving 100% refusal accuracy on adversarial and out-of-domain queries. Empirical benchmarks demonstrate a median query latency of $76.55\text{ ms}$ (a $98\%$ reduction compared to uncompiled local LLM baselines) with an MRR@5 of $0.9167$ and $100\%$ citation traceability.
+Enterprise policy management systems operate in continuous flux: human resources, legal compliance, and IT security guidelines are frequently amended, creating discrete, temporally bounded policy versions. Standard Retrieval-Augmented Generation (RAG) architectures assume static corpora, frequently causing temporal version inversion (retrieving superseded guidelines for historical inquiries or obsolete policies for current requests), high computational latency on deterministic queries, and security violations across organizational departments. In this work, we introduce **PolicyLedger**, a publication-hardened, version-aware policy intelligence architecture featuring: (1) a multi-tier adaptive router combining structured fact resolution ($O(1)$ SQL lookup), persistent approximate nearest neighbor search via FAISS HNSW over precompiled canonical question-answer pairs, and cross-encoder reranked hybrid retrieval; (2) authoritative date-interval version validity $[effective\_from, effective\_to]$ enforced at the schema and retrieval layer; (3) an incremental knowledge compiler achieving $721\times$ faster updates ($3.57\text{ ms}$ vs. $2,579.31\text{ ms}$) without global index rebuilds; and (4) multi-factor confidence gating achieving 88.89% refusal accuracy on adversarial and out-of-domain queries. Empirical benchmarks demonstrate a median query latency of $29.65\text{ ms}$ with an MRR@10 of $0.9861$. While local quantization constraints (Qwen 4B) limit exact text matches to 27.91%, the system achieves 48.18% partial correctness with zero hallucinated citations, proving the architecture's safety and temporal robustness.
 
 ---
 
@@ -57,22 +57,21 @@ All experiments were executed on Linux x86_64 with local ONNX runtime inference 
 
 ### 3.1 Retrieval & Ranking Accuracy
 
-| System | MRR@5 | NDCG@5 | Hit@1 | Hit@5 |
+| System | MRR@10 | NDCG@10 | Recall@1 | Recall@5 |
 | :--- | :---: | :---: | :---: | :---: |
-| Dense (BGE-Small) | 0.9444 | 0.9444 | 0.9444 | 0.9444 |
-| BM25 (Sparse) | 0.9074 | 0.9167 | 0.8889 | 0.9444 |
-| Hybrid RRF | 0.9444 | 0.9444 | 0.9444 | 0.9444 |
-| **Hybrid + FlashRank (Ours)** | **0.9167** | **0.9239** | **0.8889** | **0.9444** |
+| Dense (BGE-Small) | 0.9861 | 0.9861 | 0.9861 | 0.9861 |
+| BM25 (Sparse) | 0.9826 | 0.9835 | 0.9792 | 0.9861 |
+| Hybrid RRF | 0.9861 | 0.9861 | 0.9861 | 0.9861 |
+| **Hybrid + FlashRank (Ours)** | **0.9861** | **0.9861** | **0.9861** | **0.9861** |
 
 ### 3.2 Latency Breakdown by Routing Tier
 
 | Tier | P50 (ms) | P95 (ms) | P99 (ms) |
 | :--- | :---: | :---: | :---: |
-| **Level 0 (Fast Fact)** | **43.91 ms** | 55.53 ms | 58.05 ms |
-| **Level 1 (Canonical QA ANN)** | **36.50 ms** | 49.10 ms | 52.30 ms |
-| **Level 3 (Temporal Diff)** | **40.20 ms** | 56.40 ms | 59.80 ms |
-| **Level 2 (Hybrid RAG + FlashRank)** | **83.63 ms** | 113.99 ms | 122.72 ms |
-| **End-to-End System Composite** | **76.55 ms** | **106.71 ms** | **121.26 ms** |
+| **Level 0 (Fast Fact)** | **20.19 ms** | 33.71 ms | 41.54 ms |
+| **Level 1 (Canonical QA ANN)** | **23.28 ms** | 29.16 ms | 33.54 ms |
+| **Level 2 (Hybrid RAG + FlashRank)** | **120.50 ms** | 144.80 ms | 146.68 ms |
+| **End-to-End System Composite** | **29.65 ms** | **136.49 ms** | **146.69 ms** |
 
 ---
 
