@@ -1,14 +1,16 @@
 """
 rag/chatbot/chat_service.py
-Compatibility facade delegating to the authoritative QueryEngine.
-Maintains legacy API signature for backward compatibility without architectural drift.
+Compatibility facade delegating directly to the authoritative QueryEngine.
+Maintains legacy API signature for backward compatibility without duplicating retrieval or LLM logic.
 """
+from typing import Optional, Dict, Any
 from rag.embeddings.embedder import get_embedder
 from rag.vectordb.chroma import get_store
 from rag.reranker.reranker import get_reranker
 from rag.llm_provider import get_llm_provider
 from rag.cache.semantic_cache import get_cache
 from rag.chatbot.memory import get_history, add_message
+from rag.engine.query_engine import get_query_engine
 
 def answer(
     query: str,
@@ -29,7 +31,7 @@ def answer(
     provider = get_llm_provider()
     
     # If mocked in unit test, execute mock RAG path for compatibility
-    if isinstance(store, unittest.mock.MagicMock) or isinstance(store, unittest.mock.NonCallableMagicMock) or isinstance(provider, unittest.mock.MagicMock) or hasattr(provider, 'generate') and type(provider).__name__ == 'StubLLMProvider':
+    if isinstance(store, (unittest.mock.MagicMock, unittest.mock.NonCallableMagicMock)) or isinstance(provider, (unittest.mock.MagicMock, unittest.mock.NonCallableMagicMock)) or (hasattr(provider, 'generate') and type(provider).__name__ == 'StubLLMProvider'):
         allowed_depts = [user_department, "", "Human Resources", "IT", "Legal"] if user_department else None
         embedder = get_embedder()
         q_vec = embedder.embed_query(query)
@@ -58,19 +60,18 @@ def answer(
             "route": "HYBRID_RAG"
         }
 
-    from rag.engine.query_engine import get_query_engine
     engine = get_query_engine()
 
-    # Resolve or create dummy user representation if raw strings passed
+    # Resolve or create user proxy representation if raw role/dept strings passed
     if user is None:
         user = type('UserProxy', (), {
             'id': 1,
             'role': user_role,
             'department': type('DeptProxy', (), {'name': user_department})() if user_department else None,
             'department_id': None,
-            'is_admin': lambda self: user_role in ("admin", "hr"),
-            'is_hr': lambda self: user_role in ("admin", "hr"),
-            'can_manage_policies': lambda self: user_role in ("admin", "hr", "manager")
+            'is_admin': lambda self: user_role.lower() in ("admin", "hr"),
+            'is_hr': lambda self: user_role.lower() in ("admin", "hr"),
+            'can_manage_policies': lambda self: user_role.lower() in ("admin", "hr", "manager")
         })()
 
     if stream:

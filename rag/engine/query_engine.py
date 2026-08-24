@@ -48,8 +48,9 @@ class QueryEngine:
         normalized_query = self.router.normalize(query)
         intent, complexity, route_name, meta = self.router.route(normalized_query)
         temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
+        allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
         from rag.engine.query_scope import QueryScope
-        scope = QueryScope.from_user(user, temporal_context)
+        scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
 
         # 1.5 Scoped Cache Lookup (L1 / L2)
         from rag.cache.semantic_cache import get_cache
@@ -58,7 +59,7 @@ class QueryEngine:
         embedder = get_embedder()
         q_emb = embedder.embed_query(normalized_query)
 
-        cached = cache.get(q_emb, allowed_depts=scope.departments, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
+        cached = cache.get(q_emb, scope=scope, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
         if cached:
             cits = self.citation_validator.validate_and_enrich(cached.get("citations", []))
             if cits or not cached.get("citations"):
@@ -94,14 +95,14 @@ class QueryEngine:
 
         # 3. Level 1: Precomputed Canonical QA Fast Path
         if complexity <= ComplexityLevel.LEVEL_1_COMPILED_QA:
-            qa_match = self.qa_matcher.match(normalized_query, q_emb, threshold=0.78)
+            qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.80)
             
             if qa_match:
                 pol = qa_match.get("policy")
                 ver = qa_match.get("version")
                 # Authoritative DB entity authorization check
                 if pol and ver:
-                    is_auth = self.evidence_filter.is_authorized_for_policy(user, pol)
+                    is_auth = self.evidence_filter.is_authorized_for_policy(scope, pol)
                     conf_ok = pol.confidentiality in scope.allowed_confidentiality
                     temp_ok = (not scope.target_date) or ver.is_valid_for_date(scope.target_date)
                     if is_auth and conf_ok and temp_ok:
@@ -250,6 +251,9 @@ class QueryEngine:
                 # If cannot extract verified answer-bearing sentence and no LLM grounding, abstain safely
                 return QueryResult.abstained("I could not find sufficient authoritative evidence to answer this specific question.", (time.time() - t_start) * 1000)
 
+        # Cache successful verified answer
+        cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3")
+
         return QueryResult(
             answer=final_answer,
             route="HYBRID_RAG",
@@ -273,9 +277,12 @@ class QueryEngine:
         normalized_query = self.router.normalize(query)
         intent, complexity, route_name, meta = self.router.route(normalized_query)
         temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
+        allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
+        from rag.engine.query_scope import QueryScope
+        scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
 
         # 2. Level 0: Fast Structured Fact Path
-        fact_res = self.fact_resolver.try_resolve(normalized_query, temporal=temporal_context)
+        fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
         if fact_res.found and fact_res.answer:
             cits = self.citation_validator.validate_and_enrich(fact_res.citations)
             words = fact_res.answer.split(" ")
@@ -302,15 +309,13 @@ class QueryEngine:
             from rag.embeddings.embedder import get_embedder
             embedder = get_embedder()
             q_emb = embedder.embed_query(normalized_query)
-            qa_match = self.qa_matcher.match(normalized_query, q_emb, threshold=0.78)
+            qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.80)
             
             if qa_match:
                 pol = qa_match.get("policy")
                 ver = qa_match.get("version")
-                from rag.engine.query_scope import QueryScope
-                scope = QueryScope.from_user(user, temporal_context)
                 if pol and ver:
-                    is_auth = self.evidence_filter.is_authorized_for_policy(user, pol)
+                    is_auth = self.evidence_filter.is_authorized_for_policy(scope, pol)
                     conf_ok = pol.confidentiality in scope.allowed_confidentiality
                     temp_ok = (not scope.target_date) or ver.is_valid_for_date(scope.target_date)
                     if is_auth and conf_ok and temp_ok:

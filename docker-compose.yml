@@ -3,12 +3,11 @@ services:
   # Nginx Reverse Proxy / Load Balancer & SSL Termination
   # ============================================================================
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     container_name: policy_ledger_nginx
     restart: unless-stopped
     ports:
       - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro,z
     depends_on:
@@ -141,7 +140,7 @@ services:
   # Ollama Local High-Throughput Inference Engine
   # ============================================================================
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.5.7
     container_name: policy_ledger_ollama
     restart: unless-stopped
     ports:

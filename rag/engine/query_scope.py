@@ -1,35 +1,57 @@
 """
 rag/engine/query_scope.py
-Structured QueryScope object propagating authorization, tenant, department, and temporal version constraints across all RAG pipeline stages.
+Structured immutable QueryScope object propagating authorization, tenant, department, and temporal version constraints across all RAG pipeline stages.
 """
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Optional, List, Any
+from typing import Optional, Tuple, List, Any
 
-@dataclass
+@dataclass(frozen=True)
 class QueryScope:
-    tenant_id: Optional[str] = None
     user_id: Optional[int] = None
+    tenant_id: Optional[str] = None
     role: str = "employee"
-    departments: List[str] = field(default_factory=list)
-    policy_ids: List[int] = field(default_factory=list)
-    version_ids: List[int] = field(default_factory=list)
+    department_ids: Tuple[int, ...] = ()
+    departments: Tuple[str, ...] = ()
+    allowed_policy_ids: Optional[Tuple[int, ...]] = None
+    allowed_version_ids: Optional[Tuple[int, ...]] = None
     target_date: Optional[date] = None
-    allowed_confidentiality: List[str] = field(default_factory=lambda: ["public", "internal"])
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    historical: bool = False
+    current_only: bool = True
+    allowed_confidentiality: Tuple[str, ...] = ("public", "internal")
     is_admin: bool = False
-    is_historical: bool = False
     requested_version: Optional[str] = None
 
     @classmethod
-    def from_user(cls, user: Any = None, temporal_ctx: Any = None) -> "QueryScope":
+    def from_user(cls, user: Any = None, temporal_ctx: Any = None, allowed_policy_ids: Optional[List[int]] = None) -> "QueryScope":
+        tq = getattr(temporal_ctx, "temporal_query", None) if temporal_ctx else None
+        target_d = getattr(temporal_ctx, "target_date", None) if temporal_ctx else None
+        start_d = getattr(tq, "start_date", None) if tq else None
+        end_d = getattr(tq, "end_date", None) if tq else None
+        is_hist = getattr(temporal_ctx, "is_historic", False) if temporal_ctx else False
+        req_ver = getattr(temporal_ctx, "requested_version", None) if temporal_ctx else None
+
+        allowed_p_tuple = tuple(allowed_policy_ids) if allowed_policy_ids is not None else None
+
         if user is None:
             return cls(
+                user_id=None,
+                tenant_id=None,
                 role="employee",
-                departments=[],
+                department_ids=(),
+                departments=(),
+                allowed_policy_ids=allowed_p_tuple,
+                allowed_version_ids=None,
+                target_date=target_d,
+                start_date=start_d,
+                end_date=end_d,
+                historical=is_hist,
+                current_only=not is_hist,
+                allowed_confidentiality=("public", "internal"),
                 is_admin=False,
-                target_date=getattr(temporal_ctx, "target_date", None) if temporal_ctx else None,
-                is_historical=getattr(temporal_ctx, "is_historic", False) if temporal_ctx else False,
-                version_ids=[temporal_ctx.version_id] if temporal_ctx and getattr(temporal_ctx, "version_id", None) else []
+                requested_version=req_ver
             )
 
         is_adm = False
@@ -39,34 +61,44 @@ class QueryScope:
             is_adm = True
 
         role = getattr(user, "role", "employee")
+        if hasattr(role, "value"):
+            role = role.value
+        role = str(role).lower()
+
         user_id = getattr(user, "id", None)
+        tenant_id = getattr(user, "tenant_id", None)
 
         depts = []
+        dept_ids = []
         if getattr(user, "department", None):
             dept_name = getattr(user.department, "name", str(user.department))
             if dept_name:
                 depts.append(dept_name)
-        elif getattr(user, "department_id", None):
-            depts.append(str(user.department_id))
+        if getattr(user, "department_id", None) is not None:
+            dept_ids.append(int(user.department_id))
+            if not depts:
+                depts.append(str(user.department_id))
 
         confidentiality = ["public", "internal"]
-        if is_adm or role in ("admin", "hr", "legal"):
+        if is_adm or role in ("admin", "executive", "legal"):
             confidentiality.extend(["confidential", "restricted"])
-
-        target_d = getattr(temporal_ctx, "target_date", None) if temporal_ctx else None
-        is_hist = getattr(temporal_ctx, "is_historic", False) if temporal_ctx else False
-        v_ids = [temporal_ctx.version_id] if temporal_ctx and getattr(temporal_ctx, "version_id", None) else []
-        p_ids = [temporal_ctx.policy_id] if temporal_ctx and getattr(temporal_ctx, "policy_id", None) else []
+        elif role in ("hr", "manager"):
+            confidentiality.append("confidential")
 
         return cls(
             user_id=user_id,
+            tenant_id=tenant_id,
             role=role,
-            departments=depts,
-            policy_ids=p_ids,
-            version_ids=v_ids,
+            department_ids=tuple(dept_ids),
+            departments=tuple(depts),
+            allowed_policy_ids=allowed_p_tuple,
+            allowed_version_ids=None,
             target_date=target_d,
-            allowed_confidentiality=confidentiality,
+            start_date=start_d,
+            end_date=end_d,
+            historical=is_hist,
+            current_only=not is_hist,
+            allowed_confidentiality=tuple(confidentiality),
             is_admin=is_adm,
-            is_historical=is_hist,
-            requested_version=getattr(temporal_ctx, "requested_version", None) if temporal_ctx else None
+            requested_version=req_ver
         )

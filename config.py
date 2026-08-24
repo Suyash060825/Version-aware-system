@@ -67,6 +67,16 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
     SESSION_COOKIE_SAMESITE = 'Lax'
 
+    @classmethod
+    def validate_production_secrets(cls):
+        secret = os.environ.get("SECRET_KEY", "")
+        jwt_secret = os.environ.get("JWT_SECRET_KEY", "")
+        insecure_defaults = {"change-this-in-production-please", "dev-secret-key", ""}
+        if not secret or secret in insecure_defaults:
+            raise ValueError("Insecure or missing SECRET_KEY in production environment. Set a strong SECRET_KEY.")
+        if jwt_secret and jwt_secret in insecure_defaults:
+            raise ValueError("Insecure JWT_SECRET_KEY in production environment. Set a strong JWT_SECRET_KEY.")
+
 
 class TestingConfig(Config):
     TESTING = True

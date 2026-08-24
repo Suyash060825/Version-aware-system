@@ -7,6 +7,7 @@ Base Index + Delta Overlay Index + Tombstone Filter + Asynchronous Compaction.
 import os
 import pickle
 import logging
+import threading
 import numpy as np
 from typing import List, Tuple, Optional, Dict, Any, Set
 from models import db, CanonicalQuestion, CompiledAnswer
@@ -29,6 +30,7 @@ class CanonicalQAIndex:
         self._embedding_model = "BAAI/bge-small-en-v1.5"
         self._embedding_revision = "1.0.0"
         self._is_loaded = False
+        self._compaction_lock = threading.Lock()
         self.load()
 
     def _init_empty_base(self):
@@ -221,47 +223,56 @@ class CanonicalQAIndex:
         self.delete_policy_version(policy_id, version_id)
         self.add(questions, answers, embeddings)
 
+        self._compaction_lock = threading.Lock()
+
     def compact(self):
         """
-        Asynchronous compaction: merges base index + delta overlay and filters out tombstones.
+        Thread-safe compaction: merges base index + delta overlay and filters out tombstones atomically.
         """
-        active_items = []
-        active_vectors = []
-        from rag.embeddings.embedder import get_embedder
-        embedder = get_embedder()
+        with self._compaction_lock:
+            try:
+                active_items = []
+                from rag.embeddings.embedder import get_embedder
+                embedder = get_embedder()
 
-        # Gather active items from base
-        for m in self._metadata:
-            if m.get("question_id") not in self._tombstones:
-                active_items.append(m)
-        
-        # Gather active items from delta
-        for m in self._delta_metadata:
-            if m.get("question_id") not in self._tombstones:
-                active_items.append(m)
+                # Gather active items from base
+                for m in self._metadata:
+                    if m.get("question_id") not in self._tombstones:
+                        active_items.append(m)
+                
+                # Gather active items from delta
+                for m in self._delta_metadata:
+                    if m.get("question_id") not in self._tombstones:
+                        active_items.append(m)
 
-        if not active_items:
-            self._init_empty_base()
-            self._init_empty_delta()
-            self._tombstones.clear()
-            self.save()
-            return
+                if not active_items:
+                    self._init_empty_base()
+                    self._init_empty_delta()
+                    self._tombstones.clear()
+                    self.save()
+                    return
 
-        texts = [m["question"] for m in active_items]
-        embs = embedder.embed(texts)
+                texts = [m["question"] for m in active_items]
+                embs = embedder.embed(texts)
 
-        self._init_empty_base()
-        self._init_empty_delta()
-        self._tombstones.clear()
+                import faiss
+                new_base = faiss.IndexHNSWFlat(self.dimension, 64, faiss.METRIC_INNER_PRODUCT)
+                new_base.hnsw.efConstruction = 128
+                new_base.hnsw.efSearch = 128
+                vecs = np.array(embs, dtype=np.float32)
+                faiss.normalize_L2(vecs)
+                new_base.add(vecs)
 
-        import faiss
-        vecs = np.array(embs, dtype=np.float32)
-        faiss.normalize_L2(vecs)
-        self._base_index.add(vecs)
-        self._metadata = active_items
-        self._index_revision += 1
-        self.save()
-        logger.info(f"Compacted FAISS QA index: {len(active_items)} active items (rev {self._index_revision})")
+                # Atomic reference swap
+                self._base_index = new_base
+                self._init_empty_delta()
+                self._tombstones.clear()
+                self._metadata = active_items
+                self._index_revision += 1
+                self.save()
+                logger.info(f"Compacted FAISS QA index: {len(active_items)} active items (rev {self._index_revision})")
+            except Exception as e:
+                logger.error(f"Compaction failed, retaining existing index: {e}")
 
     def search(self, query_embedding: List[float], top_k: int = 3) -> List[Tuple[float, int, int]]:
         """

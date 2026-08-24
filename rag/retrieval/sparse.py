@@ -123,7 +123,7 @@ class PersistentBM25Index:
         self._revision += 1
         self.save()
 
-    def get_scores(self, query: str, filters: dict = None) -> List[Tuple[str, float, dict]]:
+    def get_scores(self, query: str, filters: dict = None, scope: Any = None) -> List[Tuple[str, float, dict]]:
         if not self._bm25 or not self._corpus:
             self.load()
         if not self._bm25 or not self._corpus:
@@ -139,6 +139,15 @@ class PersistentBM25Index:
             if score > 0:
                 doc = self._corpus[i]
                 
+                # Scope-based pre-filtering
+                if scope:
+                    if getattr(scope, "allowed_policy_ids", None) is not None:
+                        if doc.get("policy_id") not in scope.allowed_policy_ids:
+                            continue
+                    if getattr(scope, "allowed_version_ids", None) is not None:
+                        if doc.get("version_id") not in scope.allowed_version_ids:
+                            continue
+
                 # Pre-filtered partition matching
                 if filters:
                     match = True

@@ -45,6 +45,10 @@ class IncrementalCompiler:
             deleted_chunk_ids=deleted_ids
         )
 
+import os
 def compute_chunk_hash(text: str, model_name: str = "", model_version: str = "") -> str:
-    content = f"{text.strip()}|{model_name}|{model_version}"
+    normalized_text = " ".join(text.lower().split())
+    model = model_name or os.environ.get("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+    version = model_version or "1.0.0"
+    content = f"{normalized_text}|{model}|{version}"
     return hashlib.sha256(content.encode()).hexdigest()

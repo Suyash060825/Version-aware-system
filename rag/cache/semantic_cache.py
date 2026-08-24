@@ -129,12 +129,62 @@ class MultiLevelCache:
             "expires_at": time.time() + ttl
         })
 
-    def get(self, query_embedding: List[float], allowed_depts: Optional[List[str]] = None, is_diff_query: bool = False) -> Optional[dict]:
-        scope = ",".join(sorted(allowed_depts or [])) + f"|diff={is_diff_query}"
-        return self.get_l2(query_embedding, scope_key=scope)
+    def _make_scope_key(self, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, is_diff_query: bool = False) -> str:
+        if scope is not None and hasattr(scope, "role"):
+            tenant = getattr(scope, "tenant_id", "") or ""
+            role = getattr(scope, "role", "employee")
+            depts = ",".join(sorted(getattr(scope, "departments", ()) or []))
+            conf = ",".join(sorted(getattr(scope, "allowed_confidentiality", ()) or []))
+            hist = getattr(scope, "historical", False)
+            t_date = getattr(scope, "target_date", "") or ""
+            ver = getattr(scope, "requested_version", "") or ""
+            return f"t={tenant}|r={role}|d={depts}|c={conf}|h={hist}|td={t_date}|v={ver}|diff={is_diff_query}"
+        scope_str = ",".join(sorted(allowed_depts or [])) + f"|diff={is_diff_query}"
+        return scope_str
 
-    def put(self, query_embedding: List[float], answer: str, citations: list, chunks_used: int, allowed_depts: Optional[List[str]] = None, model: str = "", is_diff_query: bool = False):
-        scope = ",".join(sorted(allowed_depts or [])) + f"|diff={is_diff_query}"
+    def get(self, query_embedding: List[float], scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, is_diff_query: bool = False) -> Optional[dict]:
+        scope_key = self._make_scope_key(scope=scope, allowed_depts=allowed_depts, is_diff_query=is_diff_query)
+        cached = self.get_l2(query_embedding, scope_key=scope_key)
+        if not cached:
+            return None
+
+        # Verify cached policies, versions, and source authorization still valid in DB
+        try:
+            from flask import has_app_context
+            if has_app_context():
+                from models import db, Policy, PolicyVersion, PolicyChunkV2
+                from rag.authorization.evidence_filter import EvidenceFilter
+                evidence_filter = EvidenceFilter()
+
+                citations = cached.get("citations", [])
+                for cit in citations:
+                    pid = cit.get("policy_id")
+                    vid = cit.get("version_id")
+                    cid = cit.get("chunk_id")
+
+                    if pid:
+                        policy = db.session.get(Policy, int(pid))
+                        if not policy:
+                            return None
+                        if scope and not evidence_filter.is_authorized_for_policy(scope, policy):
+                            return None
+
+                    if vid:
+                        version = db.session.get(PolicyVersion, int(vid))
+                        if not version:
+                            return None
+
+                    if cid:
+                        chunk = PolicyChunkV2.query.filter_by(chunk_id=cid).first()
+                        if not chunk:
+                            return None
+        except Exception as e:
+            logger.debug(f"Cache validation check bypassed: {e}")
+
+        return cached
+
+    def put(self, query_embedding: List[float], answer: str, citations: list, chunks_used: int, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, model: str = "", is_diff_query: bool = False):
+        scope_key = self._make_scope_key(scope=scope, allowed_depts=allowed_depts, is_diff_query=is_diff_query)
         policy_ids = [c.get("policy_id") for c in citations if c.get("policy_id")]
         version_ids = [c.get("version_id") for c in citations if c.get("version_id")]
         chunk_ids = [c.get("chunk_id") for c in citations if c.get("chunk_id")]
@@ -147,7 +197,7 @@ class MultiLevelCache:
         }
         self.set_l2(
             query_embedding,
-            scope_key=scope,
+            scope_key=scope_key,
             result=res,
             policy_ids=policy_ids,
             version_ids=version_ids,

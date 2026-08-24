@@ -15,6 +15,14 @@ class FactResolutionResult:
     citations: list
     fact: Optional[Any]
     confidence: float
+    value: Optional[str] = None
+    unit: Optional[str] = None
+    subject: Optional[str] = None
+    predicate: Optional[str] = None
+    policy_id: Optional[int] = None
+    version_id: Optional[int] = None
+    source_chunk_id: Optional[str] = None
+    confidence_score: float = 0.0
 
 class FactResolver:
     FACT_PATTERNS = [
@@ -141,19 +149,27 @@ class FactResolver:
         policy_title = policy.title if policy else "Policy"
         version_num = version.version_number if version else "1.0"
 
+        # Resolve authoritative source chunk (no fact response is valid without source evidence)
+        section = "General"
+        page = 1
+        chunk = None
+        if fact.source_chunk_id:
+            chunk = PolicyChunkV2.query.filter_by(chunk_id=fact.source_chunk_id).first()
+        if not chunk and version:
+            chunk = PolicyChunkV2.query.filter_by(policy_id=fact.policy_id, version_id=version.id).first()
+
+        if not chunk:
+            return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
+
+        section = chunk.section_path or section
+        page = chunk.page or page
+        source_cid = chunk.chunk_id
+
         # Format deterministic natural language answer
         unit_str = f" {fact.unit}" if fact.unit and not fact.value.endswith(fact.unit) and not fact.value.startswith("Rs") else ""
         scope_str = f" ({fact.scope})" if fact.scope else ""
         
         answer = f"According to the {policy_title} (v{version_num}), the {fact.subject or fact.predicate.replace('_', ' ')} is {fact.value}{unit_str}{scope_str}."
-
-        section = "General"
-        page = 1
-        if fact.source_chunk_id:
-            chunk = PolicyChunkV2.query.filter_by(chunk_id=fact.source_chunk_id).first()
-            if chunk:
-                section = chunk.section_path or section
-                page = chunk.page or page
 
         citations = [{
             "policy_id": fact.policy_id,
@@ -162,13 +178,22 @@ class FactResolver:
             "version": version_num,
             "section": section,
             "page": page,
-            "chunk_id": fact.source_chunk_id
+            "chunk_id": source_cid
         }]
 
+        conf = float(fact.confidence or 0.98)
         return FactResolutionResult(
             found=True,
             answer=answer,
             citations=citations,
             fact=fact,
-            confidence=fact.confidence or 0.98
+            confidence=conf,
+            value=fact.value,
+            unit=fact.unit,
+            subject=fact.subject,
+            predicate=fact.predicate,
+            policy_id=fact.policy_id,
+            version_id=fact.version_id,
+            source_chunk_id=source_cid,
+            confidence_score=conf
         )

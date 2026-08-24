@@ -70,8 +70,6 @@ class CitationValidator:
                         version = PolicyVersion.query.filter_by(policy_id=policy.id, version_num=v_num).first()
                     except ValueError:
                         pass
-                if not version:
-                    version = policy.active_version or policy.latest_version
 
             # Strict Safety Gate: If policy or version cannot be authoritatively resolved, reject citation
             if not policy or not version:
