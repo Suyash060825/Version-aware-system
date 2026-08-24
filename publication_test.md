@@ -123,3 +123,40 @@ FINAL RESEARCH AUDIT & PUBLICATION REPORT
   • test_citation_security.py: PASSED (Zero fallback invention, pre-context authorization filter, cross-department isolation, safe scoped caching).
   • test_query_engine.py: PASSED (End-to-end multi-tier inference and SSE streaming).
   • test_compiler_pipeline.py: PASSED (Full compilation pipeline with authentic entailment verification).
+
+
+  ──────
+  ### System Access Details
+
+  • Web Application URL: http://localhost:5000 (or via Nginx reverse proxy on http://localhost:80)
+  • Live Health Endpoint: http://localhost:5000/health/live ({"service":"policy-ledger","status":"ok"})
+  • Default Admin Account:
+      • Email: admin@example.com
+      • Password: PolicyLedger#Admin2026!
+  ──────
+  ### Running Containers Status (docker compose ps)
+
+   Service                            | Container Name                    | Status                            | Ports
+  ------------------------------------|-----------------------------------|-----------------------------------|-----------------------------------
+   Flask + Gunicorn Web               | policy_ledger_web                 | Up (Healthy)                      | 0.0.0.0:5000->5000/tcp
+   Nginx Reverse Proxy                | policy_ledger_nginx               | Up                                | 0.0.0.0:80->80/tcp, 443->443/tcp
+   PostgreSQL 16 + pgvector           | policy_ledger_postgres            | Up (Healthy)                      | 127.0.0.1:5432->5432/tcp
+   Redis 7-alpine Cache               | policy_ledger_redis               | Up (Healthy)                      | 127.0.0.1:6379->6379/tcp
+   Celery Background Worker           | policy_ledger_celery              | Up                                | 5000/tcp
+   Ollama Local LLM                   | policy_ledger_ollama              | Up (Healthy)                      | 127.0.0.1:11434->11434/tcp
+  ──────
+  ### What You Can Test in the Application:
+
+  1. Deterministic Fast-Path Fact Resolution (<1ms):
+      • Ask specific factual limit queries (e.g., "What is the annual leave allowance?", "What is the notice period?").
+  2. Version-Aware & Temporal Interval Queries:
+      • Test historical validity intervals (e.g., "What was the hotel limit in 2023?" vs "What was the hotel limit in June 2024?" vs "What is the
+      current hotel limit?").
+      • Test version comparison (e.g., "Compare v1.0 vs v2.0 of the Travel Policy").
+  3. Cross-Department Security & Evidence Authorization:
+      • Log in as an employee in HR vs Finance — verify departmental documents are isolated and never cross-bleed.
+  4. Streaming Answers & Verified Citations:
+      • Notice real-time SSE token delivery with strict chunk-backed citations and zero invented fallbacks.
+
+
+──────────────────────────

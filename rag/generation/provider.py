@@ -102,10 +102,10 @@ class OllamaProvider(LocalLLMProvider):
 
     def health_check(self) -> bool:
         import requests, time
-        if self._is_healthy is False and (time.time() - self._last_health_time < 30):
+        if self._is_healthy is False and (time.time() - self._last_health_time < 60):
             return False
         try:
-            resp = requests.get(f"{self.base_url}/api/tags", timeout=0.8)
+            resp = requests.get(f"{self.base_url}/api/tags", timeout=(0.3, 0.5))
             if resp.status_code == 200:
                 data = resp.json()
                 models = [m.get("name", "") for m in data.get("models", [])]
