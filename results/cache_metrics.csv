@@ -1,9 +1,9 @@
 Metric,Value
-Evaluated Cache Warmup Queries,25
+Evaluated Cache Warmup Queries,30
 L1 / L2 Overall Cache Hit Rate,0.00%
-Mean Cache Miss Latency (ms),30.9
-Mean Cache Hit Latency (ms),28.35
-Measured Cache Speedup Factor,1.09x
+Mean Cache Miss Latency (ms),82.45
+Mean Cache Hit Latency (ms),80.58
+Measured Cache Speedup Factor,1.02x
 Stale-Answer Rate (Post-Invalidation),0.00%
 Wrong-Version Cache Rate,0.00%
 Unauthorized Cross-Scope Cache Reuse,0.00%

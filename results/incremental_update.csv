@@ -1,3 +1,3 @@
-Update Strategy,Measured Execution Time (ms),Re-Indexed Chunks,Re-Embedded Items,Rebuild Type
-Incremental Delta Update (Ours),0.11,6 chunks,6 items,O(|delta|) Segment Overlay
-Full Global Rebuild (Baseline),2658.74,127 chunks,356 items,O(N) Complete Corpus Rebuild
+Update Strategy,Measured Execution Time (ms),Re-Indexed Chunks,Unchanged Chunks,Index Operations,Complexity
+Incremental Delta Update (Ours),3.57,0 chunks,6 chunks,Segment Overlay + Tombstones,O(|delta|)
+Full Global Rebuild (Baseline),2579.31,127 chunks,0 chunks,Global Re-embedding + Index Rebuild,O(N)

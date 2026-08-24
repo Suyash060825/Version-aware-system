@@ -1,5 +1,5 @@
-Retriever,MRR@5,NDCG@5,Hit@1,Hit@3,Hit@5
-Dense (BGE-Small),0.9905,0.9911,0.9896,0.9896,0.9931
-BM25 (Sparse),0.0,0.0,0.0,0.0,0.0
-Hybrid (Reciprocal Rank Fusion),0.9905,0.9911,0.9896,0.9896,0.9931
-Hybrid + FlashRank (Ours),0.9931,0.9931,0.9931,0.9931,0.9931
+Retriever,Recall@1,Recall@5,Recall@10,MRR@10,NDCG@10
+Dense (BGE-Small),0.9861,0.9861,0.9861,0.9861,0.9861
+BM25 (Sparse),0.9792,0.9861,0.9861,0.9826,0.9835
+Hybrid (Reciprocal Rank Fusion),0.9861,0.9861,0.9861,0.9861,0.9861
+Hybrid + FlashRank (Ours),0.9861,0.9861,0.9861,0.9861,0.9861

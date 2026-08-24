@@ -18,15 +18,16 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-      - name: Run Golden Questions Eval
+      - name: Run Master Scientific Evaluation Suite
         run: |
-          python eval/run_eval.py
+          ./scripts/reproduce_results.sh
         env:
           FLASK_ENV: testing
-          LLM_BACKEND: extractive # Use extractive fallback for quick CI testing if no LLM
-      - name: Upload Report
+          DATABASE_URL: sqlite:///data/ledger.db
+          LLM_BACKEND: extractive
+      - name: Upload Results Artifacts
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: rag-eval-report
-          path: eval/report.md
+          name: rag-eval-results
+          path: results/

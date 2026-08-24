@@ -47,7 +47,7 @@ class FactResolver:
     def __init__(self):
         self.store = FactStore()
 
-    def try_resolve(self, query: str, scope: Optional[dict] = None, temporal: Optional[Any] = None) -> FactResolutionResult:
+    def try_resolve(self, query: str, scope: Optional[Any] = None, temporal: Optional[Any] = None, user: Optional[Any] = None) -> FactResolutionResult:
         query_lower = query.lower()
         query_words = set(re.findall(r"\b[a-z0-9]+\b", query_lower))
 
@@ -68,38 +68,64 @@ class FactResolver:
         
         candidate_facts = all_facts.all()
 
+        from rag.authorization.evidence_filter import EvidenceFilter
+        evidence_filter = EvidenceFilter()
+
         best_fact = None
         best_score = -1
 
         for fact in candidate_facts:
+            policy = db.session.get(Policy, fact.policy_id)
+            version = db.session.get(PolicyVersion, fact.version_id)
+            if not policy or not version:
+                continue
+
+            # Authorization Check
+            if user is not None and not evidence_filter.is_authorized_for_policy(user, policy):
+                continue
+
+            # Temporal Validity Check
+            tq = getattr(temporal, "temporal_query", None) if temporal else None
+            t_date = getattr(temporal, "target_date", None) if temporal else None
+            req_ver = getattr(temporal, "requested_version", None) if temporal else None
+
+            if req_ver:
+                if str(version.version_num) != str(req_ver) and version.version_label != req_ver and f"v{version.version_num}" != req_ver:
+                    continue
+            elif tq and (tq.start_date or tq.end_date):
+                if not version.is_valid_for_interval(tq.start_date, tq.end_date):
+                    continue
+            elif t_date:
+                if not version.is_valid_for_date(t_date):
+                    continue
+
             score = 0
             pred = (fact.predicate or "").lower()
             clean_pred = pred.replace("_", " ")
             subj = (fact.subject or "").lower()
-            
-            policy = db.session.get(Policy, fact.policy_id)
-            version = db.session.get(PolicyVersion, fact.version_id)
             p_title = (policy.title if policy else "").lower()
 
-            # Active version preference
-            if version and version.is_active:
+            # Active version preference when not historical
+            if version and version.is_active and not (temporal and temporal.is_historic):
                 score += 8
 
             # Predicate match
-            if pred in target_predicates or clean_pred in query_lower:
-                score += 20
-            elif any(w in query_words for w in clean_pred.split() if len(w) > 3):
-                score += 10
+            if pred in target_predicates:
+                score += 30
+            elif clean_pred in query_lower:
+                score += 25
+            else:
+                continue
 
             # Title overlap
             title_words = set(re.findall(r"\b[a-z0-9]+\b", p_title))
-            score += len(query_words & title_words) * 4
+            score += len(query_words & title_words) * 5
 
             # Subject overlap
             subj_words = set(re.findall(r"\b[a-z0-9]+\b", subj))
             score += len(query_words & subj_words) * 3
 
-            if score > best_score and score >= 14:
+            if score > best_score and score >= 30:
                 best_score = score
                 best_fact = fact
 

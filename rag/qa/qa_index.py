@@ -48,6 +48,8 @@ class CanonicalQAIndex:
             self._delta_index = None
         self._delta_metadata = []
 
+    DELTA_INDEX_FILE = "data/canonical_qa_faiss_delta.index"
+
     def load(self):
         if os.path.exists(self.INDEX_FILE) and os.path.exists(self.META_FILE):
             try:
@@ -56,15 +58,24 @@ class CanonicalQAIndex:
                 with open(self.META_FILE, "rb") as f:
                     meta_data = pickle.load(f)
                     self._metadata = meta_data.get("items", [])
+                    self._delta_metadata = meta_data.get("delta_items", [])
                     self._tombstones = set(meta_data.get("tombstones", []))
                     self._index_revision = meta_data.get("index_revision", 0)
                     self._corpus_revision = meta_data.get("corpus_revision", 0)
                     self._embedding_model = meta_data.get("embedding_model", self._embedding_model)
                     self._embedding_revision = meta_data.get("embedding_revision", self._embedding_revision)
                     self.dimension = meta_data.get("dimension", self.dimension)
-                self._init_empty_delta()
+                
+                if os.path.exists(self.DELTA_INDEX_FILE):
+                    try:
+                        self._delta_index = faiss.read_index(self.DELTA_INDEX_FILE)
+                    except Exception:
+                        self._init_empty_delta()
+                else:
+                    self._init_empty_delta()
+
                 self._is_loaded = True
-                active_count = len([m for m in self._metadata if m.get("question_id") not in self._tombstones])
+                active_count = len([m for m in self._metadata if m.get("question_id") not in self._tombstones]) + len([m for m in self._delta_metadata if m.get("question_id") not in self._tombstones])
                 logger.info(f"Loaded persistent FAISS HNSW QA index ({active_count} active items, {len(self._tombstones)} tombstones, rev {self._index_revision})")
                 return
             except Exception as e:
@@ -79,9 +90,15 @@ class CanonicalQAIndex:
             import faiss
             os.makedirs(os.path.dirname(self.INDEX_FILE), exist_ok=True)
             faiss.write_index(self._base_index, self.INDEX_FILE)
+            if self._delta_index is not None and self._delta_index.ntotal > 0:
+                faiss.write_index(self._delta_index, self.DELTA_INDEX_FILE)
+            elif os.path.exists(self.DELTA_INDEX_FILE):
+                os.remove(self.DELTA_INDEX_FILE)
+
             with open(self.META_FILE, "wb") as f:
                 pickle.dump({
                     "items": self._metadata,
+                    "delta_items": self._delta_metadata,
                     "tombstones": list(self._tombstones),
                     "index_revision": self._index_revision,
                     "corpus_revision": self._corpus_revision,
@@ -89,7 +106,7 @@ class CanonicalQAIndex:
                     "embedding_revision": self._embedding_revision,
                     "dimension": self.dimension
                 }, f)
-            logger.info(f"Saved FAISS HNSW QA index ({self._base_index.ntotal} items) to {self.INDEX_FILE}")
+            logger.info(f"Saved FAISS HNSW QA index ({self._base_index.ntotal} base + {self._delta_index.ntotal if self._delta_index else 0} delta items) to {self.INDEX_FILE}")
         except Exception as e:
             logger.error(f"Error saving FAISS QA index: {e}")
 

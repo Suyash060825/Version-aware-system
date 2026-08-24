@@ -76,7 +76,7 @@ class QueryEngine:
                 )
 
         # 2. Level 0: Fast Structured Fact Path
-        fact_res = self.fact_resolver.try_resolve(normalized_query, temporal=temporal_context)
+        fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
         if fact_res.found and fact_res.answer:
             cits = self.citation_validator.validate_and_enrich(fact_res.citations)
             return QueryResult(

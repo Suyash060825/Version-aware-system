@@ -1,31 +1,31 @@
 {
-  "evaluation_timestamp": "2026-08-24T12:48:44.593486Z",
+  "evaluation_timestamp": "2026-08-24T13:12:33.205351+00:00",
   "dataset": {
     "benchmark_file": "data/benchmarks/benchmark_test.json",
     "total_queries": 301,
     "categories": [
       "compiled_qa",
-      "unanswerable",
-      "version_comparison",
-      "department_auth",
-      "adversarial",
       "semantic_retrieval",
-      "temporal_historical",
+      "version_comparison",
+      "adversarial",
+      "unanswerable",
       "confidentiality",
-      "fact"
+      "department_auth",
+      "fact",
+      "temporal_historical"
     ]
   },
   "metrics": {
-    "answer_accuracy_exact_pct": 8.31,
-    "token_f1_mean": 0.225,
-    "citation_f1_mean": 0.2379,
-    "refusal_accuracy_pct": 69.23,
-    "brier_score": 0.8821,
-    "expected_calibration_error_ece": 0.1343,
-    "latency_p50_ms": 20.03,
-    "latency_p95_ms": 116.86,
-    "latency_p99_ms": 136.18,
-    "cache_speedup_factor": 1.09,
-    "delta_compilation_speedup": 24781.22
+    "answer_accuracy_exact_pct": 27.91,
+    "token_f1_mean": 0.3516,
+    "citation_f1_mean": 0.2993,
+    "refusal_accuracy_pct": 88.89,
+    "brier_score": 0.6401,
+    "expected_calibration_error_ece": 0.2954,
+    "latency_p50_ms": 29.65,
+    "latency_p95_ms": 136.49,
+    "latency_p99_ms": 146.69,
+    "cache_speedup_factor": 1.02,
+    "delta_compilation_speedup": 721.95
   }
 }

@@ -73,9 +73,18 @@ class VersionResolver:
         if before_match:
             month_str, year_str = before_match.group(1), before_match.group(2)
             year = int(year_str)
-            month = self.MONTH_NAMES.get(month_str.lower(), 1) if month_str else 1
-            tq.target_date = date(year, month, 1)
-            tq.end_date = date(year, month, 1)
+            if month_str:
+                month = self.MONTH_NAMES.get(month_str.lower(), 1)
+                # Day before 1st of that month
+                if month == 1:
+                    tq.end_date = date(year - 1, 12, 31)
+                else:
+                    prev_month = month - 1
+                    last_day_prev = calendar.monthrange(year, prev_month)[1]
+                    tq.end_date = date(year, prev_month, last_day_prev)
+            else:
+                tq.end_date = date(year - 1, 12, 31)
+            tq.target_date = tq.end_date
             tq.historical = True
             tq.current = False
             return tq
@@ -84,11 +93,17 @@ class VersionResolver:
         if after_match:
             month_str, year_str = after_match.group(1), after_match.group(2)
             year = int(year_str)
-            month = self.MONTH_NAMES.get(month_str.lower(), 12) if month_str else 1
-            last_day = calendar.monthrange(year, month)[1]
-            tq.target_date = date(year, month, last_day)
-            tq.start_date = date(year, month, 1)
-            tq.historical = year < date.today().year
+            if month_str:
+                month = self.MONTH_NAMES.get(month_str.lower(), 1)
+                # Day after last day of that month
+                if month == 12:
+                    tq.start_date = date(year + 1, 1, 1)
+                else:
+                    tq.start_date = date(year, month + 1, 1)
+            else:
+                tq.start_date = date(year + 1, 1, 1)
+            tq.target_date = tq.start_date
+            tq.historical = tq.start_date < date.today()
             tq.current = not tq.historical
             return tq
 
@@ -98,10 +113,10 @@ class VersionResolver:
             year = int(year_str)
             month = self.MONTH_NAMES.get(month_str.lower(), 6) if month_str else 6
             last_day = calendar.monthrange(year, month)[1]
-            tq.target_date = date(year, month, last_day)
             tq.start_date = date(year, month, 1)
             tq.end_date = date(year, month, last_day)
-            tq.historical = (tq.target_date < date.today())
+            tq.target_date = date(year, month, 15)  # Midpoint representing full month
+            tq.historical = (tq.end_date < date.today())
             tq.current = not tq.historical
             return tq
 
@@ -109,9 +124,9 @@ class VersionResolver:
         year_match = self.YEAR_RE.search(q_lower)
         if year_match:
             year = int(year_match.group(1))
-            tq.target_date = date(year, 12, 31)
             tq.start_date = date(year, 1, 1)
             tq.end_date = date(year, 12, 31)
+            tq.target_date = date(year, 6, 15)
             tq.historical = (year < date.today().year)
             tq.current = not tq.historical
             return tq
@@ -139,9 +154,9 @@ class VersionResolver:
             temporal_query=tq
         )
 
-    def get_active_version(self, policy_id: int, target_date: Optional[date] = None, requested_version: Optional[str] = None) -> Optional[PolicyVersion]:
+    def get_active_version(self, policy_id: int, target_date: Optional[date] = None, requested_version: Optional[str] = None, start_date: Optional[date] = None, end_date: Optional[date] = None) -> Optional[PolicyVersion]:
         """
-        Find the active version for a policy on a given date using effective interval enforcement.
+        Find the active version for a policy on a given date/interval using effective interval enforcement.
         effective_from <= target_date AND (effective_to IS NULL OR target_date <= effective_to)
         """
         if requested_version:
@@ -162,20 +177,25 @@ class VersionResolver:
                 if ver:
                     return ver
 
+        versions = PolicyVersion.query.filter_by(policy_id=policy_id).order_by(PolicyVersion.version_num.desc()).all()
+        if not versions:
+            return None
+
+        if start_date or end_date:
+            for v in versions:
+                if v.is_valid_for_interval(start_date, end_date):
+                    return v
+
         if target_date:
-            versions = PolicyVersion.query.filter_by(policy_id=policy_id).order_by(PolicyVersion.version_num.desc()).all()
             for v in versions:
                 if v.is_valid_for_date(target_date):
                     return v
-            if versions:
-                # If target date is before all versions, return the earliest version
-                if target_date < versions[-1].effective_from:
-                    return versions[-1]
-                # If target date is after all versions, return the latest active version
-                return versions[0]
-            return None
-        else:
-            active = PolicyVersion.query.filter_by(policy_id=policy_id, is_active=True).first()
-            if not active:
-                active = PolicyVersion.query.filter_by(policy_id=policy_id).order_by(PolicyVersion.version_num.desc()).first()
-            return active
+            # If target date is before all versions, return the earliest version
+            if target_date < versions[-1].effective_from:
+                return versions[-1]
+            return versions[0]
+
+        active = PolicyVersion.query.filter_by(policy_id=policy_id, is_active=True).first()
+        if not active:
+            active = versions[0]
+        return active

@@ -299,6 +299,19 @@ class PolicyVersion(db.Model):
             return False
         return True
 
+    def is_valid_for_interval(self, start_date=None, end_date=None) -> bool:
+        """
+        Authoritative interval overlap check:
+        effective interval [eff_from, eff_to] overlaps [start_date, end_date]
+        """
+        eff_from = self.effective_from
+        eff_to = self.effective_to
+        if end_date and eff_from and eff_from > end_date:
+            return False
+        if start_date and eff_to and eff_to < start_date:
+            return False
+        return True
+
     __table_args__ = (
         db.Index(
             "uix_one_active_version_per_policy",

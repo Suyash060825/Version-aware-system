@@ -4,6 +4,7 @@ Persistent BM25 sparse keyword retriever with incremental delta updates, partiti
 """
 import pickle
 import os
+import re
 import logging
 from typing import List, Tuple, Dict, Any, Optional
 from rank_bm25 import BM25Okapi
@@ -57,7 +58,7 @@ class PersistentBM25Index:
             corpus = []
             tokenized_corpus = []
             for chunk in chunks:
-                tokens = chunk.text.lower().split()
+                tokens = re.findall(r"\b\w+\b", chunk.text.lower())
                 tokenized_corpus.append(tokens)
                 corpus.append({
                     "id": chunk.chunk_id,
@@ -103,7 +104,7 @@ class PersistentBM25Index:
 
         self._corpus = filtered_corpus
         if self._corpus:
-            tokenized = [c["text"].lower().split() for c in self._corpus]
+            tokenized = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
             self._bm25 = BM25Okapi(tokenized)
         else:
             self._bm25 = None
@@ -115,7 +116,7 @@ class PersistentBM25Index:
         """Incremental deletion for a policy version."""
         self._corpus = [c for c in self._corpus if not (c.get("policy_id") == policy_id and c.get("version_id") == version_id)]
         if self._corpus:
-            tokenized = [c["text"].lower().split() for c in self._corpus]
+            tokenized = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
             self._bm25 = BM25Okapi(tokenized)
         else:
             self._bm25 = None
@@ -128,7 +129,9 @@ class PersistentBM25Index:
         if not self._bm25 or not self._corpus:
             return []
             
-        tokenized_query = query.lower().split()
+        tokenized_query = re.findall(r"\b\w+\b", query.lower())
+        if not tokenized_query:
+            return []
         doc_scores = self._bm25.get_scores(tokenized_query)
         
         results = []
