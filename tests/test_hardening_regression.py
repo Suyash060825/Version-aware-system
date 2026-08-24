@@ -489,3 +489,34 @@ def test_production_config_secret_validation(monkeypatch):
     monkeypatch.setenv("JWT_SECRET_KEY", "ultra-secure-randomly-generated-jwt-key-999")
     # Must pass without raising
     ProductionConfig.validate_production_secrets()
+
+def test_version_comparison_pre_authorization_and_refusal(app):
+    from rag.engine.query_engine import get_query_engine
+
+    u_emp = User(name="emp_cmp", email="emp_cmp@test.com", password_hash="h", role="employee", department_id=1)
+    u_exec = User(name="exec_cmp", email="exec_cmp@test.com", password_hash="h", role="executive", department_id=3)
+    db.session.add_all([u_emp, u_exec])
+    db.session.commit()
+
+    # Restricted Policy (only accessible by Executive / Admin)
+    p_restr = Policy(policy_id="POL-CMP-RESTR", title="Executive Compensation Strategy", author_id=u_exec.id, status=PolicyStatus.ACTIVE, confidentiality=ConfidentialityLevel.RESTRICTED)
+    db.session.add(p_restr)
+    db.session.commit()
+
+    v1 = PolicyVersion(policy_id=p_restr.id, version_num=1.0, version_label="v1.0", content="Executive bonus is 20 percent of salary.", effective_date=date(2023, 1, 1), created_by_id=u_exec.id)
+    v2 = PolicyVersion(policy_id=p_restr.id, version_num=2.0, version_label="v2.0", content="Executive bonus is 35 percent of salary.", effective_date=date(2024, 1, 1), is_active=True, created_by_id=u_exec.id)
+    db.session.add_all([v1, v2])
+    db.session.commit()
+
+    engine = get_query_engine()
+
+    # 1. Unauthorized employee attempting version comparison on restricted policy MUST BE REFUSED / ABSTAIN
+    res_unauth = engine.answer("Compare v1 vs v2 of Executive Compensation Strategy", user=u_emp)
+    assert res_unauth.route != "TEMPORAL_COMPARISON"
+    assert "Executive bonus is 35" not in res_unauth.answer
+    assert "20 percent" not in res_unauth.answer
+
+    # 2. Authorized executive attempting version comparison receives authoritative diff
+    res_auth = engine.answer("Compare v1 vs v2 of Executive Compensation Strategy", user=u_exec)
+    assert res_auth.route == "TEMPORAL_COMPARISON"
+    assert "Executive Compensation Strategy" in res_auth.answer

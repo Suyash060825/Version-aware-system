@@ -10,14 +10,18 @@ class CitationValidator:
     def __init__(self):
         pass
 
-    def validate_and_enrich(self, raw_citations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def validate_and_enrich(self, raw_citations: List[Dict[str, Any]], scope: Optional[Any] = None) -> List[Dict[str, Any]]:
         """
         Validate and enrich citation list with authoritative database records.
-        Strict invariant: Every citation MUST resolve to an actual Policy and PolicyVersion.
-        Invalid, fabricated, or nonexistent records are dropped.
+        Strict invariant: Every citation MUST resolve to an actual Policy and PolicyVersion,
+        and must be authorized for the user scope when scope is provided.
+        Invalid, fabricated, or inaccessible records are dropped.
         """
         if not raw_citations:
             return []
+
+        from rag.authorization.evidence_filter import EvidenceFilter
+        evidence_filter = EvidenceFilter()
 
         validated = []
         seen = set()
@@ -77,6 +81,10 @@ class CitationValidator:
 
             # Ensure version belongs to policy
             if version.policy_id != policy.id:
+                continue
+
+            # DEFENSE-IN-DEPTH REQUIREMENT 7: Verify user scope is authorized for the cited policy
+            if scope is not None and not evidence_filter.is_authorized_for_policy(scope, policy):
                 continue
 
             policy_title = policy.title

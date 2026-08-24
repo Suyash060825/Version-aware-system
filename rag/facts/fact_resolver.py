@@ -91,11 +91,17 @@ class FactResolver:
         from rag.authorization.evidence_filter import EvidenceFilter
         evidence_filter = EvidenceFilter()
 
+        # PERFORMANCE REQUIREMENT 11: Bulk load policies and versions (eliminates N+1 queries)
+        p_ids = {f.policy_id for f in candidate_facts}
+        v_ids = {f.version_id for f in candidate_facts}
+        policies_map = {p.id: p for p in Policy.query.filter(Policy.id.in_(p_ids)).all()} if p_ids else {}
+        versions_map = {v.id: v for v in PolicyVersion.query.filter(PolicyVersion.id.in_(v_ids)).all()} if v_ids else {}
+
         scored_candidates = []
 
         for fact in candidate_facts:
-            policy = db.session.get(Policy, fact.policy_id)
-            version = db.session.get(PolicyVersion, fact.version_id)
+            policy = policies_map.get(fact.policy_id)
+            version = versions_map.get(fact.version_id)
             if not policy or not version:
                 continue
 
@@ -150,14 +156,22 @@ class FactResolver:
         if not scored_candidates:
             return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
-        # PRECISION REQUIREMENT 5: Best vs Second-Best ambiguity margin
+        # PRECISION & AMBIGUITY REQUIREMENTS 8 & 9: Multi-attribute semantic ambiguity comparison
         scored_candidates.sort(key=lambda x: x[0], reverse=True)
         best_score, best_fact = scored_candidates[0]
 
         if len(scored_candidates) > 1:
             second_score, second_fact = scored_candidates[1]
-            # If conflicting facts exist within the ambiguity margin, escalate to compiled QA/RAG
-            if second_fact.value != best_fact.value and (best_score - second_score) < 10:
+            # Check semantic divergence beyond just fact.value (subject, predicate, policy, version, value, unit)
+            semantic_divergence = (
+                second_fact.value != best_fact.value or
+                second_fact.subject != best_fact.subject or
+                second_fact.predicate != best_fact.predicate or
+                second_fact.policy_id != best_fact.policy_id or
+                second_fact.version_id != best_fact.version_id or
+                second_fact.unit != best_fact.unit
+            )
+            if semantic_divergence and (best_score - second_score) < 10:
                 return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
         return self._format_fact_result(best_fact)

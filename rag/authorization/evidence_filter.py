@@ -22,7 +22,7 @@ class EvidenceFilter:
         status_str = str(status_val).lower()
 
         if user_or_scope is None:
-            # Unauthenticated / default requests can only access active non-restricted, non-confidential policies
+            # Default unauthenticated employee access: active public and internal policies (confidential and restricted are strictly blocked)
             return status_str in ("active", "published") and conf_str in ("public", "internal")
 
         # Case A: QueryScope object passed
@@ -117,9 +117,7 @@ class EvidenceFilter:
                 policy = policy_cache[p_id]
 
             if not policy:
-                from flask import has_app_context
-                if not has_app_context():
-                    authorized.append(chunk)
+                # SECURITY REQUIREMENT 6: Unresolvable policy must strictly reject chunk (fail closed)
                 continue
 
             if self.is_authorized_for_policy(user_or_scope, policy):

@@ -61,25 +61,24 @@ class QueryEngine:
 
         cached = cache.get(q_emb, scope=scope, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
         if cached:
-            cits = self.citation_validator.validate_and_enrich(cached.get("citations", []))
-            if cits or not cached.get("citations"):
-                return QueryResult(
-                    answer=cached["answer"],
-                    route="CACHE_HIT",
-                    confidence=float(cached.get("confidence", 100)) / 100.0,
-                    citations=cits,
-                    policy_versions=[str(cits[0]["version"])] if cits else [],
-                    latency_ms=(time.time() - t_start) * 1000,
-                    llm_used=False,
-                    retrieval_count=cached.get("chunks_used", 0),
-                    reranker_used=False,
-                    abstained=False
-                )
+            cits = self.citation_validator.validate_and_enrich(cached.get("citations", []), scope=scope)
+            return QueryResult(
+                answer=cached["answer"],
+                route="CACHE_HIT",
+                confidence=cached.get("confidence", 0.95),
+                citations=cits,
+                policy_versions=[str(cits[0]["version"])] if cits else [],
+                latency_ms=(time.time() - t_start) * 1000,
+                llm_used=False,
+                retrieval_count=cached.get("chunks_used", 0),
+                reranker_used=False,
+                abstained=False
+            )
 
         # 2. Level 0: Fast Structured Fact Path
         fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
         if fact_res.found and fact_res.answer:
-            cits = self.citation_validator.validate_and_enrich(fact_res.citations)
+            cits = self.citation_validator.validate_and_enrich(fact_res.citations, scope=scope)
             return QueryResult(
                 answer=fact_res.answer,
                 route="FAST_PATH_FACT",
@@ -106,7 +105,7 @@ class QueryEngine:
                     conf_ok = pol.confidentiality in scope.allowed_confidentiality
                     temp_ok = (not scope.target_date) or ver.is_valid_for_date(scope.target_date)
                     if is_auth and conf_ok and temp_ok:
-                        cits = self.citation_validator.validate_and_enrich(qa_match["citations"])
+                        cits = self.citation_validator.validate_and_enrich(qa_match["citations"], scope=scope)
                         if cits:
                             return QueryResult(
                                 answer=qa_match["answer"],
@@ -121,15 +120,28 @@ class QueryEngine:
                                 abstained=False
                             )
 
-        # 4. Level 3: Version Comparison Path
+        # 4. Level 3: Version Comparison Path (Strictly Authorized & Scalable)
         temporal_meta = meta.get("temporal", {})
         if temporal_meta.get("is_comparison") and temporal_meta.get("version_v1") and temporal_meta.get("version_v2"):
             v1_num = temporal_meta["version_v1"]
             v2_num = temporal_meta["version_v2"]
-            from models import Policy, PolicyVersion
-            policies = Policy.query.all()
-            for p in policies:
+            from models import Policy, PolicyVersion, PolicyStatus
+
+            # Scalable candidate lookup: query only relevant/authorized policies
+            if temporal_context.policy_id:
+                p_query = Policy.query.filter(Policy.id == temporal_context.policy_id)
+            elif scope.allowed_policy_ids is not None:
+                p_query = Policy.query.filter(Policy.id.in_(scope.allowed_policy_ids))
+            else:
+                p_query = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE)
+
+            candidate_policies = p_query.all()
+            for p in candidate_policies:
                 if p.title.lower() in normalized_query.lower() or any(w in p.title.lower() for w in normalized_query.lower().split() if len(w) > 3):
+                    # SECURITY REQUIREMENT 4: Enforce authorization BEFORE loading comparison versions or computing diff
+                    if not self.evidence_filter.is_authorized_for_policy(scope, p):
+                        continue
+
                     v1 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, (PolicyVersion.version_num == float(v1_num)) | (PolicyVersion.version_label.ilike(f"%{v1_num}%"))).first()
                     v2 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, (PolicyVersion.version_num == float(v2_num)) | (PolicyVersion.version_label.ilike(f"%{v2_num}%"))).first()
                     if v1 and v2:
@@ -170,8 +182,8 @@ class QueryEngine:
 
         raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50)
         
-        # 6. Authorization Filtering
-        authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, user)
+        # 6. Authorization Filtering using unified QueryScope
+        authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
         
         if not authorized_candidates:
             return QueryResult.abstained("I could not find sufficient authoritative evidence in the applicable policies.", (time.time() - t_start) * 1000)
@@ -205,9 +217,8 @@ class QueryEngine:
                 "section": c.get("section") or c.get("section_path") or "General",
                 "page": c.get("page", 1)
             })
-        citations = self.citation_validator.validate_and_enrich(raw_cits)
+        citations = self.citation_validator.validate_and_enrich(raw_cits, scope=scope)
 
-        # 9. Answer Generation: Deterministic vs Local LLM
         # 9. Answer Generation: Grounded Evidence Extraction vs Local LLM
         top_text = ranked[0].get("text", "").strip()
         top_section = ranked[0].get("section") or ranked[0].get("section_path") or "Policy"
@@ -225,8 +236,8 @@ class QueryEngine:
                     if is_grounded:
                         final_answer = llm_output["answer"]
                         llm_used = True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Local LLM inference encountered error: {e}. Falling back to deterministic grounded extraction.")
 
         if not final_answer:
             # Deterministic evidence extraction: must be verified as answer-bearing
@@ -395,8 +406,8 @@ class QueryEngine:
 
         raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50)
         
-        # 6. Authorization Filtering
-        authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, user)
+        # 6. Authorization Filtering using unified QueryScope
+        authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
         
         if not authorized_candidates:
             refusal = "I could not find sufficient authoritative evidence in the applicable policies."
@@ -460,7 +471,7 @@ class QueryEngine:
                 "section": c.get("section") or c.get("section_path") or "General",
                 "page": c.get("page", 1)
             })
-        citations = self.citation_validator.validate_and_enrich(raw_cits)
+        citations = self.citation_validator.validate_and_enrich(raw_cits, scope=scope)
 
         # 9. Real-time Streaming Generation
         llm_used = False
