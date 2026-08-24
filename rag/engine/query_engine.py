@@ -163,12 +163,12 @@ class QueryEngine:
                             {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
                         ], scope=scope)
                         diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
-                        calibrated_diff_conf = 0.85 if diff_clauses > 0 else 0.80
+                        comparison_evidence_score = 0.85 if diff_clauses > 0 else 0.80
 
                         return QueryResult(
                             answer=diff_summary,
                             route="TEMPORAL_COMPARISON",
-                            confidence=calibrated_diff_conf,
+                            confidence=comparison_evidence_score,
                             citations=cits,
                             policy_versions=[str(v1.version_num), str(v2.version_num)],
                             latency_ms=(time.time() - t_start) * 1000,
@@ -298,7 +298,7 @@ class QueryEngine:
         # 2. Level 0: Fast Structured Fact Path
         fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
         if fact_res.found and fact_res.answer:
-            cits = self.citation_validator.validate_and_enrich(fact_res.citations)
+            cits = self.citation_validator.validate_and_enrich(fact_res.citations, scope=scope)
             words = fact_res.answer.split(" ")
             for i, word in enumerate(words):
                 chunk = word if i == len(words) - 1 else word + " "
@@ -333,7 +333,7 @@ class QueryEngine:
                     conf_ok = pol.confidentiality in scope.allowed_confidentiality
                     temp_ok = (not scope.target_date) or ver.is_valid_for_date(scope.target_date)
                     if is_auth and conf_ok and temp_ok:
-                        cits = self.citation_validator.validate_and_enrich(qa_match["citations"])
+                        cits = self.citation_validator.validate_and_enrich(qa_match["citations"], scope=scope)
                         if cits:
                             words = qa_match["answer"].split(" ")
                             for i, word in enumerate(words):
@@ -398,7 +398,7 @@ class QueryEngine:
                         ], scope=scope)
 
                         diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
-                        calibrated_diff_conf = 85.0 if diff_clauses > 0 else 80.0
+                        comparison_evidence_score = 85.0 if diff_clauses > 0 else 80.0
 
                         words = diff_summary.split(" ")
                         for i, word in enumerate(words):
@@ -409,7 +409,7 @@ class QueryEngine:
                             "result": {
                                 "answer": diff_summary,
                                 "citations": cits,
-                                "confidence": calibrated_diff_conf,
+                                "confidence": comparison_evidence_score,
                                 "route": "TEMPORAL_COMPARISON",
                                 "llm_used": False,
                                 "latency_ms": (time.time() - t_start) * 1000,
