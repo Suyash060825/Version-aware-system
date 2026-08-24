@@ -1,0 +1,50 @@
+[
+  {
+    "id": "temp_01",
+    "category": "temporal",
+    "query": "What was the daily meal allowance during June 2024?",
+    "ground_truth_policy": "Travel and Expense Policy",
+    "expected_version": "1.0",
+    "target_answer": "0 per day",
+    "requires_temporal": true,
+    "target_date": "2024-06-30"
+  },
+  {
+    "id": "temp_02",
+    "category": "temporal",
+    "query": "How many remote work days were allowed in 2023 under the previous policy?",
+    "ground_truth_policy": "Remote Work Policy",
+    "expected_version": "1.0",
+    "target_answer": "Full remote work was permitted with manager sign-off",
+    "requires_temporal": true,
+    "target_date": "2023-12-31"
+  },
+  {
+    "id": "temp_03",
+    "category": "temporal",
+    "query": "What was the annual equipment stipend before July 2024?",
+    "ground_truth_policy": "Equipment and Asset Policy",
+    "expected_version": "1.0",
+    "target_answer": ",000 one-time stipend",
+    "requires_temporal": true,
+    "target_date": "2024-06-01"
+  },
+  {
+    "id": "temp_04",
+    "category": "temporal_comparison",
+    "query": "Compare the travel expense policy between v1.0 and v2.0",
+    "ground_truth_policy": "Travel and Expense Policy",
+    "expected_version": "1.0 vs 2.0",
+    "target_answer": "Meal allowance increased from 0 to 5; rideshare receipt threshold updated",
+    "requires_temporal": true
+  },
+  {
+    "id": "temp_05",
+    "category": "temporal_comparison",
+    "query": "What changed between v1 and v2 in the remote work policy?",
+    "ground_truth_policy": "Remote Work Policy",
+    "expected_version": "1.0 vs 2.0",
+    "target_answer": "Shifted from fully flexible remote to structured 2-day hybrid model",
+    "requires_temporal": true
+  }
+]

@@ -257,6 +257,48 @@ class PolicyVersion(db.Model):
     def version_number(self):
         return self.version_label.lstrip("v") if self.version_label else str(self.version_num)
 
+    @property
+    def effective_from(self):
+        from datetime import date
+        if self.effective_date:
+            return self.effective_date
+        if self.created_at:
+            return self.created_at.date()
+        return date(2000, 1, 1)
+
+    @property
+    def effective_to(self):
+        """
+        Derive effective_to deterministically from the subsequent version's effective date.
+        Returns None if this is the active/latest version.
+        """
+        from datetime import timedelta
+        try:
+            next_ver = PolicyVersion.query.filter(
+                PolicyVersion.policy_id == self.policy_id,
+                PolicyVersion.version_num > self.version_num
+            ).order_by(PolicyVersion.version_num.asc()).first()
+            if next_ver and next_ver.effective_from:
+                return next_ver.effective_from - timedelta(days=1)
+        except Exception:
+            pass
+        return None
+
+    def is_valid_for_date(self, target_date) -> bool:
+        """
+        Authoritative temporal validity check:
+        effective_from <= target_date AND (effective_to IS NULL OR target_date <= effective_to)
+        """
+        if not target_date:
+            return self.is_active or self.status == "approved"
+        eff_from = self.effective_from
+        eff_to = self.effective_to
+        if eff_from and target_date < eff_from:
+            return False
+        if eff_to and target_date > eff_to:
+            return False
+        return True
+
     __table_args__ = (
         db.Index(
             "uix_one_active_version_per_policy",

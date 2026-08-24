@@ -1,0 +1,42 @@
+{
+  "system": {
+    "os": "Linux",
+    "os_release": "7.1.8-100.fc43.x86_64",
+    "os_version": "#1 SMP PREEMPT_DYNAMIC Mon Aug 10 03:32:13 UTC 2026",
+    "architecture": "x86_64",
+    "processor": "",
+    "cpu_count_logical": 12,
+    "cpu_count_physical": 6,
+    "total_ram_gb": 31.06
+  },
+  "runtime": {
+    "python_version": "3.14.6",
+    "python_executable": "/usr/bin/python3"
+  },
+  "gpu": {
+    "cuda_available": true,
+    "device_count": 1,
+    "device_name": "NVIDIA GeForce RTX 3050 Laptop GPU"
+  },
+  "packages": {
+    "torch": "2.13.0",
+    "chromadb": "1.5.9",
+    "faiss_cpu": "1.15.0",
+    "sentence_transformers": "5.7.0",
+    "fastembed": "0.8.0",
+    "flashrank": "0.2.10",
+    "sqlalchemy": "2.0.52",
+    "scikit_learn": "1.9.0",
+    "python_dateutil": "2.9.0.post0"
+  },
+  "models_and_engines": {
+    "embedding_engine": "fastembed",
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "reranker_engine": "flashrank",
+    "reranker_model": "ms-marco-TinyBERT-L-2-v2",
+    "llm_backend": "ollama",
+    "llm_model": "qwen2.5:3b",
+    "vector_store": "ChromaDB + FAISS HNSW",
+    "sparse_store": "Partitioned BM25"
+  }
+}

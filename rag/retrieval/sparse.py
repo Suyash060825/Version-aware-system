@@ -1,11 +1,11 @@
 """
 rag/retrieval/sparse.py
-Persistent BM25 sparse keyword retriever with partition filtering and revision tracking.
+Persistent BM25 sparse keyword retriever with incremental delta updates, partition filtering, and revision tracking.
 """
 import pickle
 import os
 import logging
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional
 from rank_bm25 import BM25Okapi
 from models import PolicyChunkV2
 
@@ -34,10 +34,24 @@ class PersistentBM25Index:
                 logger.error(f"Failed to load BM25 index from {self.INDEX_PATH}: {e}. Rebuilding...")
         self.rebuild_from_db()
 
+    def save(self):
+        try:
+            os.makedirs(os.path.dirname(self.INDEX_PATH), exist_ok=True)
+            with open(self.INDEX_PATH, 'wb') as f:
+                pickle.dump({
+                    'bm25': self._bm25,
+                    'corpus': self._corpus,
+                    'revision': self._revision
+                }, f)
+        except Exception as e:
+            logger.error(f"Failed to save BM25 index: {e}")
+
     def rebuild_from_db(self):
         try:
             chunks = PolicyChunkV2.query.all()
             if not chunks:
+                self._corpus = []
+                self._bm25 = None
                 return
                 
             corpus = []
@@ -60,17 +74,53 @@ class PersistentBM25Index:
             self._bm25 = BM25Okapi(tokenized_corpus)
             self._corpus = corpus
             self._revision += 1
-            
-            os.makedirs(os.path.dirname(self.INDEX_PATH), exist_ok=True)
-            with open(self.INDEX_PATH, 'wb') as f:
-                pickle.dump({
-                    'bm25': self._bm25,
-                    'corpus': self._corpus,
-                    'revision': self._revision
-                }, f)
-            logger.info(f"Rebuilt BM25 index with {len(corpus)} chunks to {self.INDEX_PATH}")
+            self.save()
+            logger.info(f"Rebuilt BM25 index with {len(corpus)} chunks (revision {self._revision})")
         except Exception as e:
             logger.error(f"Failed to rebuild BM25 from DB: {e}")
+
+    def update_policy_version(self, policy_id: int, version_id: int, new_chunks: List[Dict[str, Any]]):
+        """
+        Incremental delta update: replaces/inserts chunks for a single policy version
+        without rebuilding the entire database.
+        """
+        # Remove existing chunks for this version
+        filtered_corpus = [c for c in self._corpus if not (c.get("policy_id") == policy_id and c.get("version_id") == version_id)]
+        
+        # Add new chunks
+        for chunk in new_chunks:
+            filtered_corpus.append({
+                "id": chunk.get("chunk_id") or chunk.get("id"),
+                "chunk_id": chunk.get("chunk_id") or chunk.get("id"),
+                "text": chunk.get("text", ""),
+                "policy_id": policy_id,
+                "version_id": version_id,
+                "version": str(chunk.get("version", version_id)),
+                "section": chunk.get("section") or chunk.get("section_path") or "General",
+                "section_path": chunk.get("section_path") or chunk.get("section") or "General",
+                "page": chunk.get("page", 1)
+            })
+
+        self._corpus = filtered_corpus
+        if self._corpus:
+            tokenized = [c["text"].lower().split() for c in self._corpus]
+            self._bm25 = BM25Okapi(tokenized)
+        else:
+            self._bm25 = None
+        self._revision += 1
+        self.save()
+        logger.info(f"Incrementally updated BM25 for policy {policy_id} v{version_id} ({len(new_chunks)} chunks, rev {self._revision})")
+
+    def delete_policy_version(self, policy_id: int, version_id: int):
+        """Incremental deletion for a policy version."""
+        self._corpus = [c for c in self._corpus if not (c.get("policy_id") == policy_id and c.get("version_id") == version_id)]
+        if self._corpus:
+            tokenized = [c["text"].lower().split() for c in self._corpus]
+            self._bm25 = BM25Okapi(tokenized)
+        else:
+            self._bm25 = None
+        self._revision += 1
+        self.save()
 
     def get_scores(self, query: str, filters: dict = None) -> List[Tuple[str, float, dict]]:
         if not self._bm25 or not self._corpus:
@@ -86,11 +136,15 @@ class PersistentBM25Index:
             if score > 0:
                 doc = self._corpus[i]
                 
-                # Apply metadata filters
+                # Pre-filtered partition matching
                 if filters:
                     match = True
                     for k, v in filters.items():
-                        if str(doc.get(k)) != str(v):
+                        if isinstance(v, list):
+                            if str(doc.get(k)) not in [str(x) for x in v]:
+                                match = False
+                                break
+                        elif str(doc.get(k)) != str(v):
                             match = False
                             break
                     if not match:

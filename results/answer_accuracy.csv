@@ -1,0 +1,5 @@
+Metric,Value,Percentage
+Total Evaluated Queries,21,100.0%
+Answer Precision / Accuracy,17,80.95%
+Groundedness (Verified Citations),14,77.78%
+Adversarial Refusal Accuracy,3,100.00%

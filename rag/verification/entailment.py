@@ -101,7 +101,8 @@ class EntailmentVerifier:
             except Exception as e:
                 logger.error(f"Error in NLI predict: {e}")
 
-        # Lexical overlap fallback
+        # Fallback when neural NLI model is unavailable
+        # Lexical overlap measures token recall but cannot prove factual entailment.
         context_tokens = set(re.findall(r"[a-z0-9]+", context.lower()))
         claim_scores = []
         failed = []
@@ -116,8 +117,9 @@ class EntailmentVerifier:
                 failed.append(claim)
 
         avg_overlap = sum(claim_scores) / max(len(claim_scores), 1)
-        is_entailed = avg_overlap >= 0.25
-        verdict = "ENTAILMENT" if is_entailed else ("CONTRADICTION" if avg_overlap < 0.1 else "UNKNOWN")
+        # Never manufacture factual entailment without neural NLI verification
+        is_entailed = False
+        verdict = "UNKNOWN"
 
         return EntailmentResult(is_entailed=is_entailed, score=avg_overlap, verdict=verdict, failed_claims=failed)
 

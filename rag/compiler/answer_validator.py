@@ -16,5 +16,4 @@ class AnswerValidator:
         res = self.verifier.verify(answer, source_chunks)
         # Valid as long as there is no contradiction with authoritative source
         is_valid = (res.verdict != "CONTRADICTION")
-        entail_score = max(0.90, float(res.score)) if is_valid else float(res.score)
-        return is_valid, entail_score
+        return is_valid, float(res.score)

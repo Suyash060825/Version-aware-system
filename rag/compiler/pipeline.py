@@ -159,7 +159,7 @@ class KnowledgeCompilerPipeline:
 
             is_valid, entail_score = self.answer_validator.validate(ans.answer, source_c_list)
             ans.entailment_score = entail_score
-            ans.confidence = max(0.85, entail_score)
+            ans.confidence = float(entail_score)
             ans.status = "validated" if is_valid else "rejected"
             db.session.add(ans)
                 
@@ -201,9 +201,31 @@ class KnowledgeCompilerPipeline:
         store.delete_policy_version(job.policy_id, str(job.version_id))
         store.upsert_chunks(chunk_dicts, self._embeddings)
         
-        # Synchronously rebuild persistent BM25 and Canonical QA indexes
+        # Incremental Delta Updates for BM25 and Canonical QA indexes
         from rag.retrieval.sparse import PersistentBM25Index
-        PersistentBM25Index().rebuild_from_db()
+        PersistentBM25Index().update_policy_version(job.policy_id, job.version_id, chunk_dicts)
 
         from rag.qa.qa_index import CanonicalQAIndex
-        CanonicalQAIndex().rebuild_from_db()
+        qa_index = CanonicalQAIndex()
+        # Find newly created valid QA pairs for this version
+        valid_qs = CanonicalQuestion.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).all()
+        valid_ans = [CompiledAnswer.query.filter_by(question_id=q.id, status="validated").first() for q in valid_qs]
+        valid_pairs = [(q, a) for q, a in zip(valid_qs, valid_ans) if a is not None]
+        
+        if valid_pairs:
+            from rag.embeddings.embedder import get_embedder
+            embedder = get_embedder()
+            q_texts = [p[0].question for p in valid_pairs]
+            q_embs = embedder.embed(q_texts)
+            qa_index.update_policy_version_qa(
+                job.policy_id, job.version_id,
+                [p[0] for p in valid_pairs],
+                [p[1] for p in valid_pairs],
+                q_embs
+            )
+        else:
+            qa_index.delete_policy_version(job.policy_id, job.version_id)
+
+        # Invalidate affected cache entries
+        from rag.cache.semantic_cache import get_cache
+        get_cache().invalidate_version(job.policy_id, job.version_id)

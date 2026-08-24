@@ -1,0 +1,6 @@
+Metric,Value
+Cache Warmup Query Count,10
+Second-Pass Fast-Hit Rate,50.0%
+First-Pass Mean Latency (ms),72.4
+Second-Pass Mean Latency (ms),74.47
+Speedup Factor,0.97x

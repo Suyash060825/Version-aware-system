@@ -1,0 +1,3 @@
+Evaluation Set,Queries,Correct Version Resolution,Accuracy
+Historical Temporal Queries,5,4,80.00%
+Current Policy Invariant,16,16,100.00%

@@ -168,12 +168,20 @@ def create_app(env="default"):
     def ratelimit_handler(e):
         return jsonify({"error": "Rate limit exceeded. Please wait before asking more questions."}), 429
 
-    # Create tables on first run (with try-except for gunicorn worker race conditions)
-    with app.app_context():
-        try:
-            db.create_all()
-        except Exception as e:
-            pass
+    # Create tables on first run in development/testing only
+    if app.config.get("DEBUG") or app.config.get("TESTING") or os.environ.get("FLASK_ENV", "development").lower() in ("development", "testing"):
+        with app.app_context():
+            try:
+                db.create_all()
+            except Exception as e:
+                pass
+    else:
+        # In production verify database connection
+        with app.app_context():
+            try:
+                db.session.execute(db.text("SELECT 1"))
+            except Exception as e:
+                raise RuntimeError(f"[FATAL DATABASE ERROR] Production database connection failed: {e}")
 
     return app
 

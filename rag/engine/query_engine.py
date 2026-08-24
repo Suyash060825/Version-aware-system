@@ -48,6 +48,32 @@ class QueryEngine:
         normalized_query = self.router.normalize(query)
         intent, complexity, route_name, meta = self.router.route(normalized_query)
         temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
+        from rag.engine.query_scope import QueryScope
+        scope = QueryScope.from_user(user, temporal_context)
+
+        # 1.5 Scoped Cache Lookup (L1 / L2)
+        from rag.cache.semantic_cache import get_cache
+        cache = get_cache()
+        from rag.embeddings.embedder import get_embedder
+        embedder = get_embedder()
+        q_emb = embedder.embed_query(normalized_query)
+
+        cached = cache.get(q_emb, allowed_depts=scope.departments, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
+        if cached:
+            cits = self.citation_validator.validate_and_enrich(cached.get("citations", []))
+            if cits or not cached.get("citations"):
+                return QueryResult(
+                    answer=cached["answer"],
+                    route="CACHE_HIT",
+                    confidence=float(cached.get("confidence", 100)) / 100.0,
+                    citations=cits,
+                    policy_versions=[str(cits[0]["version"])] if cits else [],
+                    latency_ms=(time.time() - t_start) * 1000,
+                    llm_used=False,
+                    retrieval_count=cached.get("chunks_used", 0),
+                    reranker_used=False,
+                    abstained=False
+                )
 
         # 2. Level 0: Fast Structured Fact Path
         fact_res = self.fact_resolver.try_resolve(normalized_query, temporal=temporal_context)
@@ -68,28 +94,31 @@ class QueryEngine:
 
         # 3. Level 1: Precomputed Canonical QA Fast Path
         if complexity <= ComplexityLevel.LEVEL_1_COMPILED_QA:
-            from rag.embeddings.embedder import get_embedder
-            embedder = get_embedder()
-            q_emb = embedder.embed_query(normalized_query)
             qa_match = self.qa_matcher.match(normalized_query, q_emb, threshold=0.78)
             
             if qa_match:
-                cits = self.citation_validator.validate_and_enrich(qa_match["citations"])
-                # Authorization check on matched QA
-                allowed_cits = [c for c in cits if self.evidence_filter.is_authorized_for_policy(user, type('Obj', (), {'id': c['policy_id'], 'status': 'active', 'department_id': None})())]
-                if allowed_cits or not user or user.is_admin():
-                    return QueryResult(
-                        answer=qa_match["answer"],
-                        route="FAST_PATH_COMPILED_QA",
-                        confidence=qa_match["confidence"],
-                        citations=cits,
-                        policy_versions=[str(cits[0]["version"])] if cits else [],
-                        latency_ms=(time.time() - t_start) * 1000,
-                        llm_used=False,
-                        retrieval_count=1,
-                        reranker_used=False,
-                        abstained=False
-                    )
+                pol = qa_match.get("policy")
+                ver = qa_match.get("version")
+                # Authoritative DB entity authorization check
+                if pol and ver:
+                    is_auth = self.evidence_filter.is_authorized_for_policy(user, pol)
+                    conf_ok = pol.confidentiality in scope.allowed_confidentiality
+                    temp_ok = (not scope.target_date) or ver.is_valid_for_date(scope.target_date)
+                    if is_auth and conf_ok and temp_ok:
+                        cits = self.citation_validator.validate_and_enrich(qa_match["citations"])
+                        if cits:
+                            return QueryResult(
+                                answer=qa_match["answer"],
+                                route="FAST_PATH_COMPILED_QA",
+                                confidence=qa_match["confidence"],
+                                citations=cits,
+                                policy_versions=[str(cits[0]["version"])],
+                                latency_ms=(time.time() - t_start) * 1000,
+                                llm_used=False,
+                                retrieval_count=1,
+                                reranker_used=False,
+                                abstained=False
+                            )
 
         # 4. Level 3: Version Comparison Path
         temporal_meta = meta.get("temporal", {})
@@ -271,27 +300,35 @@ class QueryEngine:
             qa_match = self.qa_matcher.match(normalized_query, q_emb, threshold=0.78)
             
             if qa_match:
-                cits = self.citation_validator.validate_and_enrich(qa_match["citations"])
-                allowed_cits = [c for c in cits if self.evidence_filter.is_authorized_for_policy(user, type('Obj', (), {'id': c['policy_id'], 'status': 'active', 'department_id': None})())]
-                if allowed_cits or not user or user.is_admin():
-                    words = qa_match["answer"].split(" ")
-                    for i, word in enumerate(words):
-                        chunk = word if i == len(words) - 1 else word + " "
-                        yield {"type": "token", "token": chunk}
-                    yield {
-                        "type": "done",
-                        "result": {
-                            "answer": qa_match["answer"],
-                            "citations": cits,
-                            "confidence": qa_match["confidence"] * 100,
-                            "route": "FAST_PATH_COMPILED_QA",
-                            "llm_used": False,
-                            "latency_ms": (time.time() - t_start) * 1000,
-                            "fallback": False,
-                            "model": "precompiled-qa"
-                        }
-                    }
-                    return
+                pol = qa_match.get("policy")
+                ver = qa_match.get("version")
+                from rag.engine.query_scope import QueryScope
+                scope = QueryScope.from_user(user, temporal_context)
+                if pol and ver:
+                    is_auth = self.evidence_filter.is_authorized_for_policy(user, pol)
+                    conf_ok = pol.confidentiality in scope.allowed_confidentiality
+                    temp_ok = (not scope.target_date) or ver.is_valid_for_date(scope.target_date)
+                    if is_auth and conf_ok and temp_ok:
+                        cits = self.citation_validator.validate_and_enrich(qa_match["citations"])
+                        if cits:
+                            words = qa_match["answer"].split(" ")
+                            for i, word in enumerate(words):
+                                chunk = word if i == len(words) - 1 else word + " "
+                                yield {"type": "token", "token": chunk}
+                            yield {
+                                "type": "done",
+                                "result": {
+                                    "answer": qa_match["answer"],
+                                    "citations": cits,
+                                    "confidence": qa_match["confidence"] * 100,
+                                    "route": "FAST_PATH_COMPILED_QA",
+                                    "llm_used": False,
+                                    "latency_ms": (time.time() - t_start) * 1000,
+                                    "fallback": False,
+                                    "model": "precompiled-qa"
+                                }
+                            }
+                            return
 
         # 4. Level 3: Version Comparison Path
         temporal_meta = meta.get("temporal", {})

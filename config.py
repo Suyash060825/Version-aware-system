@@ -21,10 +21,11 @@ class Config:
     PII_REDACTION_ENABLED = os.environ.get("PII_REDACTION_ENABLED", "True").lower() == "true"
 
     # --- Database ---
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL",
-        f"sqlite:///{os.path.join(BASE_DIR, 'data', 'ledger.db')}"
-    )
+    _raw_db = os.environ.get("DATABASE_URL")
+    if _raw_db and not _raw_db.startswith("sqlite:///data/"):
+        SQLALCHEMY_DATABASE_URI = _raw_db
+    else:
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'data', 'ledger.db')}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # --- JWT ---

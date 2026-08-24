@@ -17,7 +17,7 @@ class ConfidenceScore:
 
 class ConfidenceEngine:
     HIGH_THRESHOLD = 0.65
-    LOW_THRESHOLD = 0.10
+    LOW_THRESHOLD = 0.25
     
     STOPWORDS = {"what", "when", "where", "which", "who", "whom", "how", "why", "does", "have", "policy", "the", "for", "and", "can", "are", "get", "with", "from", "that", "this", "our", "you", "your", "will", "shall"}
 
@@ -37,11 +37,11 @@ class ConfidenceEngine:
         retrieval_conf = self._retrieval_confidence(evidence.scores)
         coverage_conf = self._evidence_coverage(query, evidence.chunks)
         
-        # Weighted combination: 60% retrieval rank, 40% evidence coverage
-        final = (retrieval_conf * 0.60) + (coverage_conf * 0.40)
+        # Weighted combination: 55% retrieval rank, 45% evidence coverage
+        final = (retrieval_conf * 0.55) + (coverage_conf * 0.45)
         
-        # Abstain only if coverage is practically 0 or retrieval score is bottom
-        abstain = (coverage_conf < 0.15 and retrieval_conf < 0.20) or (final < self.LOW_THRESHOLD)
+        # Abstain if evidence coverage is low or composite confidence is below calibrated baseline
+        abstain = (coverage_conf < 0.25) or (retrieval_conf < 0.20) or (final < self.LOW_THRESHOLD)
             
         return ConfidenceScore(
             value=float(min(1.0, max(0.0, final))),

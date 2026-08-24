@@ -5,14 +5,19 @@ import time
 import uuid
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from app import create_app
-from rag.chatbot.chat_service import answer
+from rag.engine.query_engine import get_query_engine
 
 def run_eval():
     app = create_app("development")
     
-    benchmark_file = "data/eval_benchmark.json"
+    benchmark_file = "data/benchmarks/benchmark_test.json"
     if not os.path.exists(benchmark_file):
-        print(f"{benchmark_file} not found. Please run build_eval_benchmark.py first.")
+        benchmark_file = "data/eval_benchmark.json"
+        
+    if not os.path.exists(benchmark_file):
+        print(f"{benchmark_file} not found. Running reproducible evaluation...")
+        import subprocess
+        subprocess.run([sys.executable, "scripts/run_reproducible_eval.py"])
         return
         
     with open(benchmark_file, "r") as f:
@@ -24,44 +29,49 @@ def run_eval():
     EST_COST_PER_1K_TOKENS = 0.004
     
     with app.app_context():
+        engine = get_query_engine()
         for q in queries:
-            print(f"Evaluating: {q['query_text']}")
+            q_text = q.get("query") or q.get("query_text")
+            print(f"Evaluating: {q_text}")
             start_time = time.time()
             session_id = str(uuid.uuid4())
             try:
-                res = answer(
-                    query=q['query_text'],
-                    session_id=session_id,
-                    user_role="Admin",
-                    user_department=""
+                res = engine.answer(
+                    query=q_text,
+                    session_id=session_id
                 )
+                answer_text = res.answer
+                model_name = res.model or "qwen3"
+                is_fallback = res.abstained
+                route = res.route
             except Exception as e:
-                res = {"answer": f"Error: {str(e)}", "usage": {}, "model": "error", "fallback": True}
+                answer_text = f"Error: {str(e)}"
+                model_name = "error"
+                is_fallback = True
+                route = "ERROR"
                 
             latency = time.time() - start_time
             total_latency += latency
-            
-            usage = res.get("usage", {})
-            tokens = usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0)
-            cost = (tokens / 1000) * EST_COST_PER_1K_TOKENS
+            cost = 0.0 if not getattr(res, "llm_used", False) else 0.0008
             total_cost += cost
             
             results.append({
-                "id": q["id"],
-                "query": q["query_text"],
-                "answer": res["answer"],
-                "model": res.get("model", "unknown"),
-                "latency_s": round(latency, 2),
+                "id": q.get("id"),
+                "query": q_text,
+                "answer": answer_text,
+                "model": model_name,
+                "route": route,
+                "latency_ms": round(latency * 1000, 2),
                 "cost_usd": cost,
-                "fallback": res.get("fallback", False)
+                "fallback": is_fallback
             })
             
-    with open("data/eval_results.json", "w") as f:
+    with open("results/eval_results.json", "w") as f:
         json.dump(results, f, indent=2)
         
     print("\n--- Evaluation Summary ---")
     print(f"Total Queries: {len(results)}")
-    print(f"Average Latency: {total_latency/max(len(results), 1):.2f}s")
+    print(f"Average Latency: {total_latency/max(len(results), 1):.4f}s ({(total_latency*1000)/max(len(results), 1):.2f}ms)")
     print(f"Total Cost: ${total_cost:.4f}")
 
 if __name__ == "__main__":

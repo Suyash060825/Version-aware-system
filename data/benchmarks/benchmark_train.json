@@ -1,0 +1,92 @@
+[
+  {
+    "id": "fact_01",
+    "category": "fact",
+    "query": "What is the annual gym wellness reimbursement amount?",
+    "ground_truth_policy": "Wellness and Health Policy",
+    "expected_version": "1.0",
+    "target_answer": "00 per calendar year",
+    "requires_temporal": false
+  },
+  {
+    "id": "fact_02",
+    "category": "fact",
+    "query": "How many days of paid bereavement leave are provided for immediate family?",
+    "ground_truth_policy": "Bereavement Leave Policy",
+    "expected_version": "1.0",
+    "target_answer": "5 consecutive business days",
+    "requires_temporal": false
+  },
+  {
+    "id": "fact_03",
+    "category": "fact",
+    "query": "What is the standard meal allowance for domestic travel per day?",
+    "ground_truth_policy": "Travel and Expense Policy",
+    "expected_version": "2.0",
+    "target_answer": "5 per day",
+    "requires_temporal": false
+  },
+  {
+    "id": "fact_04",
+    "category": "fact",
+    "query": "What is the maximum carryover of unused annual leave to the next calendar year?",
+    "ground_truth_policy": "Annual Leave Policy",
+    "expected_version": "1.0",
+    "target_answer": "5 days",
+    "requires_temporal": false
+  },
+  {
+    "id": "fact_05",
+    "category": "fact",
+    "query": "How many remote work days per week are permitted under the hybrid work policy?",
+    "ground_truth_policy": "Remote Work Policy",
+    "expected_version": "2.0",
+    "target_answer": "up to 2 days per week",
+    "requires_temporal": false
+  },
+  {
+    "id": "qa_01",
+    "category": "compiled_qa",
+    "query": "Can I expense client entertainment dinners without prior manager approval?",
+    "ground_truth_policy": "Travel and Expense Policy",
+    "expected_version": "2.0",
+    "target_answer": "Client entertainment expenses exceeding 00 require pre-approval.",
+    "requires_temporal": false
+  },
+  {
+    "id": "qa_02",
+    "category": "compiled_qa",
+    "query": "What is the required notice period for resigning from a Senior role?",
+    "ground_truth_policy": "Separation and Notice Policy",
+    "expected_version": "1.0",
+    "target_answer": "30 days written notice",
+    "requires_temporal": false
+  },
+  {
+    "id": "qa_03",
+    "category": "compiled_qa",
+    "query": "What are the core working hours during which employees must be available online?",
+    "ground_truth_policy": "Work Hours Policy",
+    "expected_version": "1.0",
+    "target_answer": "10:00 AM to 4:00 PM local time",
+    "requires_temporal": false
+  },
+  {
+    "id": "qa_04",
+    "category": "compiled_qa",
+    "query": "Is dual employment or moonlighting allowed while working full time?",
+    "ground_truth_policy": "Code of Conduct",
+    "expected_version": "1.0",
+    "target_answer": "Secondary employment requires written approval from HR and Compliance.",
+    "requires_temporal": false
+  },
+  {
+    "id": "qa_05",
+    "category": "compiled_qa",
+    "query": "How often must employees complete mandatory information security awareness training?",
+    "ground_truth_policy": "Information Security Policy",
+    "expected_version": "2.0",
+    "target_answer": "Annually upon hire and every 12 months thereafter",
+    "requires_temporal": false
+  }
+]

@@ -1,0 +1,3 @@
+Update Strategy,Single Version Update Time (ms),Recomputed Chunks,Re-Embedded Items
+Incremental Delta Update (Ours),18.4 ms,6 chunks,6 items
+Full Global Rebuild (Baseline),"4,250.0 ms",148 chunks,148 items

@@ -1,0 +1,5 @@
+Document Count,Index Size (MB),Dense Query Time (ms),BM25 Query Time (ms),Rerank Time (ms)
+20,1.2 MB,9.2 ms,1.1 ms,5.9 ms
+100,5.8 MB,11.4 ms,2.8 ms,6.1 ms
+500,28.5 MB,14.2 ms,6.5 ms,6.2 ms
+2000,112.0 MB,18.9 ms,14.1 ms,6.4 ms

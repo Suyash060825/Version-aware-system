@@ -1,9 +1,9 @@
 """
 rag/verification/citation_validator.py
 Validates and enriches citations against authoritative database records.
-Rejects placeholder citations and ensures traceability.
+Rejects unresolvable citations, never fabricates IDs, and ensures strict traceability.
 """
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from models import db, Policy, PolicyVersion, PolicyChunkV2
 
 class CitationValidator:
@@ -11,7 +11,11 @@ class CitationValidator:
         pass
 
     def validate_and_enrich(self, raw_citations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Validate and enrich citation list with authoritative database values."""
+        """
+        Validate and enrich citation list with authoritative database records.
+        Strict invariant: Every citation MUST resolve to an actual Policy and PolicyVersion.
+        Invalid, fabricated, or nonexistent records are dropped.
+        """
         if not raw_citations:
             return []
 
@@ -23,62 +27,76 @@ class CitationValidator:
             version_id = cit.get("version_id")
             chunk_id = cit.get("chunk_id")
 
-            # Try to resolve policy from database
             policy = None
-            if policy_id:
+            version = None
+
+            # 1. Resolve via chunk_id if available
+            if chunk_id:
+                chunk = PolicyChunkV2.query.filter_by(chunk_id=chunk_id).first()
+                if chunk:
+                    policy = db.session.get(Policy, chunk.policy_id)
+                    version = db.session.get(PolicyVersion, chunk.version_id)
+                    section = chunk.section_path or cit.get("section") or "General"
+                    page = chunk.page or cit.get("page") or 1
+                else:
+                    section = cit.get("section") or "General"
+                    page = cit.get("page") or 1
+            else:
+                section = cit.get("section") or "General"
+                page = cit.get("page") or 1
+
+            # 2. Resolve via policy_id if not found via chunk
+            if not policy and policy_id:
                 try:
                     policy = db.session.get(Policy, int(policy_id))
                 except (ValueError, TypeError):
                     pass
 
-            version = None
-            if version_id:
-                try:
-                    version = db.session.get(PolicyVersion, int(version_id))
-                except (ValueError, TypeError):
-                    pass
+            # 3. Resolve via policy_name search if still not found
+            if not policy and cit.get("policy_name") and cit.get("policy_name") not in ("Policy", "N/A", "Unknown"):
+                policy = Policy.query.filter(Policy.title.ilike(cit["policy_name"].strip())).first()
 
-            # If chunk_id given, resolve chunk details
-            section = cit.get("section") or "General"
-            page = cit.get("page") or 1
-            
-            if chunk_id:
-                chunk = PolicyChunkV2.query.filter_by(chunk_id=chunk_id).first()
-                if chunk:
-                    if not policy:
-                        policy = db.session.get(Policy, chunk.policy_id)
-                    if not version:
-                        version = db.session.get(PolicyVersion, chunk.version_id)
-                    section = chunk.section_path or section
-                    page = chunk.page or page
+            # 4. Resolve version
+            if policy and not version:
+                if version_id:
+                    try:
+                        version = db.session.get(PolicyVersion, int(version_id))
+                    except (ValueError, TypeError):
+                        pass
+                if not version and cit.get("version"):
+                    ver_str = str(cit["version"]).lstrip("v")
+                    try:
+                        v_num = float(ver_str)
+                        version = PolicyVersion.query.filter_by(policy_id=policy.id, version_num=v_num).first()
+                    except ValueError:
+                        pass
+                if not version:
+                    version = policy.active_version or policy.latest_version
 
-            # If policy or version still None, check if policy_name is already descriptive
-            policy_title = policy.title if policy else cit.get("policy_name")
-            if not policy_title or policy_title in ("Policy", "N/A", "Unknown"):
-                if policy:
-                    policy_title = policy.title
-                else:
-                    # Try to fetch default active policy
-                    first_p = Policy.query.first()
-                    policy_title = first_p.title if first_p else "Company Policy"
-                    policy_id = first_p.id if first_p else 1
+            # Strict Safety Gate: If policy or version cannot be authoritatively resolved, reject citation
+            if not policy or not version:
+                continue
 
-            version_num = version.version_number if version else (cit.get("version") or "1.0")
-            if version_num in ("N/A", "Unknown", None):
-                version_num = "1.0"
+            # Ensure version belongs to policy
+            if version.policy_id != policy.id:
+                continue
 
-            key = (policy_title, version_num, section, page)
+            policy_title = policy.title
+            version_num = version.version_number
+            page_int = int(page) if str(page).isdigit() else 1
+
+            key = (policy.id, version.id, section, page_int)
             if key in seen:
                 continue
             seen.add(key)
 
             validated.append({
-                "policy_id": policy.id if policy else (policy_id or 1),
-                "version_id": version.id if version else (version_id or 1),
+                "policy_id": policy.id,
+                "version_id": version.id,
                 "policy_name": policy_title,
                 "version": str(version_num),
                 "section": section,
-                "page": int(page) if str(page).isdigit() else 1,
+                "page": page_int,
                 "chunk_id": chunk_id
             })
 
