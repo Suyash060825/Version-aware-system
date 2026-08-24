@@ -6,7 +6,7 @@ Welcome to **Policy Ledger Enterprise**, a high-performance, version-aware polic
 
 ## 1. Quick Start (Single Production Docker Stack)
 
-The entire production ecosystem (Reverse Proxy, Web API, Celery Workers, PostgreSQL with `pgvector`, Redis 7, and Ollama) runs via a single unified `docker-compose.yml`.
+The entire production ecosystem (Nginx Reverse Proxy, Web API, Celery Workers, PostgreSQL, Redis 7, and Ollama) runs via a single unified `docker-compose.yml`.
 
 ### Prerequisites
 * Docker Engine 24.0+ & Docker Compose v2.20+
@@ -45,7 +45,7 @@ Configure `DEFAULT_ADMIN_PASSWORD` in your `.env` file before initial startup. U
 
 ## 2. Local Virtual Environment Run (Without Docker)
 
-For rapid local testing and development using Python 3.11+:
+For rapid local testing and development using Python 3.11:
 
 ### Step 1: Install Dependencies
 ```bash
@@ -77,18 +77,13 @@ celery -A tasks.celery_app worker --loglevel=info
 
 ## 3. Running Automated Tests & Audits
 
-Run the comprehensive 35-test integration, regression, and unit suite:
+Run the complete test suite:
 
 ```bash
-pytest tests/ -v
+pytest -q
 ```
 
-Expected output:
-```
-================== 35 passed, 8 warnings in ~18s ===================
-```
-
-To run the full RAG pipeline and cache verification benchmark:
+To run the full reproducible RAG benchmark suite:
 ```bash
 python scripts/run_reproducible_eval.py
 ```
@@ -125,7 +120,7 @@ python scripts/run_reproducible_eval.py
 | `SECRET_KEY` | *(Required)* | Flask session signature key |
 | `JWT_SECRET_KEY` | *(Required)* | JWT signature key |
 | `DEFAULT_ADMIN_PASSWORD` | *(Required)* | Password for initialized administrator account |
-| `DATABASE_URL` | `postgresql://...` | PostgreSQL 16 + pgvector connection URI |
+| `DATABASE_URL` | `postgresql://...` | PostgreSQL 16 connection URI |
 | `REDIS_URL` | `redis://redis:6379/0` | Redis 7 cache & Celery broker URI |
 | `LLM_BACKEND` | `ollama` | Backend engine (`ollama`, `lmstudio`, `local`, `mock`) |
 | `LOCAL_LLM_MODEL` | `qwen3:4b-q4_K_M` | LLM model tag |

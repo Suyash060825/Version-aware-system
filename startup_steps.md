@@ -92,13 +92,13 @@ Test hypothetical scenarios with multi-clause verdicts:
 * *"I have a headache and want to take 1 day of sick leave without a medical certificate."*
 
 ### 3. Running Automated Tests
-To run all 35 integration, regression, and unit tests:
+To run the automated test suite:
 ```bash
 # In Docker
-docker exec -it policy_ledger_web pytest tests/ -v
+docker exec -it policy_ledger_web pytest -q
 
 # Locally
-pytest tests/ -v
+pytest -q
 ```
 
 ---
