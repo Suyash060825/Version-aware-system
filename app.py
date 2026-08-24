@@ -130,7 +130,8 @@ def create_app(env="default"):
             from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
             return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
         except Exception as e:
-            return f"Metrics unavailable: {str(e)}", 500
+            logging.getLogger("app.metrics").error(f"Metrics collection failed: {e}")
+            return "Metrics unavailable", 500
 
     @app.route("/health/live")
     def health_live():

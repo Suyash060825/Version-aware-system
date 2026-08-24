@@ -105,7 +105,7 @@ def api_chat_stream():
         except Exception as e:
             import logging
             logging.getLogger("rag.api").exception("Stream error in api_chat_stream")
-            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'error': 'An internal error occurred processing the chat stream.'})}\n\n"
 
     return Response(stream_with_context(generate_events()), mimetype="text/event-stream")
 
@@ -176,9 +176,7 @@ def api_chat():
             "latency_ms": result.latency_ms
         })
     except Exception as e:
-        import logging
-        logging.getLogger("rag.api").exception("Error in api_chat")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An internal error occurred processing your request."}), 500
 
 
 @rag_bp.route("/api/feedback", methods=["POST"])
@@ -257,7 +255,9 @@ def admin_rag_dashboard():
         store = get_store()
         vec_stats = store.stats()
     except Exception as e:
-        vec_stats = {"total_chunks": 0, "error": str(e)}
+        import logging
+        logging.getLogger("rag.api").error(f"Failed to fetch store stats: {e}")
+        vec_stats = {"total_chunks": 0, "status": "unavailable"}
 
     embedder = get_embedder()
     llm = get_llm()

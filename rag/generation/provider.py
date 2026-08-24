@@ -93,8 +93,8 @@ class OllamaProvider(LocalLLMProvider):
                                 token = chunk.get("response", "")
                                 if token:
                                     yield token
-                            except Exception:
-                                pass
+                            except Exception as parse_err:
+                                logger.debug(f"Streaming chunk JSON parse error: {parse_err}")
         except Exception as e:
             self._is_healthy = False
             self._last_health_time = time.time()
@@ -118,7 +118,8 @@ class OllamaProvider(LocalLLMProvider):
             self._is_healthy = False
             self._last_health_time = time.time()
             return False
-        except Exception:
+        except Exception as conn_err:
+            logger.debug(f"LLM health check connection failed: {conn_err}")
             self._is_healthy = False
             self._last_health_time = time.time()
             return False

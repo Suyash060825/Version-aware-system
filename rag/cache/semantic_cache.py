@@ -84,8 +84,8 @@ class MultiLevelCache:
         if self.use_redis:
             try:
                 self.redis.setex(key, ttl, json.dumps(item_data))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Redis setex failed in cache put_l1: {e}")
         if len(self._local_l1) > self._max_local:
             self._local_l1.clear()
         self._local_l1[key] = item_data

@@ -27,10 +27,10 @@ services:
       - "5000:5000"
     environment:
       - FLASK_ENV=production
-      - SECRET_KEY=${SECRET_KEY:-9f8c6e2a1b4d7f5e3c8a0b2d4e6f8a1c9e7b5d3f1a0c8e6b4d2f0a8c6e4b2d0f}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b}
-      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-PolicyLedger#Admin2026!}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_password}@postgres:5432/${POSTGRES_DB:-policy_ledger}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be provided}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be provided}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:?DEFAULT_ADMIN_PASSWORD must be provided}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be provided}@postgres:5432/${POSTGRES_DB:-policy_ledger}
       - REDIS_URL=redis://redis:6379/0
       - HF_HOME=/app/data/huggingface
       - LLM_BACKEND=${LLM_BACKEND:-ollama}
@@ -55,11 +55,11 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health/live || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 15s
+      retries: 3
+      start_period: 20s
     volumes:
-      - app_data:/app/data
-      - upload_data:/app/data/uploads
+      - ./data:/app/data
+      - ./instance:/app/instance
 
   # ============================================================================
   # Celery Asynchronous Ingestion & Contradiction Worker
@@ -73,10 +73,10 @@ services:
     restart: unless-stopped
     environment:
       - FLASK_ENV=production
-      - SECRET_KEY=${SECRET_KEY:-9f8c6e2a1b4d7f5e3c8a0b2d4e6f8a1c9e7b5d3f1a0c8e6b4d2f0a8c6e4b2d0f}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b}
-      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-PolicyLedger#Admin2026!}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_password}@postgres:5432/${POSTGRES_DB:-policy_ledger}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be provided}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be provided}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:?DEFAULT_ADMIN_PASSWORD must be provided}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be provided}@postgres:5432/${POSTGRES_DB:-policy_ledger}
       - REDIS_URL=redis://redis:6379/0
       - HF_HOME=/app/data/huggingface
       - LLM_BACKEND=${LLM_BACKEND:-ollama}
@@ -88,14 +88,9 @@ services:
       - RERANKER_MODEL=${RERANKER_MODEL:-Qwen/Qwen3-Reranker-0.6B}
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - app_data:/app/data
-      - upload_data:/app/data/uploads
+        condition: service_healthy
 
   # ============================================================================
   # PostgreSQL 16 with pgvector extension
@@ -106,7 +101,7 @@ services:
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_password}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be provided}
       - POSTGRES_DB=${POSTGRES_DB:-policy_ledger}
     ports:
       - "127.0.0.1:5432:5432"

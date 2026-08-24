@@ -162,10 +162,13 @@ class QueryEngine:
                             {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1},
                             {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
                         ])
+                        diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
+                        calibrated_diff_conf = 0.85 if diff_clauses > 0 else 0.80
+
                         return QueryResult(
                             answer=diff_summary,
                             route="TEMPORAL_COMPARISON",
-                            confidence=0.95,
+                            confidence=calibrated_diff_conf,
                             citations=cits,
                             policy_versions=[str(v1.version_num), str(v2.version_num)],
                             latency_ms=(time.time() - t_start) * 1000,
@@ -351,15 +354,28 @@ class QueryEngine:
                             }
                             return
 
-        # 4. Level 3: Version Comparison Path
+        # 4. Level 3: Version Comparison Path (Strictly Authorized & Scalable)
         temporal_meta = meta.get("temporal", {})
         if temporal_meta.get("is_comparison") and temporal_meta.get("version_v1") and temporal_meta.get("version_v2"):
             v1_num = temporal_meta["version_v1"]
             v2_num = temporal_meta["version_v2"]
-            from models import Policy, PolicyVersion
-            policies = Policy.query.all()
-            for p in policies:
+            from models import Policy, PolicyVersion, PolicyStatus
+
+            # Scalable candidate lookup: query only relevant/authorized policies
+            if temporal_context.policy_id:
+                p_query = Policy.query.filter(Policy.id == temporal_context.policy_id)
+            elif scope.allowed_policy_ids is not None:
+                p_query = Policy.query.filter(Policy.id.in_(scope.allowed_policy_ids))
+            else:
+                p_query = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE)
+
+            candidate_policies = p_query.all()
+            for p in candidate_policies:
                 if p.title.lower() in normalized_query.lower() or any(w in p.title.lower() for w in normalized_query.lower().split() if len(w) > 3):
+                    # SECURITY: Enforce authorization BEFORE loading comparison versions or computing diff
+                    if not self.evidence_filter.is_authorized_for_policy(scope, p):
+                        continue
+
                     v1 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, (PolicyVersion.version_num == float(v1_num)) | (PolicyVersion.version_label.ilike(f"%{v1_num}%"))).first()
                     v2 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, (PolicyVersion.version_num == float(v2_num)) | (PolicyVersion.version_label.ilike(f"%{v2_num}%"))).first()
                     if v1 and v2:
@@ -379,7 +395,11 @@ class QueryEngine:
                         cits = self.citation_validator.validate_and_enrich([
                             {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1},
                             {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
-                        ])
+                        ], scope=scope)
+
+                        diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
+                        calibrated_diff_conf = 85.0 if diff_clauses > 0 else 80.0
+
                         words = diff_summary.split(" ")
                         for i, word in enumerate(words):
                             chunk = word if i == len(words) - 1 else word + " "
@@ -389,7 +409,7 @@ class QueryEngine:
                             "result": {
                                 "answer": diff_summary,
                                 "citations": cits,
-                                "confidence": 95.0,
+                                "confidence": calibrated_diff_conf,
                                 "route": "TEMPORAL_COMPARISON",
                                 "llm_used": False,
                                 "latency_ms": (time.time() - t_start) * 1000,

@@ -215,7 +215,7 @@ class FactResolver:
             "chunk_id": source_cid
         }]
 
-        conf = float(fact.confidence or 0.98)
+        conf = float(fact.confidence) if fact.confidence is not None else 0.85
         return FactResolutionResult(
             found=True,
             answer=answer,
