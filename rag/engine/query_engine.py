@@ -251,8 +251,8 @@ class QueryEngine:
                 # If cannot extract verified answer-bearing sentence and no LLM grounding, abstain safely
                 return QueryResult.abstained("I could not find sufficient authoritative evidence to answer this specific question.", (time.time() - t_start) * 1000)
 
-        # Cache successful verified answer
-        cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3")
+        # Cache successful verified answer preserving exact confidence score
+        cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3", confidence=conf.value)
 
         return QueryResult(
             answer=final_answer,

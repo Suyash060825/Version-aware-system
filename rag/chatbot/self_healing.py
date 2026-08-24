@@ -56,19 +56,19 @@ Please write a corrected, highly accurate answer to the user's question based st
             resp = provider.generate(messages)
             corrected_answer = resp.text
             
-            # Extract policy IDs to ensure cache invalidation works later if needed
-            policy_ids = {h.get("policy_id") for h in hits[:5] if h.get("policy_id")}
+            from rag.chatbot.citations import build_citations
+            real_citations = build_citations(hits[:5]) if hits else []
             
-            # Inject into Semantic Cache to act as a "corrected anchor" for future queries
-            cache = get_cache()
-            cache.put(
-                query_embedding=q_vec,
-                answer=corrected_answer,
-                citations=[{"id": "self-healed", "title": "Self-Healed Correction", "version": "latest", "section": "Diagnostic"}],
-                chunks_used=5,
-                policy_ids=policy_ids,
-                ttl=86400 * 30  # 30 days
-            )
-            print(f"[Self-Healing] Successfully patched cache for query: {query}")
+            # Inject into Semantic Cache only with verified real citations
+            if real_citations:
+                cache = get_cache()
+                cache.put(
+                    query_embedding=q_vec,
+                    answer=corrected_answer,
+                    citations=real_citations,
+                    chunks_used=len(real_citations),
+                    confidence=0.85
+                )
+                print(f"[Self-Healing] Successfully patched cache with authoritative evidence for query: {query}")
         except Exception as e:
             print("[Self-Healing] Failed:", e)

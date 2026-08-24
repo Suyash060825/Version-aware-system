@@ -269,3 +269,223 @@ def test_citation_validator_strictness(app):
     mismatched = [{"policy_name": "Citation Verification Policy", "version": "99.0"}]
     enriched_mismatch = validator.validate_and_enrich(mismatched)
     assert len(enriched_mismatch) == 0
+
+def test_cache_validation_exception_fails_closed_and_confidence_preserved(app):
+    from rag.cache.semantic_cache import MultiLevelCache
+    from rag.engine.query_scope import QueryScope
+    import unittest.mock
+
+    cache = MultiLevelCache()
+    u = User(name="test_u", email="u@test.com", password_hash="h", role="employee")
+    db.session.add(u)
+    db.session.commit()
+
+    p = Policy(policy_id="POL-CACHE-SEC", title="Sec Policy", author_id=u.id, status=PolicyStatus.ACTIVE)
+    db.session.add(p)
+    db.session.commit()
+
+    v = PolicyVersion(policy_id=p.id, version_num=1.0, version_label="v1.0", content="Sec text", is_active=True, created_by_id=u.id)
+    db.session.add(v)
+    db.session.commit()
+
+    c = PolicyChunkV2(chunk_id="chunk-sec-c", policy_id=p.id, version_id=v.id, text="Sec chunk", text_hash="hsec")
+    db.session.add(c)
+    db.session.commit()
+
+    scope = QueryScope.from_user(u)
+    q_vec = [0.3] * 384
+    citations = [{"policy_id": p.id, "version_id": v.id, "chunk_id": "chunk-sec-c", "version": "1.0"}]
+
+    # 1. Store with original confidence 0.72
+    cache.put(q_vec, "Real confidence answer", citations, 1, scope=scope, confidence=0.72)
+
+    hit = cache.get(q_vec, scope=scope)
+    assert hit is not None
+    assert hit["confidence"] == 0.72  # Must not be inflated to 100
+
+    # 2. Simulate validation exception (e.g. DB crash during validation) -> MUST FAIL CLOSED (return None)
+    with unittest.mock.patch("rag.authorization.evidence_filter.EvidenceFilter.is_authorized_for_policy", side_effect=RuntimeError("DB disconnect")):
+        hit_on_error = cache.get(q_vec, scope=scope)
+        assert hit_on_error is None  # Cache validation failure becomes cache miss
+
+def test_temporal_failure_handling_and_no_created_at_truth(app):
+    u = User(name="admin_temp", email="admin_temp@test.com", password_hash="h", role="admin")
+    db.session.add(u)
+    db.session.commit()
+
+    p = Policy(policy_id="POL-TEMP-STRICT", title="Strict Temporal", author_id=u.id, status=PolicyStatus.ACTIVE)
+    db.session.add(p)
+    db.session.commit()
+
+    # Version with NO effective_date
+    v = PolicyVersion(policy_id=p.id, version_num=1.0, version_label="v1.0", content="Unresolved eff date", effective_date=None, created_by_id=u.id)
+    db.session.add(v)
+    db.session.commit()
+
+    # effective_from must be None, NOT created_at
+    assert v.effective_from is None
+    # Must not authoritatively satisfy specific target date query
+    assert v.is_valid_for_date(date(2025, 1, 1)) is False
+
+    # Version with explicit effective_date
+    v2 = PolicyVersion(policy_id=p.id, version_num=2.0, version_label="v2.0", content="Resolved eff date", effective_date=date(2025, 1, 1), created_by_id=u.id)
+    db.session.add(v2)
+    db.session.commit()
+
+    assert v2.effective_from == date(2025, 1, 1)
+    assert v2.is_valid_for_date(date(2025, 6, 1)) is True
+    assert v2.is_valid_for_date(date(2024, 6, 1)) is False
+
+def test_fact_resolver_ambiguity_margin_and_unauthorized(app):
+    from rag.facts.fact_resolver import FactResolver
+    from rag.engine.query_scope import QueryScope
+
+    u = User(name="hr_fact", email="hr_fact@test.com", password_hash="h", role="hr", department_id=1)
+    db.session.add(u)
+    db.session.commit()
+
+    p = Policy(policy_id="POL-FACT-AMBIG", title="Gift Policy", author_id=u.id, status=PolicyStatus.ACTIVE, confidentiality=ConfidentialityLevel.INTERNAL)
+    db.session.add(p)
+    db.session.commit()
+
+    v = PolicyVersion(policy_id=p.id, version_num=1.0, version_label="v1.0", content="Gift policy content", effective_date=date(2024, 1, 1), is_active=True, created_by_id=u.id)
+    db.session.add(v)
+    db.session.commit()
+
+    c = PolicyChunkV2(chunk_id="chunk-gift-1", policy_id=p.id, version_id=v.id, section_path="Gifts", text="Gift policy content", text_hash="hgift")
+    db.session.add(c)
+    db.session.commit()
+
+    # Two competing facts with identical match score but conflicting values
+    f1 = PolicyFact(policy_id=p.id, version_id=v.id, subject="gift limit", predicate="gift_limit", value="5000", unit="INR", source_chunk_id="chunk-gift-1", confidence=0.9)
+    f2 = PolicyFact(policy_id=p.id, version_id=v.id, subject="gift policy", predicate="gift_limit", value="10000", unit="INR", source_chunk_id="chunk-gift-1", confidence=0.9)
+    db.session.add_all([f1, f2])
+    db.session.commit()
+
+    resolver = FactResolver()
+    scope = QueryScope.from_user(u)
+
+    # 1. Missing scope/user must fail closed
+    res_no_auth = resolver.try_resolve("What is the gift limit?", scope=None, user=None)
+    assert res_no_auth.found is False
+
+    # 2. Conflicting facts within ambiguity margin must escalate (found=False)
+    res_ambig = resolver.try_resolve("What is the gift limit?", scope=scope, user=u)
+    assert res_ambig.found is False
+
+def test_faiss_delta_persistence_restart_and_compaction(app, tmp_path):
+    from rag.qa.qa_index import CanonicalQAIndex
+    import os
+
+    u = User(name="admin_faiss", email="admin_faiss@test.com", password_hash="h", role="admin")
+    db.session.add(u)
+    db.session.commit()
+
+    p = Policy(policy_id="POL-FAISS", title="Faiss Policy", author_id=u.id, status=PolicyStatus.ACTIVE)
+    db.session.add(p)
+    db.session.commit()
+
+    v = PolicyVersion(policy_id=p.id, version_num=1.0, version_label="v1.0", content="Content", is_active=True, created_by_id=u.id)
+    db.session.add(v)
+    db.session.commit()
+
+    c = PolicyChunkV2(chunk_id="chunk-f-1", policy_id=p.id, version_id=v.id, text="Faiss test", text_hash="hf1")
+    db.session.add(c)
+    db.session.commit()
+
+    q1 = CanonicalQuestion(policy_id=p.id, version_id=v.id, source_chunk_id="chunk-f-1", question="What is policy A?", question_hash="q1")
+    q2 = CanonicalQuestion(policy_id=p.id, version_id=v.id, source_chunk_id="chunk-f-1", question="What is policy B?", question_hash="q2")
+    db.session.add_all([q1, q2])
+    db.session.commit()
+
+    a1 = CompiledAnswer(question_id=q1.id, answer="Policy A answer", source_chunk_ids='["chunk-f-1"]', status="validated")
+    a2 = CompiledAnswer(question_id=q2.id, answer="Policy B answer", source_chunk_ids='["chunk-f-1"]', status="validated")
+    db.session.add_all([a1, a2])
+    db.session.commit()
+
+    index_file = str(tmp_path / "test_faiss.index")
+    meta_file = str(tmp_path / "test_faiss.meta.pkl")
+    delta_file = str(tmp_path / "test_faiss_delta.index")
+
+    idx = CanonicalQAIndex(dimension=384)
+    idx.INDEX_FILE = index_file
+    idx.META_FILE = meta_file
+    idx.DELTA_INDEX_FILE = delta_file
+
+    emb1 = [0.1] * 384
+    emb2 = [0.2] * 384
+
+    # Add base and delta items
+    idx.rebuild_from_db()
+    idx.add([q2], [a2], [emb2])
+    idx.save()
+
+    # Destroy object and reload
+    idx_reloaded = CanonicalQAIndex(dimension=384)
+    idx_reloaded.INDEX_FILE = index_file
+    idx_reloaded.META_FILE = meta_file
+    idx_reloaded.DELTA_INDEX_FILE = delta_file
+    idx_reloaded.load()
+
+    # Search should find both
+    res = idx_reloaded.search(emb2, top_k=2)
+    assert len(res) >= 1
+    assert any(r[2] == q2.id for r in res)
+
+    # Tombstone q2 and compact
+    idx_reloaded.delete_policy_version(p.id, v.id)
+    res_tombstoned = idx_reloaded.search(emb2, top_k=2)
+    assert len(res_tombstoned) == 0
+
+    idx_reloaded.compact()
+    assert len(idx_reloaded._metadata) == 0
+
+def test_user_explicit_capabilities(app):
+    u_emp = User(name="emp", email="emp_cap@test.com", password_hash="h", role="employee", department_id=1)
+    u_mgr = User(name="mgr", email="mgr_cap@test.com", password_hash="h", role="manager", department_id=1)
+    u_hr = User(name="hr", email="hr_cap@test.com", password_hash="h", role="hr", department_id=2)
+    u_exec = User(name="exec", email="exec_cap@test.com", password_hash="h", role="executive", department_id=3)
+    u_admin = User(name="admin", email="admin_cap@test.com", password_hash="h", role="admin")
+    db.session.add_all([u_emp, u_mgr, u_hr, u_exec, u_admin])
+    db.session.commit()
+
+    p_conf_dept1 = Policy(policy_id="POL-C1", title="C1", author_id=u_admin.id, department_id=1, confidentiality=ConfidentialityLevel.CONFIDENTIAL)
+    p_conf_dept2 = Policy(policy_id="POL-C2", title="C2", author_id=u_admin.id, department_id=2, confidentiality=ConfidentialityLevel.CONFIDENTIAL)
+    p_restr = Policy(policy_id="POL-R", title="R", author_id=u_admin.id, confidentiality=ConfidentialityLevel.RESTRICTED)
+    db.session.add_all([p_conf_dept1, p_conf_dept2, p_restr])
+    db.session.commit()
+
+    # 1. Internal
+    assert u_emp.can_view_internal() is True
+
+    # 2. Confidential
+    assert u_emp.can_view_confidential(p_conf_dept1) is True
+    assert u_emp.can_view_confidential(p_conf_dept2) is False
+    assert u_mgr.can_view_confidential(p_conf_dept1) is True
+    assert u_mgr.can_view_confidential(p_conf_dept2) is False
+    assert u_hr.can_view_confidential(p_conf_dept1) is True  # HR can view all confidential
+    assert u_admin.can_view_confidential(p_conf_dept1) is True
+
+    # 3. Restricted
+    assert u_emp.can_view_restricted(p_restr) is False
+    assert u_mgr.can_view_restricted(p_restr) is False
+    assert u_hr.can_view_restricted(p_restr) is False
+    assert u_exec.can_view_restricted(p_restr) is True
+    assert u_admin.can_view_restricted(p_restr) is True
+
+    # 4. Approvals
+    assert u_mgr.can_approve_policy(p_conf_dept1) is True
+    assert u_mgr.can_approve_policy(p_conf_dept2) is False
+    assert u_hr.can_approve_policy(p_conf_dept1) is True
+    assert u_admin.can_approve_policy(p_conf_dept1) is True
+
+def test_production_config_secret_validation(monkeypatch):
+    from config import ProductionConfig
+    monkeypatch.setenv("SECRET_KEY", "change-this-in-production-please")
+    with pytest.raises(ValueError):
+        ProductionConfig.validate_production_secrets()
+
+    monkeypatch.setenv("SECRET_KEY", "ultra-secure-randomly-generated-production-key-999")
+    monkeypatch.setenv("JWT_SECRET_KEY", "ultra-secure-randomly-generated-jwt-key-999")
+    # Must pass without raising
+    ProductionConfig.validate_production_secrets()

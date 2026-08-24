@@ -165,35 +165,48 @@ class MultiLevelCache:
                     if pid:
                         policy = db.session.get(Policy, int(pid))
                         if not policy:
+                            logger.info(f"Cached policy {pid} no longer exists in DB. Invalidating cache hit.")
                             return None
                         if scope and not evidence_filter.is_authorized_for_policy(scope, policy):
+                            logger.info(f"User scope not authorized for cached policy {pid}. Invalidating cache hit.")
                             return None
 
                     if vid:
                         version = db.session.get(PolicyVersion, int(vid))
                         if not version:
+                            logger.info(f"Cached version {vid} no longer exists in DB. Invalidating cache hit.")
                             return None
 
                     if cid:
                         chunk = PolicyChunkV2.query.filter_by(chunk_id=cid).first()
                         if not chunk:
+                            logger.info(f"Cached chunk {cid} no longer exists in DB. Invalidating cache hit.")
                             return None
+            else:
+                # Outside application context with no DB access, do not serve unverifiable cache
+                return None
         except Exception as e:
-            logger.debug(f"Cache validation check bypassed: {e}")
+            # SECURITY REQUIREMENT: Cache validation exception must ALWAYS result in CACHE MISS (fail closed)
+            logger.warning(f"Cache validation check failed unexpectedly: {e}. Treating as cache miss.")
+            return None
 
         return cached
 
-    def put(self, query_embedding: List[float], answer: str, citations: list, chunks_used: int, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, model: str = "", is_diff_query: bool = False):
+    def put(self, query_embedding: List[float], answer: str, citations: list, chunks_used: int, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, model: str = "", confidence: Optional[float] = None, is_diff_query: bool = False):
         scope_key = self._make_scope_key(scope=scope, allowed_depts=allowed_depts, is_diff_query=is_diff_query)
         policy_ids = [c.get("policy_id") for c in citations if c.get("policy_id")]
         version_ids = [c.get("version_id") for c in citations if c.get("version_id")]
         chunk_ids = [c.get("chunk_id") for c in citations if c.get("chunk_id")]
+        
+        # Preserve actual confidence score without inflating or hardcoding
+        conf_val = float(confidence) if confidence is not None else 1.0
+
         res = {
             "answer": answer,
             "citations": citations,
             "chunks_used": chunks_used,
             "model": model,
-            "confidence": 100
+            "confidence": conf_val
         }
         self.set_l2(
             query_embedding,

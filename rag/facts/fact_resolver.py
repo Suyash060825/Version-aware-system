@@ -56,6 +56,11 @@ class FactResolver:
         self.store = FactStore()
 
     def try_resolve(self, query: str, scope: Optional[Any] = None, temporal: Optional[Any] = None, user: Optional[Any] = None) -> FactResolutionResult:
+        auth_context = scope or user
+        if auth_context is None:
+            # SECURITY REQUIREMENT 7: Fact route must fail closed without explicit authorization context
+            return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
+
         query_lower = query.lower()
         query_words = set(re.findall(r"\b[a-z0-9]+\b", query_lower))
 
@@ -64,23 +69,29 @@ class FactResolver:
             if re.search(pattern, query_lower):
                 target_predicates.extend(preds)
 
+        if not target_predicates:
+            return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
+
         policy_id = temporal.policy_id if temporal and hasattr(temporal, "policy_id") else None
         version_id = temporal.version_id if temporal and hasattr(temporal, "version_id") else None
 
-        # Fetch candidate facts
-        all_facts = PolicyFact.query
+        # PERFORMANCE & SCALE REQUIREMENT 6: SQL-level candidate pre-filtering
+        query_facts = PolicyFact.query.filter(PolicyFact.predicate.in_(target_predicates))
         if policy_id:
-            all_facts = all_facts.filter_by(policy_id=policy_id)
+            query_facts = query_facts.filter_by(policy_id=policy_id)
         if version_id:
-            all_facts = all_facts.filter_by(version_id=version_id)
+            query_facts = query_facts.filter_by(version_id=version_id)
+        if scope and getattr(scope, "allowed_policy_ids", None) is not None:
+            query_facts = query_facts.filter(PolicyFact.policy_id.in_(scope.allowed_policy_ids))
         
-        candidate_facts = all_facts.all()
+        candidate_facts = query_facts.all()
+        if not candidate_facts:
+            return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
         from rag.authorization.evidence_filter import EvidenceFilter
         evidence_filter = EvidenceFilter()
 
-        best_fact = None
-        best_score = -1
+        scored_candidates = []
 
         for fact in candidate_facts:
             policy = db.session.get(Policy, fact.policy_id)
@@ -89,7 +100,7 @@ class FactResolver:
                 continue
 
             # Authorization Check
-            if user is not None and not evidence_filter.is_authorized_for_policy(user, policy):
+            if not evidence_filter.is_authorized_for_policy(auth_context, policy):
                 continue
 
             # Temporal Validity Check
@@ -133,14 +144,23 @@ class FactResolver:
             subj_words = set(re.findall(r"\b[a-z0-9]+\b", subj))
             score += len(query_words & subj_words) * 3
 
-            if score > best_score and score >= 30:
-                best_score = score
-                best_fact = fact
+            if score >= 30:
+                scored_candidates.append((score, fact))
 
-        if best_fact:
-            return self._format_fact_result(best_fact)
+        if not scored_candidates:
+            return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
-        return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
+        # PRECISION REQUIREMENT 5: Best vs Second-Best ambiguity margin
+        scored_candidates.sort(key=lambda x: x[0], reverse=True)
+        best_score, best_fact = scored_candidates[0]
+
+        if len(scored_candidates) > 1:
+            second_score, second_fact = scored_candidates[1]
+            # If conflicting facts exist within the ambiguity margin, escalate to compiled QA/RAG
+            if second_fact.value != best_fact.value and (best_score - second_score) < 10:
+                return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
+
+        return self._format_fact_result(best_fact)
 
     def _format_fact_result(self, fact: PolicyFact) -> FactResolutionResult:
         policy = db.session.get(Policy, fact.policy_id)

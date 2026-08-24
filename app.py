@@ -144,7 +144,8 @@ def create_app(env="default"):
             db.session.execute(db.text("SELECT 1"))
             return jsonify({"status": "ready", "database": "connected"}), 200
         except Exception as e:
-            return jsonify({"status": "unhealthy", "error": str(e)}), 503
+            logging.getLogger("app.health").error(f"Readiness check failed: {e}")
+            return jsonify({"status": "unhealthy", "service": "database_unavailable"}), 503
 
     # Root redirect
     @app.route("/")
@@ -174,7 +175,9 @@ def create_app(env="default"):
             try:
                 db.create_all()
             except Exception as e:
-                pass
+                logging.getLogger("app.init").error(f"Development schema creation encountered an error: {e}")
+                if app.config.get("TESTING"):
+                    raise
     else:
         # In production verify database connection
         with app.app_context():

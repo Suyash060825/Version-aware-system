@@ -97,7 +97,8 @@ class CanonicalQAIndex:
             elif os.path.exists(self.DELTA_INDEX_FILE):
                 os.remove(self.DELTA_INDEX_FILE)
 
-            with open(self.META_FILE, "wb") as f:
+            temp_meta = self.META_FILE + ".tmp"
+            with open(temp_meta, "wb") as f:
                 pickle.dump({
                     "items": self._metadata,
                     "delta_items": self._delta_metadata,
@@ -108,6 +109,7 @@ class CanonicalQAIndex:
                     "embedding_revision": self._embedding_revision,
                     "dimension": self.dimension
                 }, f)
+            os.replace(temp_meta, self.META_FILE)
             logger.info(f"Saved FAISS HNSW QA index ({self._base_index.ntotal} base + {self._delta_index.ntotal if self._delta_index else 0} delta items) to {self.INDEX_FILE}")
         except Exception as e:
             logger.error(f"Error saving FAISS QA index: {e}")
@@ -138,46 +140,48 @@ class CanonicalQAIndex:
             from rag.embeddings.embedder import get_embedder
             embedder = get_embedder()
             self._embedding_model = getattr(embedder, "model_name", "BAAI/bge-small-en-v1.5")
-            if hasattr(embedder, "dimension"):
-                self.dimension = embedder.dimension
-
-            q_texts = [p[0].question for p in valid_pairs]
-            embs = embedder.embed(q_texts)
+            self._embedding_revision = "1.0.0"
+            self.dimension = getattr(embedder, "dimension", 384)
 
             self._init_empty_base()
             self._init_empty_delta()
             self._tombstones.clear()
 
+            texts = [p[0].question for p in valid_pairs]
+            embeddings = embedder.embed(texts)
+
             import faiss
-            vecs = np.array(embs, dtype=np.float32)
+            vecs = np.array(embeddings, dtype=np.float32)
             faiss.normalize_L2(vecs)
             self._base_index.add(vecs)
 
-            self._metadata = [{
-                "question_id": p[0].id,
-                "answer_id": p[1].id,
-                "policy_id": p[0].policy_id,
-                "version_id": p[0].version_id,
-                "question": p[0].question
-            } for p in valid_pairs]
+            for q, a in valid_pairs:
+                self._metadata.append({
+                    "question_id": q.id,
+                    "answer_id": a.id,
+                    "policy_id": q.policy_id,
+                    "version_id": q.version_id,
+                    "question": q.question
+                })
 
-            self._index_revision += 1
-            self._corpus_revision += 1
+            self._index_revision = 1
+            self._corpus_revision = 1
             self._is_loaded = True
             self.save()
-            logger.info(f"Rebuilt base FAISS HNSW QA index with {len(valid_pairs)} questions (rev {self._index_revision})")
+            logger.info(f"Rebuilt FAISS QA index from DB with {len(valid_pairs)} questions (rev {self._index_revision})")
         except Exception as e:
-            logger.error(f"Failed rebuilding QA index: {e}")
-            self._init_empty_base()
-            self._init_empty_delta()
-            self._is_loaded = True
+            logger.error(f"Error rebuilding FAISS QA index: {e}")
 
     def add(self, questions: List[Any], answers: List[Any], embeddings: List[List[float]]):
         """
-        True incremental add: Appends directly to delta overlay index without rebuilding base.
+        True incremental write to Delta Overlay index in O(|delta|) time.
         """
+        if not self._is_loaded or self._base_index is None:
+            self.load()
+
         if not questions or not embeddings:
             return
+
         if self._delta_index is None:
             self._init_empty_delta()
 
@@ -276,7 +280,7 @@ class CanonicalQAIndex:
 
     def search(self, query_embedding: List[float], top_k: int = 3) -> List[Tuple[float, int, int]]:
         """
-        Fast ANN query search across Base and Delta overlay with tombstone filtering.
+        Fast ANN query search across Base and Delta overlay with tombstone filtering and deduplication.
         Returns [(similarity_score, answer_id, question_id), ...]
         """
         if not self._is_loaded or self._base_index is None:
@@ -289,7 +293,8 @@ class CanonicalQAIndex:
         q = np.array([query_embedding], dtype=np.float32)
         faiss.normalize_L2(q)
 
-        candidates = []
+        base_candidates = []
+        delta_candidates = []
 
         # 1. Search Base Index
         if self._base_index and self._base_index.ntotal > 0:
@@ -300,7 +305,7 @@ class CanonicalQAIndex:
                     meta = self._metadata[idx]
                     qid = meta.get("question_id")
                     if qid not in self._tombstones:
-                        candidates.append((float(dist), meta["answer_id"], qid))
+                        base_candidates.append((float(dist), meta["answer_id"], qid))
 
         # 2. Search Delta Overlay Index
         if self._delta_index and self._delta_index.ntotal > 0:
@@ -311,9 +316,21 @@ class CanonicalQAIndex:
                     meta = self._delta_metadata[idx]
                     qid = meta.get("question_id")
                     if qid not in self._tombstones:
-                        candidates.append((float(dist), meta["answer_id"], qid))
+                        delta_candidates.append((float(dist), meta["answer_id"], qid))
 
-        # Sort and take top_k
+        # 3. Deduplicate across Delta and Base: Delta takes precedence; retain highest valid score
+        deduped = {}
+        for score, aid, qid in delta_candidates:
+            if qid not in deduped or score > deduped[qid][0]:
+                deduped[qid] = (score, aid, qid)
+
+        for score, aid, qid in base_candidates:
+            if qid not in deduped:
+                deduped[qid] = (score, aid, qid)
+            elif score > deduped[qid][0]:
+                deduped[qid] = (score, aid, qid)
+
+        candidates = list(deduped.values())
         candidates.sort(key=lambda x: x[0], reverse=True)
         return candidates[:top_k]
 

@@ -112,6 +112,26 @@ class User(db.Model, UserMixin):
     def can_manage_policies(self) -> bool:
         return self.role in (UserRole.HR, UserRole.ADMIN, UserRole.MANAGER)
 
+    def can_view_internal(self) -> bool:
+        return bool(self.is_active)
+
+    def can_view_confidential(self, policy=None) -> bool:
+        if self.is_admin() or self.role in (UserRole.HR, "executive", "legal"):
+            return True
+        if policy and hasattr(policy, "department_id") and policy.department_id is not None:
+            return self.department_id == policy.department_id
+        return False
+
+    def can_view_restricted(self, policy=None) -> bool:
+        return self.is_admin() or self.role in ("executive", "legal")
+
+    def can_approve_policy(self, policy=None) -> bool:
+        if self.is_admin() or self.role == UserRole.HR:
+            return True
+        if self.role == UserRole.MANAGER and policy and hasattr(policy, "department_id"):
+            return self.department_id == policy.department_id
+        return False
+
     def __repr__(self):
         return f"<User {self.email} [{self.role}]>"
 
@@ -259,20 +279,18 @@ class PolicyVersion(db.Model):
 
     @property
     def effective_from(self):
-        from datetime import date
-        if self.effective_date:
-            return self.effective_date
-        if self.created_at:
-            return self.created_at.date()
-        return date(2000, 1, 1)
+        """Authoritative business effective date. Returns None if unconfigured/unresolved."""
+        return self.effective_date
 
     @property
     def effective_to(self):
         """
         Derive effective_to deterministically from the subsequent version's effective date.
-        Returns None if this is the active/latest version.
+        Returns None if this is the active/latest version with no subsequent version.
+        Raises RuntimeError on database query failure to prevent interpreting DB errors as open-ended validity.
         """
         from datetime import timedelta
+        import logging
         try:
             next_ver = PolicyVersion.query.filter(
                 PolicyVersion.policy_id == self.policy_id,
@@ -280,9 +298,10 @@ class PolicyVersion(db.Model):
             ).order_by(PolicyVersion.version_num.asc()).first()
             if next_ver and next_ver.effective_from:
                 return next_ver.effective_from - timedelta(days=1)
-        except Exception:
-            pass
-        return None
+            return None
+        except Exception as e:
+            logging.getLogger("models.temporal").error(f"Failed resolving effective_to for version {self.id}: {e}")
+            raise RuntimeError(f"Database query failure calculating effective_to for policy version {self.id}: {e}")
 
     def is_valid_for_date(self, target_date) -> bool:
         """
@@ -292,8 +311,11 @@ class PolicyVersion(db.Model):
         if not target_date:
             return self.is_active or self.status == "approved"
         eff_from = self.effective_from
+        if eff_from is None:
+            # Unresolved effective date cannot authoritatively satisfy specific target date query
+            return False
         eff_to = self.effective_to
-        if eff_from and target_date < eff_from:
+        if target_date < eff_from:
             return False
         if eff_to and target_date > eff_to:
             return False
@@ -304,9 +326,13 @@ class PolicyVersion(db.Model):
         Authoritative interval overlap check:
         effective interval [eff_from, eff_to] overlaps [start_date, end_date]
         """
+        if not start_date and not end_date:
+            return self.is_active or self.status == "approved"
         eff_from = self.effective_from
+        if eff_from is None:
+            return False
         eff_to = self.effective_to
-        if end_date and eff_from and eff_from > end_date:
+        if end_date and eff_from > end_date:
             return False
         if start_date and eff_to and eff_to < start_date:
             return False

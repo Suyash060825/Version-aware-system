@@ -38,12 +38,14 @@ class PersistentBM25Index:
     def save(self):
         try:
             os.makedirs(os.path.dirname(self.INDEX_PATH), exist_ok=True)
-            with open(self.INDEX_PATH, 'wb') as f:
+            tmp_path = self.INDEX_PATH + ".tmp"
+            with open(tmp_path, 'wb') as f:
                 pickle.dump({
                     'bm25': self._bm25,
                     'corpus': self._corpus,
                     'revision': self._revision
                 }, f)
+            os.replace(tmp_path, self.INDEX_PATH)
         except Exception as e:
             logger.error(f"Failed to save BM25 index: {e}")
 
