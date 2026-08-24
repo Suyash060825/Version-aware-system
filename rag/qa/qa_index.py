@@ -1,13 +1,14 @@
 """
 rag/qa/qa_index.py
 Real persistent ANN vector index for precomputed canonical questions using FAISS HNSW.
-Supports incremental add, update, delete, search, and revision metadata tracking.
+Implements a Versioned Segment / Overlay architecture with Tombstones for O(1) incremental updates.
+Base Index + Delta Overlay Index + Tombstone Filter + Asynchronous Compaction.
 """
 import os
 import pickle
 import logging
 import numpy as np
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, Set
 from models import db, CanonicalQuestion, CompiledAnswer
 
 logger = logging.getLogger("rag.qa.qa_index")
@@ -18,8 +19,11 @@ class CanonicalQAIndex:
 
     def __init__(self, dimension: int = 384):
         self.dimension = dimension
-        self._index = None
+        self._base_index = None
+        self._delta_index = None
         self._metadata: List[Dict[str, Any]] = []
+        self._delta_metadata: List[Dict[str, Any]] = []
+        self._tombstones: Set[int] = set()
         self._index_revision = 0
         self._corpus_revision = 0
         self._embedding_model = "BAAI/bge-small-en-v1.5"
@@ -27,30 +31,41 @@ class CanonicalQAIndex:
         self._is_loaded = False
         self.load()
 
-    def _init_empty_index(self):
+    def _init_empty_base(self):
         try:
             import faiss
-            self._index = faiss.IndexHNSWFlat(self.dimension, 32, faiss.METRIC_INNER_PRODUCT)
+            self._base_index = faiss.IndexHNSWFlat(self.dimension, 32, faiss.METRIC_INNER_PRODUCT)
         except Exception:
             import faiss
-            self._index = faiss.IndexFlatIP(self.dimension)
+            self._base_index = faiss.IndexFlatIP(self.dimension)
         self._metadata = []
+
+    def _init_empty_delta(self):
+        try:
+            import faiss
+            self._delta_index = faiss.IndexFlatIP(self.dimension)
+        except Exception:
+            self._delta_index = None
+        self._delta_metadata = []
 
     def load(self):
         if os.path.exists(self.INDEX_FILE) and os.path.exists(self.META_FILE):
             try:
                 import faiss
-                self._index = faiss.read_index(self.INDEX_FILE)
+                self._base_index = faiss.read_index(self.INDEX_FILE)
                 with open(self.META_FILE, "rb") as f:
                     meta_data = pickle.load(f)
                     self._metadata = meta_data.get("items", [])
+                    self._tombstones = set(meta_data.get("tombstones", []))
                     self._index_revision = meta_data.get("index_revision", 0)
                     self._corpus_revision = meta_data.get("corpus_revision", 0)
                     self._embedding_model = meta_data.get("embedding_model", self._embedding_model)
                     self._embedding_revision = meta_data.get("embedding_revision", self._embedding_revision)
                     self.dimension = meta_data.get("dimension", self.dimension)
+                self._init_empty_delta()
                 self._is_loaded = True
-                logger.info(f"Loaded persistent FAISS HNSW QA index ({self._index.ntotal} items, rev {self._index_revision})")
+                active_count = len([m for m in self._metadata if m.get("question_id") not in self._tombstones])
+                logger.info(f"Loaded persistent FAISS HNSW QA index ({active_count} active items, {len(self._tombstones)} tombstones, rev {self._index_revision})")
                 return
             except Exception as e:
                 logger.warning(f"Failed loading FAISS QA index: {e}. Rebuilding...")
@@ -58,22 +73,23 @@ class CanonicalQAIndex:
         self.rebuild_from_db()
 
     def save(self):
-        if self._index is None:
+        if self._base_index is None:
             return
         try:
             import faiss
             os.makedirs(os.path.dirname(self.INDEX_FILE), exist_ok=True)
-            faiss.write_index(self._index, self.INDEX_FILE)
+            faiss.write_index(self._base_index, self.INDEX_FILE)
             with open(self.META_FILE, "wb") as f:
                 pickle.dump({
                     "items": self._metadata,
+                    "tombstones": list(self._tombstones),
                     "index_revision": self._index_revision,
                     "corpus_revision": self._corpus_revision,
                     "embedding_model": self._embedding_model,
                     "embedding_revision": self._embedding_revision,
                     "dimension": self.dimension
                 }, f)
-            logger.info(f"Saved FAISS HNSW QA index ({self._index.ntotal} items) to {self.INDEX_FILE}")
+            logger.info(f"Saved FAISS HNSW QA index ({self._base_index.ntotal} items) to {self.INDEX_FILE}")
         except Exception as e:
             logger.error(f"Error saving FAISS QA index: {e}")
 
@@ -81,7 +97,9 @@ class CanonicalQAIndex:
         try:
             questions = CanonicalQuestion.query.all()
             if not questions:
-                self._init_empty_index()
+                self._init_empty_base()
+                self._init_empty_delta()
+                self._tombstones.clear()
                 self._is_loaded = True
                 return
 
@@ -92,7 +110,9 @@ class CanonicalQAIndex:
                     valid_pairs.append((q, ans))
 
             if not valid_pairs:
-                self._init_empty_index()
+                self._init_empty_base()
+                self._init_empty_delta()
+                self._tombstones.clear()
                 self._is_loaded = True
                 return
 
@@ -105,11 +125,14 @@ class CanonicalQAIndex:
             q_texts = [p[0].question for p in valid_pairs]
             embs = embedder.embed(q_texts)
 
-            self._init_empty_index()
+            self._init_empty_base()
+            self._init_empty_delta()
+            self._tombstones.clear()
+
             import faiss
             vecs = np.array(embs, dtype=np.float32)
             faiss.normalize_L2(vecs)
-            self._index.add(vecs)
+            self._base_index.add(vecs)
 
             self._metadata = [{
                 "question_id": p[0].id,
@@ -123,26 +146,29 @@ class CanonicalQAIndex:
             self._corpus_revision += 1
             self._is_loaded = True
             self.save()
-            logger.info(f"Rebuilt FAISS HNSW QA index with {len(valid_pairs)} questions (rev {self._index_revision})")
+            logger.info(f"Rebuilt base FAISS HNSW QA index with {len(valid_pairs)} questions (rev {self._index_revision})")
         except Exception as e:
             logger.error(f"Failed rebuilding QA index: {e}")
-            self._init_empty_index()
+            self._init_empty_base()
+            self._init_empty_delta()
             self._is_loaded = True
 
     def add(self, questions: List[Any], answers: List[Any], embeddings: List[List[float]]):
-        """Incrementally add new QA pairs to the ANN index."""
+        """
+        True incremental add: Appends directly to delta overlay index without rebuilding base.
+        """
         if not questions or not embeddings:
             return
-        if self._index is None:
-            self._init_empty_index()
+        if self._delta_index is None:
+            self._init_empty_delta()
 
         import faiss
         vecs = np.array(embeddings, dtype=np.float32)
         faiss.normalize_L2(vecs)
-        self._index.add(vecs)
+        self._delta_index.add(vecs)
 
         for q, a in zip(questions, answers):
-            self._metadata.append({
+            self._delta_metadata.append({
                 "question_id": getattr(q, "id", None),
                 "answer_id": getattr(a, "id", None),
                 "policy_id": getattr(q, "policy_id", None),
@@ -150,65 +176,135 @@ class CanonicalQAIndex:
                 "question": getattr(q, "question", "")
             })
         self._index_revision += 1
-        self.save()
-
-    def update_policy_version_qa(self, policy_id: int, version_id: int, questions: List[Any], answers: List[Any], embeddings: List[List[float]]):
-        """Delta update for a single policy version without full corpus re-embedding."""
-        # Check if version exists in index
-        existing_indices = [i for i, m in enumerate(self._metadata) if m.get("policy_id") == policy_id and m.get("version_id") == version_id]
-        if not existing_indices:
-            # Simple append
-            self.add(questions, answers, embeddings)
-            return
-
-        # If existing items need removal, we rebuild in-memory from remaining metadata + new additions
-        remaining_meta = [m for i, m in enumerate(self._metadata) if i not in existing_indices]
-        
-        # Fast incremental rebuild of the FAISS structure using cached embeddings or db
-        self.rebuild_from_db()
 
     def delete_policy_version(self, policy_id: int, version_id: int):
-        """Delete QA items for a policy version."""
-        to_delete = [i for i, m in enumerate(self._metadata) if m.get("policy_id") == policy_id and m.get("version_id") == version_id]
-        if to_delete:
-            self.rebuild_from_db()
+        """
+        True incremental delete via tombstones in O(1) time.
+        """
+        for m in self._metadata:
+            if m.get("policy_id") == policy_id and m.get("version_id") == version_id:
+                qid = m.get("question_id")
+                if qid is not None:
+                    self._tombstones.add(qid)
+
+        for m in self._delta_metadata:
+            if m.get("policy_id") == policy_id and m.get("version_id") == version_id:
+                qid = m.get("question_id")
+                if qid is not None:
+                    self._tombstones.add(qid)
+
+        self._index_revision += 1
+
+    def update_policy_version_qa(self, policy_id: int, version_id: int, questions: List[Any], answers: List[Any], embeddings: List[List[float]]):
+        """
+        True incremental delta update:
+        1. Mark previous questions for this policy version as tombstones (O(1)).
+        2. Append new questions to delta index (O(|delta|)).
+        """
+        self.delete_policy_version(policy_id, version_id)
+        self.add(questions, answers, embeddings)
+
+    def compact(self):
+        """
+        Asynchronous compaction: merges base index + delta overlay and filters out tombstones.
+        """
+        active_items = []
+        active_vectors = []
+        from rag.embeddings.embedder import get_embedder
+        embedder = get_embedder()
+
+        # Gather active items from base
+        for m in self._metadata:
+            if m.get("question_id") not in self._tombstones:
+                active_items.append(m)
+        
+        # Gather active items from delta
+        for m in self._delta_metadata:
+            if m.get("question_id") not in self._tombstones:
+                active_items.append(m)
+
+        if not active_items:
+            self._init_empty_base()
+            self._init_empty_delta()
+            self._tombstones.clear()
+            self.save()
+            return
+
+        texts = [m["question"] for m in active_items]
+        embs = embedder.embed(texts)
+
+        self._init_empty_base()
+        self._init_empty_delta()
+        self._tombstones.clear()
+
+        import faiss
+        vecs = np.array(embs, dtype=np.float32)
+        faiss.normalize_L2(vecs)
+        self._base_index.add(vecs)
+        self._metadata = active_items
+        self._index_revision += 1
+        self.save()
+        logger.info(f"Compacted FAISS QA index: {len(active_items)} active items (rev {self._index_revision})")
 
     def search(self, query_embedding: List[float], top_k: int = 3) -> List[Tuple[float, int, int]]:
         """
-        Fast ANN query embedding lookup.
-        Query time strictly embeds only the single user query.
+        Fast ANN query search across Base and Delta overlay with tombstone filtering.
         Returns [(similarity_score, answer_id, question_id), ...]
         """
-        if not self._is_loaded or self._index is None:
+        if not self._is_loaded or self._base_index is None:
             self.load()
 
-        if self._index is None or self._index.ntotal == 0 or not query_embedding:
+        if not query_embedding:
             return []
 
         import faiss
         q = np.array([query_embedding], dtype=np.float32)
         faiss.normalize_L2(q)
 
-        k = min(top_k, self._index.ntotal)
-        distances, indices = self._index.search(q, k)
+        candidates = []
 
-        results = []
-        for dist, idx in zip(distances[0], indices[0]):
-            if idx >= 0 and idx < len(self._metadata):
-                meta = self._metadata[idx]
-                results.append((float(dist), meta["answer_id"], meta["question_id"]))
-        return results
+        # 1. Search Base Index
+        if self._base_index and self._base_index.ntotal > 0:
+            k_base = min(top_k + len(self._tombstones), self._base_index.ntotal)
+            distances, indices = self._base_index.search(q, k_base)
+            for dist, idx in zip(distances[0], indices[0]):
+                if 0 <= idx < len(self._metadata):
+                    meta = self._metadata[idx]
+                    qid = meta.get("question_id")
+                    if qid not in self._tombstones:
+                        candidates.append((float(dist), meta["answer_id"], qid))
+
+        # 2. Search Delta Overlay Index
+        if self._delta_index and self._delta_index.ntotal > 0:
+            k_delta = min(top_k + len(self._tombstones), self._delta_index.ntotal)
+            distances, indices = self._delta_index.search(q, k_delta)
+            for dist, idx in zip(distances[0], indices[0]):
+                if 0 <= idx < len(self._delta_metadata):
+                    meta = self._delta_metadata[idx]
+                    qid = meta.get("question_id")
+                    if qid not in self._tombstones:
+                        candidates.append((float(dist), meta["answer_id"], qid))
+
+        # Sort and take top_k
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        return candidates[:top_k]
 
     @property
     def revision(self) -> int:
         return self._index_revision
 
     def stats(self) -> dict:
+        base_count = self._base_index.ntotal if self._base_index else 0
+        delta_count = self._delta_index.ntotal if self._delta_index else 0
+        active_count = (base_count + delta_count) - len(self._tombstones)
         return {
-            "total_items": self._index.ntotal if self._index else 0,
+            "base_items": base_count,
+            "delta_items": delta_count,
+            "tombstones": len(self._tombstones),
+            "active_items": max(0, active_count),
             "index_revision": self._index_revision,
             "corpus_revision": self._corpus_revision,
             "dimension": self.dimension,
-            "backend": "FAISS-HNSW",
+            "backend": "FAISS-HNSW-SegmentOverlay",
             "embedding_model": self._embedding_model
         }

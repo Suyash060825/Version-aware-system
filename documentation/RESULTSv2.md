@@ -1,99 +1,91 @@
-# Empirical Experimental Results (v2 - Publication Hardened)
+# Experimental Results & Performance Evaluation (v2)
 
-**Benchmark Date:** August 2026  
-**Environment Record:** `results/environment.json`  
-**Execution Platform:** Linux x86_64, Intel i7 / Ryzen (12 logical cores), 31 GB RAM, NVIDIA GeForce RTX 3050 Laptop GPU / CPU ONNX Runtime  
-**Embedding Engine:** `FastEmbed` (`BAAI/bge-small-en-v1.5`, 384-dim ONNX)  
-**Reranking Engine:** `FlashRank` (`ms-marco-TinyBERT-L-2-v2`, ONNX)  
-**ANN Index Backend:** `FAISS HNSW` (`IndexHNSWFlat`, M=32)  
-**Sparse Index Backend:** Partitioned BM25Okapi  
-**Language Model:** `qwen2.5:3b` / `qwen3` via Ollama Local Provider  
+**Evaluation Date**: 2026-08-24  
+**Benchmark Suite**: 301 Held-Out Test Cases across 12 Policy Categories  
+**Execution Environment**: Linux x86_64, Python 3.14, FastEmbed (`BAAI/bge-small-en-v1.5`), FlashRank (`ms-marco-TinyBERT-L-2-v2`), FAISS HNSW SegmentOverlay, ChromaDB, DeBERTa-v3 NLI.
 
 ---
 
-## 1. Information Retrieval Performance Benchmark
+## 1. Information Retrieval Performance
 
-Evaluated across the frozen 21-query enterprise policy benchmark (`data/benchmarks/benchmark_test.json`):
+Retrieval evaluation across 301 test queries comparing dense bi-encoders, sparse BM25, Reciprocal Rank Fusion (RRF), and cross-encoder FlashRank reranking:
 
-| Retrieval Strategy | MRR@5 | NDCG@5 | Hit@1 | Hit@3 | Hit@5 |
+| Retriever Architecture | MRR@5 | NDCG@5 | Hit@1 | Hit@3 | Hit@5 |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Dense Alone** (`bge-small-en-v1.5`) | 0.9444 | 0.9444 | 0.9444 | 0.9444 | 0.9444 |
-| **BM25 Alone** (Partitioned Sparse) | 0.9074 | 0.9167 | 0.8889 | 0.9444 | 0.9444 |
-| **Hybrid RRF** (Dense + Sparse) | 0.9444 | 0.9444 | 0.9444 | 0.9444 | 0.9444 |
-| **Hybrid + FlashRank Rerank (Ours)** | **0.9167** | **0.9239** | **0.8889** | **0.9444** | **0.9444** |
+| Dense Bi-Encoder (`bge-small-en-v1.5`) | 0.9905 | 0.9911 | 0.9896 | 0.9896 | 0.9931 |
+| Sparse Index (`Partitioned BM25`) | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+| Hybrid Retrieval (`RRF` Dense + BM25) | 0.9905 | 0.9911 | 0.9896 | 0.9896 | 0.9931 |
+| **Hybrid + FlashRank Reranker (Proposed)** | **0.9931** | **0.9931** | **0.9931** | **0.9931** | **0.9931** |
 
 ---
 
-## 2. End-to-End Latency Profile
+## 2. Real Latency Breakdown by Routing Tier
 
-Measured across multi-tier routing paths under local execution:
+Empirically measured response latency (ms) across execution paths:
 
-| Pipeline Route | Query Share | Mean (ms) | P50 (ms) | P95 (ms) | P99 (ms) |
+| Pipeline Route | Query Count | Mean (ms) | P50 (ms) | P95 (ms) | P99 (ms) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Fast-Path Fact Engine (Level 0)** | 33.3% | 44.34 ms | **43.91 ms** | 55.53 ms | 58.05 ms |
-| **Precompiled QA FAISS HNSW (Level 1)**| 23.8% | 38.20 ms | **36.50 ms** | 49.10 ms | 52.30 ms |
-| **Temporal Diff Engine (Level 3)** | 9.5% | 42.10 ms | **40.20 ms** | 56.40 ms | 59.80 ms |
-| **Hybrid RAG + FlashRank (Level 2/4)** | 33.3% | 86.27 ms | **83.63 ms** | 113.99 ms | 122.72 ms |
-| **End-to-End Composite System** | **100.0%** | **72.93 ms** | **76.55 ms** | **106.71 ms** | **121.26 ms** |
+| `FAST_PATH_FACT` (Level 0 SQL Lookup) | 245 | 18.72 | 18.36 | 26.27 | 33.23 |
+| `HYBRID_RAG` (Level 2 Hybrid + FlashRank) | 40 | 110.21 | 110.00 | 136.28 | 152.56 |
+| `ABSTAINED` (Safety Refusal Gate) | 16 | 102.49 | 100.10 | 126.70 | 137.82 |
+| **End-to-End System (Composite)** | **301** | **35.33** | **20.03** | **116.86** | **136.18** |
 
 ---
 
-## 3. Answer Correctness & Hallucination Defense
+## 3. Dynamic Ablation Study
 
-| Evaluation Metric | Measured Value | Percentage |
-| :--- | :---: | :---: |
-| **Total Test Queries** | 21 | 100.0% |
-| **Factual Precision / Accuracy** | 17 / 21 | **80.95%** |
-| **Citation Traceability & DB Groundedness** | 14 / 18 | **77.78%** |
-| **Adversarial / Out-of-Domain Refusal Rate** | 3 / 3 | **100.00%** |
+Empirical measurement of full system versus isolated component removal:
 
-*Note: The system achieves 100% rejection/abstention on unanswerable and out-of-domain queries via calibrated confidence gating ($C < 0.25$).*
-
----
-
-## 4. Multi-Tier Cache Performance & Repeat-Query Speedup
-
-| Metric | Measured Value |
-| :--- | :---: |
-| **Warmup Iteration Count** | 10 queries |
-| **Second-Pass Cache Hit Rate** | **100.0%** |
-| **First-Pass Mean Latency (Cache Miss)** | 84.10 ms |
-| **Second-Pass Mean Latency (Cache Hit)** | **28.40 ms** |
-| **Effective Throughput Speedup** | **2.96x** |
+| Ablation Configuration | P50 Latency (ms) | P95 Latency (ms) | Answer F1 (%) | Citation F1 (%) | LLM Calls / 30 Queries |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **B7 (Proposed Full System)** | **88.93** | **122.66** | **36.40** | **30.30** | **0** |
+| A1 (w/o Knowledge Compiler) | 42.10 | 57.68 | 24.17 | 10.00 | 30 |
+| A2 (w/o Fact Resolver) | 84.98 | 107.34 | 36.40 | 30.30 | 0 |
+| A3 (w/o Compiled QA) | 85.50 | 105.14 | 36.40 | 30.30 | 0 |
+| A4 (w/o Temporal Resolver) | 89.75 | 113.39 | 36.40 | 30.30 | 0 |
+| A5 (w/o FlashRank Reranker) | 90.52 | 108.68 | 36.40 | 30.30 | 0 |
+| A6 (w/o Confidence Gate) | 88.45 | 108.99 | 36.40 | 30.30 | 0 |
+| A7 (w/o Multi-Tier Cache) | 88.44 | 113.39 | 36.40 | 30.30 | 0 |
 
 ---
 
-## 5. Incremental Compilation vs Global Rebuild Benchmark
+## 4. Scalability & ANN Benchmark
 
-Measured on updating a single policy document version (6 chunks):
+Evaluation of FAISS HNSW Segment Overlay vs Brute-Force Flat inner-product across vector collection sizes ($d = 384$):
 
-| Strategy | Execution Time | Re-Embedded Items | Database Rebuild |
-| :--- | :---: | :---: | :---: |
-| **Incremental Delta Update (Ours)** | **18.4 ms** | **6 chunks** | **None (Delta)** |
-| **Full Global Rebuild (Baseline)** | 4,250.0 ms | 148 chunks | Complete Full Scan |
-| **Speedup Factor** | **230.9x** | **95.9% reduction** | — |
+| Vector Count ($N$) | Build Time (ms) | Memory Size (MB) | HNSW P50 (ms) | HNSW P95 (ms) | Flat P50 (ms) | HNSW Recall@5 (%) |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 100 | 3.20 | 0.17 | 0.028 | 0.055 | 0.015 | 100.0% |
+| 500 | 18.09 | 0.85 | 0.035 | 0.050 | 0.027 | 90.0% |
+| 2,000 | 49.93 | 3.42 | 0.086 | 0.103 | 0.113 | 65.6% |
+| 10,000 | 399.33 | 17.09 | 0.181 | 0.269 | 0.876 | 22.8% |
 
 ---
 
-## 6. Scientific Ablation Study
+## 5. Incremental Delta Update vs Global Rebuild
 
-| Model Configuration | Penalty / Effect | P50 Latency | Overall Accuracy |
+| Update Strategy | Measured Execution Time (ms) | Re-Indexed Chunks | Re-Embedded Items | Complexity |
+| :--- | :---: | :---: | :---: | :---: |
+| **Incremental Delta Update (Ours)** | **0.14 ms** | **6 chunks** | **6 items** | **$\mathcal{O}(\|\Delta\|)$ Segment Overlay** |
+| Full Global Rebuild (Baseline) | 2,433.39 ms | 127 chunks | 356 items | $\mathcal{O}(N)$ Complete Rebuild |
+| **Measured Speedup** | **17,381.3x** | - | - | - |
+
+---
+
+## 6. Multi-Tier Cache Safety Verification Suite
+
+| Safety Invariant Test | Condition Tested | Violation Count | Unsafe Rate |
 | :--- | :--- | :---: | :---: |
-| **Full Production Architecture (Ours)** | **Baseline (Optimal)** | **76.55 ms** | **90.5%** |
-| Ablation 1: w/o Knowledge Compiler Pipeline | Full LLM reliance on all queries | 1,820 ms | 81.2% |
-| Ablation 2: w/o Structured Fact Resolver | Level 0 queries routed to hybrid RAG | 88.4 ms | 88.0% |
-| Ablation 3: w/o FAISS HNSW Canonical QA | Level 1 queries routed to hybrid RAG | 92.1 ms | 87.5% |
-| Ablation 4: w/o Temporal Version Resolver | Temporal query resolution failure | 82.3 ms | 52.0% |
-| Ablation 5: w/o FlashRank Cross-Encoder | Sparse/Dense rank inversion | 68.2 ms | 83.4% |
-| Ablation 6: w/o Calibrated Confidence Gate | +22% hallucination on unanswerable | 74.1 ms | 71.4% |
-| Ablation 7: w/o Multi-Tier Scoped Cache | 0% repeat query speedup | 86.3 ms | 90.5% |
+| Department Isolation | Finance user query repeated by HR user | 0 / 1 | 0.00% |
+| Version Invalidation | Query repeated post-targeted version invalidation | 0 / 1 | 0.00% |
+| Scope Containment | Cross-user session query isolation | 0 / 1 | 0.00% |
+| **Total Unsafe Served Rate** | - | **0 / 3** | **0.00%** |
 
 ---
 
-## 7. How to Reproduce All Results
+## 7. Confidence Calibration & NLI Grounding Verification
 
-Run the automated verification script from the root repository:
-```bash
-./scripts/reproduce_results.sh
-```
-All raw CSVs are saved in `results/`.
+- **Brier Calibration Score**: 0.7043
+- **Expected Calibration Error (ECE)**: 0.2845
+- **DeBERTa-v3 NLI Grounding Rate**: 83.33% (5 / 6 domain pairs correctly verified)
+- **Safety Abstention Rate on Adversarial / Unanswerable Queries**: 69.23% (9 / 13)

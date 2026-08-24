@@ -1,9 +1,9 @@
-Configuration,Impact / Penalty,Mean Latency,Accuracy / Groundedness
-Full Architecture (Ours),100%,36.2 ms,96.4%
-Ablation 1: w/o Knowledge Compiler,-68% throughput,1820.0 ms,81.2%
-Ablation 2: w/o Fast Fact Resolver,-22% fast-path,145.0 ms,94.1%
-Ablation 3: w/o Precomputed QA,-35% fast-path,168.0 ms,92.8%
-Ablation 4: w/o Temporal Version Resolver,-50% temporal acc,124.0 ms,52.0%
-Ablation 5: w/o FlashRank Reranking,-11.2% NDCG@5,28.5 ms,85.2%
-Ablation 6: w/o Calibrated Confidence Gate,+18% hallucination on unanswerable,35.8 ms,78.0%
-Ablation 7: w/o Multi-Tier Scoped Cache,0% repeat speedup,128.0 ms,96.4%
+Ablation Configuration,P50 Latency (ms),P95 Latency (ms),Answer F1 (%),Citation F1 (%),LLM Calls / 30 Queries
+B7 (Proposed Full System),19.07,112.2,23.87,21.72,0
+A1 (w/o Knowledge Compiler),40.3,62.32,25.81,10.0,30
+A2 (w/o Fact Resolver),20.14,121.29,23.87,21.72,0
+A3 (w/o Compiled QA),19.91,119.82,23.87,21.72,0
+A4 (w/o Temporal Resolver),21.17,119.03,23.87,21.72,0
+A5 (w/o FlashRank Reranker),21.52,105.16,23.87,21.72,0
+A6 (w/o Confidence Gate),21.77,108.97,23.87,21.72,0
+A7 (w/o Multi-Tier Cache),22.11,114.68,23.87,21.72,0

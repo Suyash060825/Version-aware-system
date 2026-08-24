@@ -3,14 +3,15 @@ set -e
 
 echo "========================================================="
 echo "   REPRODUCING PUBLICATION RESULTS & EXPERIMENTS         "
-echo "   Repository: Version-aware-system-bestchatgpt          "
+echo "   Repository: Version-aware-system-24chatgptv1          "
 echo "========================================================="
 
-# 1. Ensure directories exist
+# 1. Clean old result artifacts
 mkdir -p results data/benchmarks
+rm -f results/*.csv results/*.json
 
 # 2. Run Environment Metadata Introspection
-echo "[Step 1/3] Generating environment metadata..."
+echo "[Step 1/4] Generating environment metadata..."
 python3 -c "
 import sys, os, platform, json, psutil
 import importlib.metadata
@@ -60,7 +61,7 @@ env_info = {
         'reranker_model': os.environ.get('RERANKER_MODEL', 'ms-marco-TinyBERT-L-2-v2'),
         'llm_backend': os.environ.get('LLM_BACKEND', 'ollama'),
         'llm_model': os.environ.get('LOCAL_LLM_MODEL', 'qwen2.5:3b'),
-        'vector_store': 'ChromaDB + FAISS HNSW',
+        'vector_store': 'ChromaDB + FAISS HNSW SegmentOverlay',
         'sparse_store': 'Partitioned BM25'
     }
 }
@@ -70,13 +71,17 @@ with open('results/environment.json', 'w') as f:
     json.dump(env_info, f, indent=2)
 "
 
-# 3. Run Reproducible Evaluation Suite
-echo "[Step 2/3] Executing Master Evaluation Suite across all baselines and ablations..."
+# 3. Build Benchmark Dataset
+echo "[Step 2/4] Verifying and constructing comprehensive held-out benchmark..."
+python3 scripts/build_comprehensive_benchmark.py
+
+# 4. Run Reproducible Evaluation Suite
+echo "[Step 3/4] Executing Master Evaluation Suite across all baselines and ablations..."
 python3 scripts/run_reproducible_eval.py
 
-# 4. Run Evaluation Query Pass
-echo "[Step 3/3] Generating evaluation query traces..."
-python3 scripts/run_eval.py
+# 5. Run Verification Tests
+echo "[Step 4/4] Executing Regression and Invariant Pytest Suite..."
+pytest tests/ -q
 
 echo "========================================================="
 echo "   REPRODUCIBILITY RUN COMPLETE!                         "

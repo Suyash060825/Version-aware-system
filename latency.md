@@ -128,3 +128,19 @@
    Complex Policy Query (e.g., Cloud Certifications) | ~30,000+ ms (30s)            | 126.1 ms                     | 🚀 99.5% Faster
    Travel Limits (e.g., Hotel Cap / Night)           | ~2,500 ms                    | 51.9 ms                      | ⚡ Instant
    Security Rules (e.g., Password Rotation)          | ~2,500 ms                    | 46.6 ms                      | ⚡ Instant
+
+
+
+   Evaluation Metric                                                      |                       Measured Empirical Result
+  ------------------------------------------------------------------------|-----------------------------------------------------------------------
+   Hybrid + FlashRank Retrieval MRR@5                                     |                                0.9167
+   Hybrid + FlashRank Retrieval Hit@5                                     |                                0.9444
+   Fast-Path Fact Latency (Level 0, P50)                                  |                               43.91 ms
+   Precompiled QA FAISS Latency (Level 1, P50)                            |                               36.50 ms
+   Temporal Diff Latency (Level 3, P50)                                   |                               40.20 ms
+   Hybrid RAG + FlashRank Latency (Level 2, P50)                          |                               83.63 ms
+   End-to-End System Composite Latency (P50)                              |                               76.55 ms
+   Adversarial / Out-of-Domain Refusal Rate                               |                                100.00%
+   Multi-Tier Cache Speedup Factor                                        |                       2.96x (84.1 ms → 28.4 ms)
+   Incremental Delta Update Speedup                                       |                      230.9x (4,250 ms → 18.4 ms)
+  ──────

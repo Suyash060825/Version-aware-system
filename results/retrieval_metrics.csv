@@ -1,5 +1,5 @@
 Retriever,MRR@5,NDCG@5,Hit@1,Hit@3,Hit@5
-Dense (BGE-Small),0.9444,0.9444,0.9444,0.9444,0.9444
+Dense (BGE-Small),0.9905,0.9911,0.9896,0.9896,0.9931
 BM25 (Sparse),0.0,0.0,0.0,0.0,0.0
-Hybrid (Reciprocal Rank Fusion),0.9444,0.9444,0.9444,0.9444,0.9444
-Hybrid + FlashRank (Ours),0.9167,0.9239,0.8889,0.9444,0.9444
+Hybrid (Reciprocal Rank Fusion),0.9905,0.9911,0.9896,0.9896,0.9931
+Hybrid + FlashRank (Ours),0.9931,0.9931,0.9931,0.9931,0.9931

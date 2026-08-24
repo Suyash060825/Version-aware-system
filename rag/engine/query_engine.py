@@ -207,15 +207,15 @@ class QueryEngine:
         citations = self.citation_validator.validate_and_enrich(raw_cits)
 
         # 9. Answer Generation: Deterministic vs Local LLM
-        # If query is simple and top chunk has high relevance, extract concise statement
+        # 9. Answer Generation: Grounded Evidence Extraction vs Local LLM
         top_text = ranked[0].get("text", "").strip()
         top_section = ranked[0].get("section") or ranked[0].get("section_path") or "Policy"
 
-        # Check if local Ollama LLM is available for complex reasoning
         llm_used = False
         final_answer = None
 
-        if complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL and self.llm.health_check():
+        # Try LLM generation first when available
+        if self.llm.health_check():
             try:
                 llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:3])
                 if llm_output and llm_output.get("answer") and "INSUFFICIENT_EVIDENCE" not in llm_output.get("answer", ""):
@@ -224,16 +224,16 @@ class QueryEngine:
                     if is_grounded:
                         final_answer = llm_output["answer"]
                         llm_used = True
-            except Exception as e:
+            except Exception:
                 pass
 
         if not final_answer:
-            # Deterministic clean extraction: extract the most relevant sentence from the top chunk
+            # Deterministic evidence extraction: must be verified as answer-bearing
             sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', top_text) if len(s.strip()) > 15]
-            q_words = set(re.findall(r"\b[a-z0-9]+\b", normalized_query.lower())) - {"what", "is", "the", "policy", "for", "and", "can", "how"}
+            q_words = set(re.findall(r"\b[a-z0-9]+\b", normalized_query.lower())) - {"what", "when", "where", "which", "who", "whom", "how", "why", "does", "have", "policy", "the", "for", "and", "can", "are", "get", "with", "from", "that", "this", "our", "you", "your", "will", "shall", "is"}
             
-            best_sentence = sentences[0] if sentences else top_text
-            best_score = -1
+            best_sentence = None
+            best_score = 0
             for s in sentences:
                 s_words = set(re.findall(r"\b[a-z0-9]+\b", s.lower()))
                 overlap = len(q_words & s_words)
@@ -241,9 +241,14 @@ class QueryEngine:
                     best_score = overlap
                     best_sentence = s
 
-            policy_name = citations[0]["policy_name"] if citations else "Policy"
-            version_num = citations[0]["version"] if citations else "1.0"
-            final_answer = f"According to the {policy_name} (v{version_num}, {top_section}):\n{best_sentence}"
+            # Require at least 2 distinct content word matches for evidence bearing
+            if best_sentence and best_score >= 2:
+                policy_name = citations[0]["policy_name"] if citations else "Policy"
+                version_num = citations[0]["version"] if citations else "1.0"
+                final_answer = f"According to the {policy_name} (v{version_num}, {top_section}):\n{best_sentence}"
+            else:
+                # If cannot extract verified answer-bearing sentence and no LLM grounding, abstain safely
+                return QueryResult.abstained("I could not find sufficient authoritative evidence to answer this specific question.", (time.time() - t_start) * 1000)
 
         return QueryResult(
             answer=final_answer,

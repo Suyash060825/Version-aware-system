@@ -63,19 +63,32 @@ class MultiLevelCache:
                 self._local_l1.pop(key, None)
         return None
 
-    def set_l1(self, query_hash: str, scope_key: str, result: dict, ttl: int = 3600):
+    def set_l1(
+        self,
+        query_hash: str,
+        scope_key: str,
+        result: dict,
+        policy_ids: Optional[List[int]] = None,
+        version_ids: Optional[List[int]] = None,
+        chunk_ids: Optional[List[str]] = None,
+        ttl: int = 3600
+    ):
         key = f"l1:{scope_key}:{query_hash}"
+        item_data = {
+            "data": result,
+            "policy_ids": policy_ids or [],
+            "version_ids": version_ids or [],
+            "chunk_ids": chunk_ids or [],
+            "expires_at": time.time() + ttl
+        }
         if self.use_redis:
             try:
-                self.redis.setex(key, ttl, json.dumps(result))
+                self.redis.setex(key, ttl, json.dumps(item_data))
             except Exception:
                 pass
         if len(self._local_l1) > self._max_local:
             self._local_l1.clear()
-        self._local_l1[key] = {
-            "data": result,
-            "expires_at": time.time() + ttl
-        }
+        self._local_l1[key] = item_data
 
     def get_l2(self, query_embedding: List[float], scope_key: str = "", threshold: float = 0.95) -> Optional[dict]:
         if not query_embedding:
@@ -92,7 +105,16 @@ class MultiLevelCache:
                         return item.get("data")
         return None
 
-    def set_l2(self, query_embedding: List[float], scope_key: str, result: dict, policy_ids: Optional[List[int]] = None, ttl: int = 3600):
+    def set_l2(
+        self,
+        query_embedding: List[float],
+        scope_key: str,
+        result: dict,
+        policy_ids: Optional[List[int]] = None,
+        version_ids: Optional[List[int]] = None,
+        chunk_ids: Optional[List[str]] = None,
+        ttl: int = 3600
+    ):
         if not query_embedding:
             return
         if len(self._local_l2) > self._max_local:
@@ -102,6 +124,8 @@ class MultiLevelCache:
             "scope_key": scope_key,
             "data": result,
             "policy_ids": policy_ids or [],
+            "version_ids": version_ids or [],
+            "chunk_ids": chunk_ids or [],
             "expires_at": time.time() + ttl
         })
 
@@ -112,6 +136,8 @@ class MultiLevelCache:
     def put(self, query_embedding: List[float], answer: str, citations: list, chunks_used: int, allowed_depts: Optional[List[str]] = None, model: str = "", is_diff_query: bool = False):
         scope = ",".join(sorted(allowed_depts or [])) + f"|diff={is_diff_query}"
         policy_ids = [c.get("policy_id") for c in citations if c.get("policy_id")]
+        version_ids = [c.get("version_id") for c in citations if c.get("version_id")]
+        chunk_ids = [c.get("chunk_id") for c in citations if c.get("chunk_id")]
         res = {
             "answer": answer,
             "citations": citations,
@@ -119,26 +145,44 @@ class MultiLevelCache:
             "model": model,
             "confidence": 100
         }
-        self.set_l2(query_embedding, scope_key=scope, result=res, policy_ids=policy_ids)
+        self.set_l2(
+            query_embedding,
+            scope_key=scope,
+            result=res,
+            policy_ids=policy_ids,
+            version_ids=version_ids,
+            chunk_ids=chunk_ids
+        )
 
     def invalidate_policy(self, policy_id: int):
-        """Purge all cached results touching a modified policy."""
-        self._local_l1.clear()
+        """Purge only cached entries touching a modified policy without clearing unrelated data."""
+        keys_to_remove = []
+        for key, item in list(self._local_l1.items()):
+            if policy_id in item.get("policy_ids", []):
+                keys_to_remove.append(key)
+        for key in keys_to_remove:
+            self._local_l1.pop(key, None)
+
         self._local_l2 = [
             item for item in self._local_l2
             if policy_id not in item.get("policy_ids", [])
         ]
-        if self.use_redis:
-            try:
-                # Scan and delete l1 keys
-                for key in self.redis.scan_iter("l1:*"):
-                    self.redis.delete(key)
-            except Exception:
-                pass
-        logger.info(f"Invalidated cache for policy {policy_id}")
+        logger.info(f"Targeted invalidation for policy {policy_id}: removed {len(keys_to_remove)} L1 entries")
 
     def invalidate_version(self, policy_id: int, version_id: int):
-        self.invalidate_policy(policy_id)
+        """Fine-grained invalidation: purge only cache entries touching the specific policy version."""
+        keys_to_remove = []
+        for key, item in list(self._local_l1.items()):
+            if version_id in item.get("version_ids", []) or (policy_id in item.get("policy_ids", []) and not item.get("version_ids")):
+                keys_to_remove.append(key)
+        for key in keys_to_remove:
+            self._local_l1.pop(key, None)
+
+        self._local_l2 = [
+            item for item in self._local_l2
+            if version_id not in item.get("version_ids", []) and not (policy_id in item.get("policy_ids", []) and not item.get("version_ids"))
+        ]
+        logger.info(f"Targeted invalidation for version {policy_id}:{version_id}: removed {len(keys_to_remove)} L1 entries")
 
 _CACHE = None
 def get_cache() -> MultiLevelCache:

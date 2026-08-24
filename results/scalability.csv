@@ -1,5 +1,5 @@
-Document Count,Index Size (MB),Dense Query Time (ms),BM25 Query Time (ms),Rerank Time (ms)
-20,1.2 MB,9.2 ms,1.1 ms,5.9 ms
-100,5.8 MB,11.4 ms,2.8 ms,6.1 ms
-500,28.5 MB,14.2 ms,6.5 ms,6.2 ms
-2000,112.0 MB,18.9 ms,14.1 ms,6.4 ms
+Vector Count (N),Build Time (ms),Index Size (MB),HNSW P50 (ms),HNSW P95 (ms),Flat Brute-Force P50 (ms),HNSW Recall@5 (%)
+100,2.89,0.17,0.018,0.022,0.012,100.0
+500,21.84,0.85,0.037,0.058,0.028,89.2
+2000,42.69,3.42,0.083,0.11,0.112,70.0
+10000,393.96,17.09,0.163,0.299,0.773,26.8

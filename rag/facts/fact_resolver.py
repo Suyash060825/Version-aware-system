@@ -56,9 +56,6 @@ class FactResolver:
             if re.search(pattern, query_lower):
                 target_predicates.extend(preds)
 
-        if not target_predicates:
-            return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
-
         policy_id = temporal.policy_id if temporal and hasattr(temporal, "policy_id") else None
         version_id = temporal.version_id if temporal and hasattr(temporal, "version_id") else None
 
@@ -77,6 +74,7 @@ class FactResolver:
         for fact in candidate_facts:
             score = 0
             pred = (fact.predicate or "").lower()
+            clean_pred = pred.replace("_", " ")
             subj = (fact.subject or "").lower()
             
             policy = db.session.get(Policy, fact.policy_id)
@@ -88,8 +86,10 @@ class FactResolver:
                 score += 8
 
             # Predicate match
-            if pred in target_predicates:
-                score += 15
+            if pred in target_predicates or clean_pred in query_lower:
+                score += 20
+            elif any(w in query_words for w in clean_pred.split() if len(w) > 3):
+                score += 10
 
             # Title overlap
             title_words = set(re.findall(r"\b[a-z0-9]+\b", p_title))
@@ -99,7 +99,7 @@ class FactResolver:
             subj_words = set(re.findall(r"\b[a-z0-9]+\b", subj))
             score += len(query_words & subj_words) * 3
 
-            if score > best_score and score >= 15:
+            if score > best_score and score >= 14:
                 best_score = score
                 best_fact = fact
 
