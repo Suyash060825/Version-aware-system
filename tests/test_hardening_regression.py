@@ -487,8 +487,14 @@ def test_production_config_secret_validation(monkeypatch):
 
     monkeypatch.setenv("SECRET_KEY", "ultra-secure-randomly-generated-production-key-999")
     monkeypatch.setenv("JWT_SECRET_KEY", "ultra-secure-randomly-generated-jwt-key-999")
+    monkeypatch.setenv("DEFAULT_ADMIN_PASSWORD", "ultra-secure-admin-pass-999!")
     # Must pass without raising
     ProductionConfig.validate_production_secrets()
+
+    # Missing admin password must raise
+    monkeypatch.setenv("DEFAULT_ADMIN_PASSWORD", "")
+    with pytest.raises(ValueError):
+        ProductionConfig.validate_production_secrets()
 
 def test_version_comparison_pre_authorization_and_refusal(app):
     from rag.engine.query_engine import get_query_engine

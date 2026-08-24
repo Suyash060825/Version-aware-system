@@ -161,7 +161,7 @@ class QueryEngine:
                         cits = self.citation_validator.validate_and_enrich([
                             {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1},
                             {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
-                        ])
+                        ], scope=scope)
                         diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
                         calibrated_diff_conf = 0.85 if diff_clauses > 0 else 0.80
 

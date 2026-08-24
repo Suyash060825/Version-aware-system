@@ -13,7 +13,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     # --- Core ---
-    SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-in-production-please")
+    SECRET_KEY = os.environ.get("SECRET_KEY")
     DEBUG = False
     TESTING = False
     
@@ -29,7 +29,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # --- JWT ---
-    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", SECRET_KEY)
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)
 
     # --- File uploads ---
@@ -51,7 +51,7 @@ class Config:
     APP_NAME = os.environ.get("APP_NAME", "Policy Ledger")
     COMPANY_NAME = os.environ.get("COMPANY_NAME", "Your Company")
     DEFAULT_ADMIN_EMAIL = os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@company.com")
-    DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD", "Admin@1234")
+    DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD")
 
     # --- MFA ---
     MFA_ISSUER = os.environ.get("MFA_ISSUER", "PolicyLedger")
@@ -59,6 +59,9 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-insecure-secret-key-12345")
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-insecure-jwt-key-12345")
+    DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD", "DevAdmin#2026!")
 
 
 class ProductionConfig(Config):
@@ -71,16 +74,30 @@ class ProductionConfig(Config):
     def validate_production_secrets(cls):
         secret = os.environ.get("SECRET_KEY", "")
         jwt_secret = os.environ.get("JWT_SECRET_KEY", "")
-        insecure_defaults = {"change-this-in-production-please", "dev-secret-key", ""}
+        admin_pw = os.environ.get("DEFAULT_ADMIN_PASSWORD", "")
+        insecure_defaults = {
+            "change-this-in-production-please",
+            "dev-secret-key",
+            "dev-insecure-secret-key-12345",
+            "dev-insecure-jwt-key-12345",
+            "Admin@1234",
+            "DevAdmin#2026!",
+            ""
+        }
         if not secret or secret in insecure_defaults:
             raise ValueError("Insecure or missing SECRET_KEY in production environment. Set a strong SECRET_KEY.")
-        if jwt_secret and jwt_secret in insecure_defaults:
-            raise ValueError("Insecure JWT_SECRET_KEY in production environment. Set a strong JWT_SECRET_KEY.")
+        if not jwt_secret or jwt_secret in insecure_defaults:
+            raise ValueError("Insecure or missing JWT_SECRET_KEY in production environment. Set a strong JWT_SECRET_KEY.")
+        if not admin_pw or admin_pw in insecure_defaults:
+            raise ValueError("Insecure or missing DEFAULT_ADMIN_PASSWORD in production environment. Set a strong DEFAULT_ADMIN_PASSWORD.")
 
 
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    SECRET_KEY = "testing-secret-key-12345"
+    JWT_SECRET_KEY = "testing-jwt-key-12345"
+    DEFAULT_ADMIN_PASSWORD = "TestingAdmin#2026!"
 
 
 config = {
