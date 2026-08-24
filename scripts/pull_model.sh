@@ -5,7 +5,7 @@
 set -euo pipefail
 
 OLLAMA_URL="${OLLAMA_BASE_URL:-${OLLAMA_URL:-http://localhost:11434}}"
-MODEL_NAME="${LOCAL_LLM_MODEL:-${OLLAMA_MODEL:-llama3.2:3b-instruct-q4_K_M}}"
+MODEL_NAME="${LOCAL_LLM_MODEL:-${OLLAMA_MODEL:-qwen3:4b-q4_K_M}}"
 
 echo "=========================================================="
 echo "  Policy Ledger - Local Model Warmup Script"

@@ -16,10 +16,10 @@ The entire production ecosystem (Reverse Proxy, Web API, Celery Workers, Postgre
 ### Launch Commands
 
 ```bash
-# 1. Clone & enter repository
-cd "Version aware _ Vision-new"
+# 1. Enter repository
+cd Version-aware-system
 
-# 2. Copy environment template (configured with defaults)
+# 2. Copy environment template and configure production secrets
 cp .env.example .env
 
 # 3. Build & start all services in detached mode
@@ -28,23 +28,18 @@ docker compose up --build -d
 
 ### Pull the Local LLM Model into Ollama
 ```bash
-# Pull the high-speed Qwen model (run once)
-docker exec -it policy_ledger_ollama ollama pull qwen2.5:3b
+# Pull the configured Qwen model (run once)
+docker exec -it policy_ledger_ollama ollama pull qwen3:4b-q4_K_M
 ```
 
 ### Access Services
-* **Web Application:** [http://localhost](http://localhost) (or port 80/443 via Nginx)
-* **Direct Web Port (Dev):** [http://localhost:5000](http://localhost:5000)
+* **Web Application:** [http://localhost](http://localhost) (via Nginx reverse proxy on port 80; TLS terminated at external load balancer)
 * **Prometheus Metrics:** [http://localhost/metrics](http://localhost/metrics)
 * **Liveness Probe:** [http://localhost/health/live](http://localhost/health/live)
 * **Readiness Probe:** [http://localhost/health/ready](http://localhost/health/ready)
 
-### Default Demo Credentials
-| Role | Email | Password |
-| :--- | :--- | :--- |
-| **System Administrator** | `admin@company.com` | `PolicyLedger#Admin2026!` |
-| **HR Director** | `hr@company.com` | `HR@1234` |
-| **Employee** | `employee@company.com` | `Emp@1234` |
+### Authentication & Initial Credentials
+Configure `DEFAULT_ADMIN_PASSWORD` in your `.env` file before initial startup. User accounts can be managed securely via the administrative panel.
 
 ---
 
@@ -82,7 +77,7 @@ celery -A tasks.celery_app worker --loglevel=info
 
 ## 3. Running Automated Tests & Audits
 
-Run the comprehensive 22-test integration and unit suite:
+Run the comprehensive 35-test integration, regression, and unit suite:
 
 ```bash
 pytest tests/ -v
@@ -90,12 +85,12 @@ pytest tests/ -v
 
 Expected output:
 ```
-================== 22 passed, 9 warnings in ~60s ===================
+================== 35 passed, 8 warnings in ~18s ===================
 ```
 
 To run the full RAG pipeline and cache verification benchmark:
 ```bash
-python eval/run_eval.py
+python scripts/run_reproducible_eval.py
 ```
 
 ---
@@ -127,17 +122,19 @@ python eval/run_eval.py
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
 | `FLASK_ENV` | `production` | Environment mode (`development`, `testing`, `production`) |
-| `SECRET_KEY` | *(Random 32-byte hex)* | Flask session signature key |
+| `SECRET_KEY` | *(Required)* | Flask session signature key |
+| `JWT_SECRET_KEY` | *(Required)* | JWT signature key |
+| `DEFAULT_ADMIN_PASSWORD` | *(Required)* | Password for initialized administrator account |
 | `DATABASE_URL` | `postgresql://...` | PostgreSQL 16 + pgvector connection URI |
 | `REDIS_URL` | `redis://redis:6379/0` | Redis 7 cache & Celery broker URI |
 | `LLM_BACKEND` | `ollama` | Backend engine (`ollama`, `lmstudio`, `local`, `mock`) |
-| `LOCAL_LLM_MODEL` | `qwen2.5:3b` | LLM model tag |
-| `EMBEDDING_ENGINE` | `auto` | `auto`, `fastembed`, `sentence_transformers`, `mock` |
-| `RERANKER_ENGINE` | `auto` | `auto`, `flashrank`, `cross_encoder`, `mock` |
+| `LOCAL_LLM_MODEL` | `qwen3:4b-q4_K_M` | LLM model tag |
+| `EMBEDDING_ENGINE` | `fastembed` | `fastembed`, `sentence_transformers`, `mock` |
+| `EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | Embedding model identifier |
+| `RERANKER_ENGINE` | `flashrank` | `flashrank`, `cross_encoder`, `mock` |
+| `RERANKER_MODEL` | `ms-marco-TinyBERT-L-2-v2` | Reranker model identifier |
 | `SEMANTIC_CACHE_ENABLED`| `true` | Enables L1 exact + L2 cosine similarity caching |
 | `SEMANTIC_CACHE_THRESHOLD`| `0.95` | Cosine similarity threshold for cache hits |
-| `SSO_ENABLED` | `false` | Enables Google Workspace / Okta SAML/OIDC SSO |
-| `OTEL_EXPORTER_OTLP_ENDPOINT`| *(Empty)* | OpenTelemetry Collector gRPC/HTTP endpoint |
 
 ---
 

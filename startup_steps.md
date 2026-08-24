@@ -18,23 +18,18 @@ docker compose up -d
 ### Step 2: Seed & Compile the 20 Enterprise Policies
 To load all 20 corporate policies, 33 structured facts, 100 canonical Q&As, and ChromaDB vector embeddings into the system:
 ```bash
-docker exec -it policy_ledger_app python seed.py
+docker exec -it policy_ledger_web python seed.py
 ```
 
 ### Step 3: Open in Browser
 Open your browser and navigate to:
-👉 **`http://localhost:5000`**
+👉 **`http://localhost`** (or `http://localhost:5000` for direct dev access)
 
 ---
 
-## 🔐 Default Login Credentials
+## 🔐 Authentication & Credentials
 
-| Role | Email | Password | Access Level |
-| :--- | :--- | :--- | :--- |
-| **Admin** | `admin@company.com` | `admin123` | Full administrative control, all 20 policies, user management, policy version editing |
-| **HR Manager** | `hr@company.com` | `hr123` | HR, benefits, leave, performance, and internal policies |
-| **Compliance Officer**| `compliance@company.com` | `comp123` | Legal, privacy (DPDP/GDPR), POSH, anti-bribery policies |
-| **Employee** | `employee@company.com` | `emp123` | Company-wide internal policies, AI Assistant, What-If Simulator |
+Initial administrator credentials should be set via `DEFAULT_ADMIN_PASSWORD` in your `.env` file before initial launch. Role-based accounts can be configured and managed through the administrative panel.
 
 ---
 
@@ -71,7 +66,7 @@ Open **`http://localhost:5000`** in your browser.
 
 If you want the local LLM generation fallback active inside Ollama:
 ```bash
-docker exec -it policy_ledger_ollama_dev ollama pull qwen3:4b-q4_K_M
+docker exec -it policy_ledger_ollama ollama pull qwen3:4b-q4_K_M
 ```
 *(Note: If Ollama is offline or busy, the system automatically uses fast deterministic extraction in <10ms without errors or lag).*
 
@@ -84,7 +79,7 @@ Try asking the AI Assistant factual questions:
 * *"What is the base health insurance cover?"* → **Rs. 5,00,000**
 * *"What is the annual learning budget for an employee?"* → **Rs. 40,000**
 * *"What is the standard notice period for confirmed staff?"* → **2 months**
-* *"What is the maximum domestic hotel limit per night?"* → **Rs. 5,000**
+* *"What is the maximum domestic hotel limit per night?"* → **Rs. 5,00,000**
 * *"What is the arrival grace period for morning check-in?"* → **30 minutes**
 * *"How many days of annual leave do employees get?"* → **24 days**
 * *"What is the password rotation period?"* → **90 days**
@@ -97,10 +92,10 @@ Test hypothetical scenarios with multi-clause verdicts:
 * *"I have a headache and want to take 1 day of sick leave without a medical certificate."*
 
 ### 3. Running Automated Tests
-To run all 22 integration and unit tests:
+To run all 35 integration, regression, and unit tests:
 ```bash
 # In Docker
-docker exec -it policy_ledger_app pytest tests/ -v
+docker exec -it policy_ledger_web pytest tests/ -v
 
 # Locally
 pytest tests/ -v
@@ -128,7 +123,7 @@ For full production deployment with PostgreSQL database, Nginx reverse proxy, an
 
 ```bash
 # 1. Start production stack
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 
 # 2. Seed database
 docker exec -it policy_ledger_web python seed.py
@@ -137,5 +132,5 @@ docker exec -it policy_ledger_web python seed.py
 http://<your-server-ip-or-domain>
 
 # 4. Stop production stack
-docker compose -f docker-compose.prod.yml down
+docker compose down
 ```

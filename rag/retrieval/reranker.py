@@ -120,12 +120,13 @@ def get_reranker():
     global _RERANKER
     if _RERANKER is None:
         mode = os.environ.get("RERANKER_MODE", "real").lower()
-        engine = os.environ.get("RERANKER_ENGINE", "auto").lower()
+        engine = os.environ.get("RERANKER_ENGINE", "flashrank").lower()
+        model = os.environ.get("RERANKER_MODEL", "ms-marco-TinyBERT-L-2-v2")
         if mode == "mock":
             _RERANKER = MockReranker()
         elif engine in ("flashrank", "auto"):
             try:
-                _RERANKER = FlashRankReranker(os.environ.get("FLASHRANK_MODEL", "ms-marco-TinyBERT-L-2-v2"))
+                _RERANKER = FlashRankReranker(os.environ.get("FLASHRANK_MODEL", model))
                 if _RERANKER._ranker is None:
                     _RERANKER = Qwen3Reranker()
             except Exception:

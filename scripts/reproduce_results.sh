@@ -3,7 +3,7 @@ set -e
 
 echo "========================================================="
 echo "   REPRODUCING PUBLICATION RESULTS & EXPERIMENTS         "
-echo "   Repository: Version-aware-system-24chatgptv1          "
+echo "   Repository: Version-aware-system                      "
 echo "========================================================="
 
 # 1. Clean old result artifacts
@@ -60,7 +60,7 @@ env_info = {
         'reranker_engine': os.environ.get('RERANKER_ENGINE', 'flashrank'),
         'reranker_model': os.environ.get('RERANKER_MODEL', 'ms-marco-TinyBERT-L-2-v2'),
         'llm_backend': os.environ.get('LLM_BACKEND', 'ollama'),
-        'llm_model': os.environ.get('LOCAL_LLM_MODEL', 'qwen2.5:3b'),
+        'llm_model': os.environ.get('LOCAL_LLM_MODEL', 'qwen3:4b-q4_K_M'),
         'vector_store': 'ChromaDB + FAISS HNSW SegmentOverlay',
         'sparse_store': 'Partitioned BM25'
     }

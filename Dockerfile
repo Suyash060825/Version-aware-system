@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-lock.txt* ./
+RUN if [ -f requirements-lock.txt ]; then pip install --no-cache-dir -r requirements-lock.txt; else pip install --no-cache-dir -r requirements.txt; fi
 
 # Create non-root user
 RUN addgroup --system appgroup && adduser --system --group appuser
@@ -22,8 +22,8 @@ RUN addgroup --system appgroup && adduser --system --group appuser
 # Copy application code
 COPY . .
 
-# Create data directories and set permissions
-RUN mkdir -p data/uploads \
+# Create data and instance directories and set permissions
+RUN mkdir -p data/uploads instance \
     && chown -R appuser:appgroup /app \
     && chmod -R 755 /app
 

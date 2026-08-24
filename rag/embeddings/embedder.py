@@ -109,17 +109,11 @@ def get_embedder() -> BaseEmbedder:
     global _EMBEDDER
     if _EMBEDDER is None:
         engine = os.environ.get("EMBEDDING_ENGINE", "fastembed").lower()
-        model = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+        model = os.environ.get("EMBEDDING_MODEL", os.environ.get("FASTEMBED_MODEL", "BAAI/bge-small-en-v1.5"))
         
         if engine in ("fastembed", "auto"):
-            try:
-                _EMBEDDER = FastEmbedEmbedder(os.environ.get("FASTEMBED_MODEL", model if "bge" in model.lower() else "BAAI/bge-small-en-v1.5"))
-            except Exception:
-                if "Qwen" in model:
-                    _EMBEDDER = Qwen3Embedder(model)
-                else:
-                    _EMBEDDER = SentenceTransformerEmbedder(model)
-        elif "Qwen" in model:
+            _EMBEDDER = FastEmbedEmbedder(model)
+        elif "qwen" in model.lower():
             _EMBEDDER = Qwen3Embedder(model)
         else:
             _EMBEDDER = SentenceTransformerEmbedder(model)

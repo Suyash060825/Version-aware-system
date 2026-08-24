@@ -187,6 +187,19 @@ def create_app(env="default"):
             except Exception as e:
                 raise RuntimeError(f"[FATAL DATABASE ERROR] Production database connection failed: {e}")
 
+    # Safe model configuration diagnostic logging
+    import logging
+    diag_logger = logging.getLogger("app.diagnostics")
+    diag_logger.info(
+        "AI Diagnostic State: "
+        f"Embedding Engine={os.environ.get('EMBEDDING_ENGINE', 'fastembed')}, "
+        f"Embedding Model={os.environ.get('EMBEDDING_MODEL', 'BAAI/bge-small-en-v1.5')}, "
+        f"Reranker Engine={os.environ.get('RERANKER_ENGINE', 'flashrank')}, "
+        f"Reranker Model={os.environ.get('RERANKER_MODEL', 'ms-marco-TinyBERT-L-2-v2')}, "
+        f"LLM Backend={os.environ.get('LLM_BACKEND', 'ollama')}, "
+        f"LLM Model={os.environ.get('LOCAL_LLM_MODEL', 'qwen3:4b-q4_K_M')}"
+    )
+
     return app
 
 

@@ -1,6 +1,6 @@
-# Production Architecture & Implementation Plan: Policy Ledger Enterprise
+# Production Architecture & Deployment Specification: Policy Ledger Enterprise
 
-This document specifies the end-to-end transformation plan to convert the working prototype of **Policy Ledger** into an enterprise-ready, sub-200ms latency, zero-hallucination policy intelligence platform.
+This document describes the enterprise production deployment architecture of **Policy Ledger Enterprise**, a version-aware policy intelligence platform featuring streaming responses, multi-tier semantic caching, citation validation, and automated contradiction resolution.
 
 ---
 
@@ -17,36 +17,35 @@ flowchart TD
     end
 
     subgraph Gateway ["API & Edge Gateway"]
-        Nginx["Nginx Reverse Proxy / HTTP2"]
-        Auth["SAML 2.0 / OIDC SSO & RBAC/ABAC Gate"]
+        Nginx["Nginx Reverse Proxy / Load Balancer (Port 80)"]
+        Auth["RBAC / ABAC Role-Based Authorization Gate"]
         Limiter["Dynamic Redis Token Bucket Limiter"]
     end
 
-    subgraph CoreBackend ["Core Flask / Async Backend"]
-        App["Flask App Factory + Blueprints"]
-        OTel["OpenTelemetry Distributed Tracer"]
-        Prom["Prometheus Metrics Collector (/metrics)"]
+    subgraph CoreBackend ["Core Flask / Gunicorn Backend"]
+        App["Flask App Factory + Blueprints (Port 5000)"]
+        Metrics["Prometheus Metrics Collector (/metrics)"]
+        Health["Liveness & Readiness Probes (/health/live, /health/ready)"]
     end
 
     subgraph AsyncTasks ["Background Worker Tier (Celery / Redis)"]
         Queue["Redis Task Broker"]
-        Workers["Celery Ingestion & OCR Workers"]
-        Scanner["Contradiction Radar Cron Scanner"]
+        Workers["Celery Ingestion & Contradiction Workers"]
     end
 
-    subgraph RAGPipeline ["Ultra-Low Latency RAG Engine"]
-        L0["Level 0: In-Memory Prefix Fact Trie (<1ms)"]
-        L1["Level 1: Redis L1 Exact & L2 Semantic Cache (<5ms)"]
-        L2["Level 2: Parallel Hybrid Retrieval (BM25 + pgvector HNSW) (<15ms)"]
-        L3["Level 3: FlashRank / ONNX Cross-Encoder Reranker (<20ms)"]
-        L4["Level 4: vLLM / SGLang with Prompt Prefix Caching (TTFT <150ms)"]
-        L5["Level 5: Asynchronous Grounding & Entailment Verifier"]
+    subgraph RAGPipeline ["Low Latency RAG Engine"]
+        L0["Level 0: Structured Fact Table Pre-filter"]
+        L1["Level 1: Compiled QA Fast Path"]
+        L2["Level 2: Hybrid Dense ChromaDB + Sparse BM25 Retrieval"]
+        L3["Level 3: Cross-Encoder / FlashRank Reranker"]
+        L4["Level 4: High-Throughput Ollama LLM / Deterministic Verifier"]
+        L5["Level 5: Citation & Grounding Strict Scope Validator"]
     end
 
     subgraph DataTier ["Unified Storage Layer"]
-        PG[("PostgreSQL 16 + pgvector (HNSW Index)")]
-        RedisDB[("Redis 7 Cluster (Cache & Celery Broker)")]
-        S3[("Encrypted Blob Storage (PDFs & Diffs)")]
+        PG[("PostgreSQL 16 Database")]
+        RedisDB[("Redis 7 (Cache & Celery Broker)")]
+        LocalStore[("ChromaDB & FAISS Vector Stores")]
     end
 
     UI --> Gateway
@@ -123,7 +122,7 @@ flowchart TD
   * Configure SQLAlchemy connection pooling (`pool_size=20, max_overflow=10, pool_pre_ping=True`).
 
 #### 2.2 Asynchronous Background Ingestion Queue (Celery + Redis)
-* **Files:** [`tasks.py`](file:///home/suyashpradhan/Desktop/Version%20aware%20_%20Vision-new/tasks.py), [`docker-compose.prod.yml`](file:///home/suyashpradhan/Desktop/Version%20aware%20_%20Vision-new/docker-compose.prod.yml)
+* **Files:** `tasks.py`, `docker-compose.yml`
 * **Changes:**
   * Implement Celery tasks for:
     1. Document parsing and OCR extraction (PDF/DOCX/XLSX).

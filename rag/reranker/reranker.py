@@ -76,15 +76,4 @@ class MockReranker:
     def rerank(self, query: str, candidates: List[Dict[str, Any]], top_k: int = 8) -> List[Dict[str, Any]]:
         return candidates[:top_k]
 
-_RERANKER = None
-
-def get_reranker():
-    global _RERANKER
-    if _RERANKER is None:
-        model = os.environ.get("RERANKER_MODEL", "Qwen/Qwen3-Reranker-0.6B")
-        mode = os.environ.get("RERANKER_MODE", "real")
-        if mode == "mock":
-            _RERANKER = MockReranker()
-        else:
-            _RERANKER = Qwen3Reranker()
-    return _RERANKER
+from rag.retrieval.reranker import get_reranker, Qwen3Reranker, FlashRankReranker, MockReranker

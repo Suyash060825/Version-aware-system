@@ -24,7 +24,7 @@ services:
     container_name: policy_ledger_web
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     environment:
       - FLASK_ENV=production
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be provided}
@@ -36,10 +36,12 @@ services:
       - LLM_BACKEND=${LLM_BACKEND:-ollama}
       - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}
       - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-http://ollama:11434}
-      - EMBEDDING_ENGINE=${EMBEDDING_ENGINE:-auto}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
-      - RERANKER_ENGINE=${RERANKER_ENGINE:-auto}
-      - RERANKER_MODEL=${RERANKER_MODEL:-Qwen/Qwen3-Reranker-0.6B}
+      - EMBEDDING_ENGINE=${EMBEDDING_ENGINE:-fastembed}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      - FASTEMBED_MODEL=${FASTEMBED_MODEL:-BAAI/bge-small-en-v1.5}
+      - RERANKER_ENGINE=${RERANKER_ENGINE:-flashrank}
+      - RERANKER_MODEL=${RERANKER_MODEL:-ms-marco-TinyBERT-L-2-v2}
+      - FLASHRANK_MODEL=${FLASHRANK_MODEL:-ms-marco-TinyBERT-L-2-v2}
       - OLLAMA_BASE_URL=http://ollama:11434
       - LMSTUDIO_BASE_URL=http://host.docker.internal:1234/v1
     extra_hosts:
@@ -82,10 +84,12 @@ services:
       - LLM_BACKEND=${LLM_BACKEND:-ollama}
       - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}
       - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-http://ollama:11434}
-      - EMBEDDING_ENGINE=${EMBEDDING_ENGINE:-auto}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
-      - RERANKER_ENGINE=${RERANKER_ENGINE:-auto}
-      - RERANKER_MODEL=${RERANKER_MODEL:-Qwen/Qwen3-Reranker-0.6B}
+      - EMBEDDING_ENGINE=${EMBEDDING_ENGINE:-fastembed}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      - FASTEMBED_MODEL=${FASTEMBED_MODEL:-BAAI/bge-small-en-v1.5}
+      - RERANKER_ENGINE=${RERANKER_ENGINE:-flashrank}
+      - RERANKER_MODEL=${RERANKER_MODEL:-ms-marco-TinyBERT-L-2-v2}
+      - FLASHRANK_MODEL=${FLASHRANK_MODEL:-ms-marco-TinyBERT-L-2-v2}
     depends_on:
       postgres:
         condition: service_healthy
@@ -121,8 +125,6 @@ services:
     container_name: policy_ledger_redis
     restart: unless-stopped
     command: redis-server --appendonly yes --appendfsync everysec
-    ports:
-      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
