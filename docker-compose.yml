@@ -137,7 +137,7 @@ services:
   # Ollama Local High-Throughput Inference Engine
   # ============================================================================
   ollama:
-    image: ollama/ollama:0.5.7
+    image: ollama/ollama:latest
     container_name: policy_ledger_ollama
     restart: unless-stopped
     ports:

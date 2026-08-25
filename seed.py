@@ -16,7 +16,7 @@ from utils import generate_policy_id
 from config import Config
 from datetime import date
 
-app = create_app("development")
+app = create_app(os.environ.get("FLASK_ENV", "development"))
 
 DEPARTMENTS = [
     ("Human Resources", "HR"), ("Engineering", "ENG"), ("Finance", "FIN"),

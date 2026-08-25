@@ -1,0 +1,704 @@
+\documentclass[journal]{IEEEtran}
+
+% =========================================================================
+% PolicyLedger: Version-Aware Enterprise Policy Intelligence
+% Journal-Neutral IEEE Journal Manuscript
+% Rigorously scoped, verified against empirical experimental results.
+% =========================================================================
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{textcomp}
+
+\newcommand{\PolicyLedger}{PolicyLedger}
+\newcommand{\ms}{\,\mathrm{ms}}
+\newcommand{\pct}{\%}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\I}{\mathbb{I}}
+\newcommand{\D}{\mathbb{D}}
+
+\begin{document}
+
+\title{PolicyLedger: Version-Aware Enterprise Policy Intelligence via Incremental Knowledge Compilation and Adaptive Multi-Tier Retrieval}
+
+\author{Suyash~Pradhan%
+\thanks{Suyash Pradhan is with the Department of Computer Science and Engineering (e-mail: suyashpradhan06@gmail.com).}}
+
+% Journal-neutral header for pre-submission / review
+\markboth{IEEE Journal / Transactions Manuscript}{Pradhan: PolicyLedger: Version-Aware Enterprise Policy Intelligence}
+
+\maketitle
+
+\begin{abstract}
+Enterprise policies and regulatory compliance rules undergo continuous revision over time, yet conventional retrieval-augmented generation (RAG) paradigms typically treat knowledge bases as static document collections. This introduces the risk of temporal version inversion, where semantically relevant but superseded clauses are retrieved for contemporary inquiries. Furthermore, rebuilding global indices during document updates incurs substantial computational cost, and routing deterministic policy questions to autoregressive models adds unnecessary latency. This paper presents PolicyLedger, a version-aware enterprise policy intelligence architecture. The system models temporal validity using explicit effective date intervals integrated into database schemas and pre-retrieval candidate filters. An incremental knowledge compiler uses SHA-256 chunk hashing and dynamic index segment overlays, achieving an empirical 721.95x speedup (3.57 ms vs. 2579.31 ms) over a full rebuild baseline in an evaluated low-delta update workload. Incoming inquiries are processed by an adaptive four-tier query router that navigates indexed relational fact lookups, precompiled canonical question-answer matching, cross-encoder reranked hybrid dense-sparse retrieval, and structural version diffing. On a 301-query benchmark over an enterprise policy corpus, the composite median response latency is 29.65 ms (P95 of 136.49 ms) with retrieval scores saturating at 0.9861 MRR@10 and Recall@5 on the 127-chunk dataset. Cache validation tests show no observed stale, wrong-version, or cross-scope data reuse, alongside an 88.89\% correct refusal rate on 18 adversarial/security test queries. While local 4-bit model quantization bounds exact text generation to 27.91\% (48.18\% combined acceptable coverage on answer queries), the results demonstrate a defensible systems framework for version-constrained enterprise knowledge retrieval.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Retrieval-augmented generation, temporal information retrieval, version-aware retrieval, enterprise knowledge management, incremental indexing, adaptive query routing, policy governance, grounded generation.
+\end{IEEEkeywords}
+
+\section{Introduction}
+\IEEEPARstart{E}{nterprise} governance, human resource administration, information security, and regulatory compliance rely fundamentally on institutional policy documents. In organizational environments, these documents are non-stationary: corporate expense ceilings, leave entitlements, remote work protocols, and data security mandates undergo periodic revisions. Each policy revision possesses an authoritative validity window bounded by calendar dates $[\tau_s, \tau_e]$.
+
+Despite widespread adoption across industry, standard Retrieval-Augmented Generation (RAG) frameworks \cite{lewis2020rag, gao2024rag_survey} treat target knowledge bases as static collections of unstructured text chunks. When applied to evolving policy corpora, standard RAG architectures face four practical challenges:
+\begin{enumerate}
+    \item \textbf{Temporal Version Inversion}: Semantic vector embeddings capture topical similarity but remain agnostic to temporal validity intervals. An inquiry regarding historical entitlements (e.g., ``What was the domestic travel allowance in June 2024?'') risks retrieving semantically identical but legally obsolete clauses from current policy versions, or vice versa \cite{huwiler2025versionrag}.
+    \item \textbf{Update Re-Indexing Overhead}: In standard RAG pipelines, modifying a document often triggers full-corpus re-embedding and global inverted-index rebuilding ($O(N \cdot d)$), imposing computational overhead on continuous update workflows.
+    \item \textbf{Generative Latency on Deterministic Lookups}: Standard RAG routes incoming user queries directly to an autoregressive Large Language Model (LLM). This introduces $2\text{--}8\text{ seconds}$ of inference latency for deterministic, standardized policy inquiries (e.g., ``What is the standard probation period?'') that can be resolved via structured relational lookup.
+    \item \textbf{Cross-Department Authorization Boundaries}: Without pre-retrieval scope enforcement, unpartitioned retrieval pipelines risk indexing and exposing confidential executive or departmental clauses to unauthorized users.
+\end{enumerate}
+
+\begin{figure*}[!t]
+\centering
+\fbox{\parbox{0.96\textwidth}{
+\small
+\centering
+\textbf{\PolicyLedger\ End-to-End Multi-Tier Query Execution Architecture}
+\vspace{0.25cm}
+
+\begin{tabular}{c}
+\fbox{\parbox{0.88\textwidth}{\centering \textbf{User Query Input}: Natural Language Query $q$ $+$ User Scope Context $\langle D(u), K(u)\rangle$ $+$ Target Evaluation Date $t_q$}} \\
+$\Downarrow$ \\
+\fbox{\parbox{0.88\textwidth}{\centering \textbf{Stage 1: Pre-Processing \& Scope Resolution}: Query Normalization, Temporal Context Parsing $\rightarrow$ Scope $\mathcal{S} = \langle D(u), K(u), [\tau_s, \tau_e], \text{PIDs}\rangle$}} \\
+$\Downarrow$ \\
+\fbox{\parbox{0.88\textwidth}{\centering \textbf{Stage 2: Scope-Hashed Exact Semantic Cache Lookup}: $K_{\text{cache}} = \mathrm{SHA256}(D(u) \,\|\, K(u) \,\|\, t_q \,\|\, \mathrm{norm}(q))$}}
+\end{tabular}
+
+\vspace{0.15cm}
+\begin{tabular}{p{0.45\textwidth}cp{0.45\textwidth}}
+\multicolumn{1}{c}{\textbf{[CACHE HIT]}} & & \multicolumn{1}{c}{\textbf{[CACHE MISS]}} \\
+\multicolumn{1}{c}{$\Downarrow$} & & \multicolumn{1}{c}{$\Downarrow$} \\
+\fbox{\parbox{0.43\textwidth}{\centering \textbf{Instant Fast Return} \\ Citation Validation \& Response Dispatch \\ \textit{Evaluated Latency: $< 5\ms$}}} & & 
+\fbox{\parbox{0.43\textwidth}{\centering \textbf{Tier 0: Structured Fact Resolution} \\ Indexed Key-Based Relational SQL over Store $\mathcal{F}$ \\ \textit{Median Latency: $20.19\ms$ (48.50\% Traffic)}}}
+\end{tabular}
+
+\vspace{0.15cm}
+\begin{tabular}{p{0.45\textwidth}cp{0.45\textwidth}}
+\multicolumn{1}{c}{\textbf{[FACT RESOLVED]}} & & \multicolumn{1}{c}{\textbf{[NO FACT MATCH]}} \\
+\multicolumn{1}{c}{$\Downarrow$} & & \multicolumn{1}{c}{$\Downarrow$} \\
+\fbox{\parbox{0.43\textwidth}{\centering \textbf{Direct Fact Dispatch} \\ Enrich Citations \& Return Deterministic Fact \\ \textit{Bypasses LLM Invocations}}} & & 
+\fbox{\parbox{0.43\textwidth}{\centering \textbf{Tier 1: Canonical Question--Answer Matching} \\ FAISS HNSW Approximate Nearest Neighbor Search ($\theta_{\mathrm{QA}} \ge 0.80$) \\ \textit{Median Latency: $23.28\ms$ (5.65\% Traffic)}}}
+\end{tabular}
+
+\vspace{0.15cm}
+\begin{tabular}{p{0.45\textwidth}cp{0.45\textwidth}}
+\multicolumn{1}{c}{\textbf{[QA MATCH $\ge 0.80$]}} & & \multicolumn{1}{c}{\textbf{[FALLBACK / AD-HOC INQUIRY]}} \\
+\multicolumn{1}{c}{$\Downarrow$} & & \multicolumn{1}{c}{$\Downarrow$} \\
+\fbox{\parbox{0.43\textwidth}{\centering \textbf{Precompiled QA Dispatch} \\ Scope Authorization Validation \& Return Answer \\ \textit{Bypasses LLM Invocations}}} & & 
+\fbox{\parbox{0.43\textwidth}{\centering \textbf{Tier 2 \& Tier 3: Hybrid Retrieval / Version Diff} \\ Dense (BGE) + Sparse (BM25) $\xrightarrow{\text{RRF}}$ Scope Filter \\ FlashRank TinyBERT Cross-Encoder Reranking $\rightarrow$ Top-8 Evidence}}
+\end{tabular}
+
+\vspace{0.2cm}
+\begin{tabular}{c}
+$\Downarrow$ \\
+\fbox{\parbox{0.88\textwidth}{\centering \textbf{Multi-Factor Confidence Gating} ($C_{\mathrm{raw}} = 0.55 \cdot S_{\mathrm{ret}} + 0.45 \cdot S_{\mathrm{cov}} \ge \theta_{\mathrm{gate}}$)}}
+\end{tabular}
+
+\vspace{0.15cm}
+\begin{tabular}{p{0.45\textwidth}cp{0.45\textwidth}}
+\multicolumn{1}{c}{\textbf{[EVIDENCE GATE PASSED]}} & & \multicolumn{1}{c}{\textbf{[EVIDENCE INSUFFICIENT / REFUSAL]}} \\
+\multicolumn{1}{c}{$\Downarrow$} & & \multicolumn{1}{c}{$\Downarrow$} \\
+\fbox{\parbox{0.43\textwidth}{\centering \textbf{Grounded Generation \& Verification} \\ Local Ollama $qwen3:4b$ Generation $\rightarrow$ \\ DeBERTa-v3 NLI Entailment Verification ($P \ge 0.35$) \\ \textit{Pass}: LLM Answer \quad \textit{Fail}: Extractive Fallback}} & & 
+\fbox{\parbox{0.43\textwidth}{\centering \textbf{Cross-Cutting Safe Abstention} \\ Deterministic refusal on ungrounded/adversarial input \\ \textit{88.89\% Adversarial Refusal on 18-case subset}}}
+\end{tabular}
+
+\vspace{0.2cm}
+\begin{tabular}{c}
+$\Downarrow$ \\
+\fbox{\parbox{0.88\textwidth}{\centering \textbf{Stage 3: Citation Traceability Validator} $\rightarrow$ \textbf{Multi-Factor Confidence Estimation} $\rightarrow$ \textbf{Verified Dispatch}}}
+\end{tabular}
+}}
+\caption{Operational flowchart of \PolicyLedger, illustrating query processing from initial normalization and scope gating through fast-path fact resolution, canonical question matching, hybrid dense--sparse retrieval with pre-retrieval scope enforcement, neural NLI entailment verification, and safe abstention.}
+\label{fig:architecture}
+\end{figure*}
+
+To address these challenges, this paper presents \textbf{\PolicyLedger}, a version-aware enterprise policy intelligence architecture. \PolicyLedger\ incorporates temporal validity interval constraints into the storage schema and pre-retrieval filtering layers, provides index maintenance via cryptographic SHA-256 delta compilation, and implements an adaptive four-tier router designed to resolve deterministic inquiries without unconditional generative model invocation.
+
+The primary contributions of this paper are:
+\begin{enumerate}
+    \item \textbf{Temporal Validity Formulation}: An interval-based validity formulation $[\tau_s(v), \tau_e(v)]$ applied before similarity ranking to prevent temporally invalid candidates from entering the active retrieval pool.
+    \item \textbf{Incremental Knowledge Compiler}: An update engine using SHA-256 chunk hashing and dynamic FAISS HNSW segment overlays that achieved an empirical $721.95\times$ speedup ($3.57\ms$ vs. $2579.31\ms$) in an evaluated low-delta update condition compared to a full rebuild baseline.
+    \item \textbf{Adaptive Four-Tier Query Routing}: A tiered execution architecture that routes inquiries across indexed relational fact lookups (Tier~0), precompiled canonical QA vector matching (Tier~1), cross-encoder reranked hybrid dense--sparse retrieval (Tier~2), and structural version diffing (Tier~3).
+    \item \textbf{Pre-Retrieval Scoping and Grounding Verification}: A security and grounding workflow enforcing role-based and confidentiality constraints prior to similarity ranking, combined with DeBERTa-v3 neural natural language inference (NLI) verification.
+    \item \textbf{Empirical Evaluation}: Benchmarking across 301 curated queries, reporting latency distributions, retrieval metrics, update costs, cache safety test invariants, and generative accuracy trade-offs under quantized local model constraints.
+\end{enumerate}
+
+\section{Related Work and Background}
+
+\subsection{Retrieval-Augmented Generation (RAG)}
+RAG architectures combine parametric neural language models with non-parametric retrieval indices to condition generation on external evidence \cite{lewis2020rag, gao2024rag_survey}. Dense Passage Retrieval (DPR) demonstrated the utility of dual-encoder representations \cite{karpukhin2020dpr}, while BGE embeddings provide dense semantic representations across diverse domains \cite{xiao2023bge}. Lexical retrieval algorithms such as BM25 \cite{robertson2009bm25} remain complementary for exact keyword, acronym, and numerical policy matching. Reciprocal Rank Fusion (RRF) provides an unsupervised method to combine dense and sparse ranking lists \cite{cormack2009rrf}, and cross-encoder models (e.g., TinyBERT \cite{jiao2020tinybert, pradeep2023flashrank}) provide token-level interaction reranking. However, standard RAG frameworks typically treat document collections as static corpora.
+
+\subsection{Temporal Information Retrieval and Time-Aware NLP}
+Temporal Information Retrieval (T-IR) examines temporal expressions in text search \cite{campos2014temporal_ir}. Time-aware language modeling approaches often prepend textual timestamps or temporal metadata to token sequences \cite{dhingra2022temporal_lm}. While effective for open-domain factuality, probabilistic attention over temporal strings does not provide the deterministic validity boundaries required in legal and corporate policy governance. VersionRAG \cite{huwiler2025versionrag} recently addressed evolving documents in RAG via version graphs. \PolicyLedger\ investigates a complementary applied approach: formalizing temporal validity as interval invariants over structured database records, combining them with relational role-based scoping, incremental compilation, and multi-tier routing.
+
+\subsection{Approximate Nearest Neighbor (ANN) Search and Incremental Indexing}
+Hierarchical Navigable Small World (HNSW) graphs \cite{malkov2020hnsw} and similarity libraries such as FAISS \cite{johnson2017faiss} enable efficient approximate nearest-neighbor search. In dynamic corpora, updating monolithic HNSW graphs can require costly node deletions and structural edge rebalancing. \PolicyLedger\ uses SHA-256 chunk delta compilation with append-only segment overlays and tombstone bitmasks to avoid re-indexing unchanged content.
+
+\subsection{Confidence Calibration and Verification}
+Deep neural networks often output uncalibrated probabilities, exhibiting high confidence even on erroneous predictions \cite{guo2017calibration}. In RAG systems, self-reflection and natural language inference (NLI) models \cite{asai2024selfrag, he2021deberta} can evaluate whether retrieved evidence logically entails generated claims. \PolicyLedger\ incorporates DeBERTa-v3 cross-encoder entailment and establishes a multi-factor confidence formulation to measure evidence grounding.
+
+\section{Problem Formulation and Invariant Theory}
+
+Let $\mathcal{P} = \{P_1, P_2, \dots, P_M\}$ denote an enterprise policy repository of $M$ policies. Each policy $P_i$ comprises an ordered sequence of discrete versions:
+\begin{equation}
+\mathcal{V}(P_i) = \{v_{i,1}, v_{i,2}, \dots, v_{i,K_i}\},
+\end{equation}
+where $K_i \ge 1$. Each version $v \in \mathcal{V}(P_i)$ is characterized by the 5-tuple:
+\begin{equation}
+v = \langle \tau_s(v), \tau_e(v), \mathcal{C}(v), D(P_i), \kappa(P_i) \rangle,
+\end{equation}
+where:
+\begin{itemize}
+    \item $[\tau_s(v), \tau_e(v)] \subset \D$ is the closed calendar validity interval over discrete calendar dates $\D$;
+    \item $\mathcal{C}(v) = \{c_1, c_2, \dots, c_{J_v}\}$ is the set of constituent textual chunks;
+    \item $D(P_i) \in \mathcal{D} \cup \{\text{General}\}$ is the organizational department scope;
+    \item $\kappa(P_i) \in \{\text{Public}, \text{Internal}, \text{Confidential}, \text{Restricted}\}$ is the confidentiality classification.
+\end{itemize}
+
+\subsection{Temporal Validity Invariant}
+For any query evaluated at target calendar date $t_q \in \D$, a chunk $c \in \mathcal{C}(v)$ belonging to policy version $v$ is considered temporally valid if and only if:
+\begin{equation}
+V(c, t_q) = 
+\begin{cases}
+1, & \text{if } \tau_s(v) \le t_q \le \tau_e(v), \\
+0, & \text{otherwise.}
+\end{cases}
+\label{eq:temporal_validity}
+\end{equation}
+When a new policy version $v_{k+1}$ is published with effective start date $\tau_s(v_{k+1})$, the validity boundary of the preceding version $v_k$ mutates:
+\begin{equation}
+\tau_e(v_k) \leftarrow \tau_s(v_{k+1}) - 1\text{ day},
+\end{equation}
+so that active validity intervals within any single policy $P_i$ remain mutually disjoint:
+\begin{equation}
+[\tau_s(v_j), \tau_e(v_j)] \cap [\tau_s(v_k), \tau_e(v_k)] = \emptyset \quad \forall j \ne k.
+\end{equation}
+
+\subsection{Scope-Based Authorization Invariant}
+Let $u$ denote a querying user identity with department assignment $D(u)$ and clearance set $K(u) \subseteq \{\text{Public}, \text{Internal}, \text{Confidential}, \text{Restricted}\}$. The pre-retrieval access predicate is defined as:
+\begin{equation}
+A(c, u) = \I\left[D(P_i) \in \{D(u), \text{General}\} \wedge \kappa(P_i) \in K(u)\right].
+\label{eq:auth_predicate}
+\end{equation}
+
+\subsection{Composite Retrieval Eligibility}
+A candidate chunk $c$ is eligible for inclusion in the retrieval candidate pool if and only if both temporal and authorization predicates evaluate to 1:
+\begin{equation}
+E(c, u, t_q) = V(c, t_q) \cdot A(c, u) = 1.
+\label{eq:eligibility}
+\end{equation}
+\PolicyLedger\ applies $E(c, u, t_q) = 1$ prior to similarity ranking, filtering out unauthorized or temporally invalid chunks before top-$k$ candidate selection.
+
+\subsection{System Latency Optimization Objective}
+Let $\mathcal{R} = \{\text{Tier}_0, \text{Tier}_1, \text{Tier}_2, \text{Tier}_3\}$ represent the available query routing paths, each characterized by execution latency $L(r)$ and operational cost $C(r)$. The adaptive routing objective aims to reduce expected query latency across the query workload $\mathcal{Q}$:
+\begin{equation}
+\min_{\pi} \mathbb{E}_{q \sim \mathcal{Q}} \left[ L(\pi(q)) \right] \quad \text{subject to } \mathrm{Acc}(\pi(q)) \ge \theta_{\mathrm{acc}},
+\end{equation}
+where $\pi: \mathcal{Q} \rightarrow \mathcal{R}$ selects the lowest-latency tier capable of satisfying the query's information requirement.
+
+\section{Incremental Knowledge Compilation}
+
+Conventional RAG architectures often re-embed the entire corpus upon document modification, incurring $O(N \cdot d)$ embedding and graph construction costs, where $N$ is total chunks and $d$ is embedding dimensionality. \PolicyLedger\ introduces an incremental compiler based on chunk hashing and delta overlays.
+
+\subsection{Cryptographic Chunk Hashing}
+For each structural chunk $c$, the compiler computes a canonical SHA-256 hash over the normalized text, the active embedding model identifier, and the policy version string:
+\begin{equation}
+H(c) = \mathrm{SHA256}\left(\mathrm{norm}(c.\text{text}) \,\|\, \text{model\_id} \,\|\, v.\text{version\_num}\right),
+\label{eq:chunk_hash}
+\end{equation}
+where $\mathrm{norm}(\cdot)$ standardizes whitespace and Unicode casing.
+
+\subsection{Delta Partitioning Algorithm}
+When an updated policy version is ingested, Algorithm~\ref{alg:incremental_compilation} compares the new chunk set $\mathcal{C}_{\mathrm{new}}$ against the prior version $\mathcal{C}_{\mathrm{old}}$.
+
+\begin{algorithm}[!t]
+\caption{Incremental Policy Knowledge Compilation}
+\label{alg:incremental_compilation}
+\begin{algorithmic}[1]
+\REQUIRE Prior chunks $\mathcal{C}_{\mathrm{old}}$, new version chunks $\mathcal{C}_{\mathrm{new}}$, previous version ID $v_{\mathrm{prev}}$
+\ENSURE Delta partition $\Delta = (\mathcal{C}_{\mathrm{add}}, \mathcal{C}_{\mathrm{mod}}, \mathcal{C}_{\mathrm{unch}}, \mathcal{T}_{\mathrm{del}})$
+\STATE Initialize hash map $M_{\mathrm{hash}} \leftarrow \{H(c) \mapsto c \mid c \in \mathcal{C}_{\mathrm{old}}\}$
+\STATE Initialize ID map $M_{\mathrm{id}} \leftarrow \{c.\mathrm{id} \mapsto c \mid c \in \mathcal{C}_{\mathrm{old}}\}$
+\STATE Initialize $\mathcal{C}_{\mathrm{add}} \leftarrow \emptyset, \mathcal{C}_{\mathrm{mod}} \leftarrow \emptyset, \mathcal{C}_{\mathrm{unch}} \leftarrow \emptyset, \mathcal{M} \leftarrow \emptyset$
+\FOR{each chunk $c \in \mathcal{C}_{\mathrm{new}}$}
+    \IF{$H(c) \in M_{\mathrm{hash}}$}
+        \STATE $\mathcal{C}_{\mathrm{unch}} \leftarrow \mathcal{C}_{\mathrm{unch}} \cup \{c\}$
+        \STATE $\mathcal{M} \leftarrow \mathcal{M} \cup \{M_{\mathrm{hash}}[H(c)].\mathrm{id}\}$
+    \ELSIF{$c.\mathrm{id} \in M_{\mathrm{id}}$}
+        \STATE $\mathcal{C}_{\mathrm{mod}} \leftarrow \mathcal{C}_{\mathrm{mod}} \cup \{c\}$
+        \STATE $\mathcal{M} \leftarrow \mathcal{M} \cup \{c.\mathrm{id}\}$
+    \ELSE
+        \STATE $\mathcal{C}_{\mathrm{add}} \leftarrow \mathcal{C}_{\mathrm{add}} \cup \{c\}$
+    \ENDIF
+\ENDFOR
+\STATE $\mathcal{T}_{\mathrm{del}} \leftarrow \{c.\mathrm{id} \mid c \in \mathcal{C}_{\mathrm{old}}\} \setminus \mathcal{M}$ \COMMENT{Tombstoned IDs}
+\STATE Forward only $\mathcal{C}_{\mathrm{add}} \cup \mathcal{C}_{\mathrm{mod}}$ to FastEmbed ONNX embedding pipeline
+\STATE Update FAISS dynamic segment overlay and set bitmasks for $\mathcal{T}_{\mathrm{del}}$
+\RETURN $\Delta = (\mathcal{C}_{\mathrm{add}}, \mathcal{C}_{\mathrm{mod}}, \mathcal{C}_{\mathrm{unch}}, \mathcal{T}_{\mathrm{del}})$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Computational Complexity and Update Workload}
+Let $N = |\mathcal{C}_{\mathrm{old}}|$ and $M = |\mathcal{C}_{\mathrm{new}}|$. Building hash lookup tables requires $O(N)$ operations. Partitioning chunks requires $O(M)$ hash evaluations. For policy updates where changed chunks $|\Delta| = |\mathcal{C}_{\mathrm{add}}| + |\mathcal{C}_{\mathrm{mod}}| \ll N$, forward neural embedding operations are restricted to $O(|\Delta| \cdot d)$ instead of $O(M \cdot d)$.
+
+In the evaluated incremental update experiment involving 6 unchanged chunks and 0 modified chunks, execution completed in $3.57\ms$, compared to $2579.31\ms$ for the full rebuild baseline, yielding an observed ratio of:
+\begin{equation}
+S_{\mathrm{comp}} = \frac{2579.31\ms}{3.57\ms} = 721.95\times.
+\end{equation}
+This measurement reflects a low-delta update scenario in which no chunk re-embeddings were required.
+
+\section{Adaptive Four-Tier Query Routing}
+
+\PolicyLedger\ organizes execution across four specialized query routing tiers:
+
+\subsection{Tier 0: Structured Fact Resolution}
+Factual questions targeting specific numeric or entity attributes (e.g., ``What is the notice period for engineering?'') target extracted relational triples $\langle\text{Subject}, \text{Predicate}, \text{Value}\rangle \in \mathcal{F}$ indexed in PostgreSQL. The Fact Resolver executes an indexed key-based SQL lookup:
+\begin{equation}
+\mathrm{Lookup}(P_i, v, \text{predicate}) \rightarrow \langle\text{val}, \text{unit}, c_{\mathrm{source}}\rangle.
+\end{equation}
+Under indexed key access, this path resolves with a measured median latency of $20.19\ms$ without vector similarity scoring or generative model invocation.
+
+\subsection{Tier 1: Canonical Question--Answer Matching}
+During document compilation, canonical question clusters are synthesized and embedded into a persistent FAISS HNSW index ($M=32, efConstruction=64$). At query time, the query vector $\mathbf{q} \in \R^{384}$ is matched against key vectors $\mathbf{k}_j$:
+\begin{equation}
+\mathrm{sim}(\mathbf{q}, \mathbf{k}_j) = \frac{\mathbf{q}^{\top} \mathbf{k}_j}{\|\mathbf{q}\|_2 \|\mathbf{k}_j\|_2} \ge \theta_{\mathrm{QA}} \quad (\theta_{\mathrm{QA}} = 0.80).
+\label{eq:cosine}
+\end{equation}
+Candidate matches satisfying scope filtering return pre-validated answers with authoritative chunk citations at a measured median latency of $23.28\ms$.
+
+\subsection{Tier 2: Hybrid Dense--Sparse Retrieval with Grounded Generation}
+Unstructured, complex, or exploratory questions are routed to hybrid retrieval:
+\begin{enumerate}
+    \item \textbf{Dense Retrieval}: Query embedding $\mathbf{q}$ is matched against authorized chunk embeddings in ChromaDB using cosine distance.
+    \item \textbf{Sparse Retrieval}: Partitioned BM25 lexical search computes term-matching relevance scores.
+    \item \textbf{Reciprocal Rank Fusion (RRF)}: Dense rank $r_d(c)$ and sparse rank $r_s(c)$ are fused via:
+    \begin{equation}
+    \mathrm{RRF}(c) = \frac{1}{k + r_d(c)} + \frac{1}{k + r_s(c)},
+    \label{eq:rrf}
+    \end{equation}
+    with smoothing constant $k = 60$.
+    \item \textbf{Cross-Encoder Reranking}: Top-50 candidates are pruned by eligibility predicate $E(c, u, t_q) = 1$ and scored using FlashRank ($ms\text{-}marco\text{-}TinyBERT\text{-}L\text{-}2\text{-}v2$) to yield top-8 evidence chunks.
+\end{enumerate}
+
+\subsection{Tier 3: Structural Version-Diff Comparison}
+Inquiries requesting differences between policy revisions (e.g., ``What changed between v1.0 and v2.0 of the Remote Work Policy?'') bypass generative text synthesis. The engine parses the AST section structures of both versions and extracts clause additions, modifications, and removals.
+
+\subsection{Semantic Caching and Invalidation}
+A two-level Redis 7 semantic cache stores resolved query embeddings keyed by a composite scope hash:
+\begin{equation}
+K_{\mathrm{cache}} = \mathrm{SHA256}(D(u) \,\|\, K(u) \,\|\, t_q \,\|\, \mathrm{norm}(q)).
+\end{equation}
+When a policy update invalidates an active version, cache entries referencing the affected policy ID are evicted via pattern matching.
+
+\section{Security, Grounding, and Verification}
+
+\subsection{Pre-Retrieval Scope Enforcement}
+In contrast to post-retrieval filtering, \PolicyLedger\ applies relational department and confidentiality filters prior to vector ranking, excluding unauthorized candidate vectors before distance computations.
+
+\subsection{Neural NLI Grounding Verification}
+To verify generated responses against retrieved evidence, candidate answers $A$ paired with evidence chunks $E$ are evaluated using a cross-encoder NLI model ($nli\text{-}deberta\text{-}v3\text{-}base$ \cite{he2021deberta}):
+\begin{equation}
+P(\text{Entailment} \mid E, A) \ge \theta_{\mathrm{entail}} \quad (\theta_{\mathrm{entail}} = 0.35).
+\end{equation}
+If the contradiction probability exceeds entailment, the answer falls back to deterministic extractive citations or triggers safe abstention.
+
+\subsection{Multi-Factor Confidence Estimation}
+The system computes a raw confidence score $C_{\mathrm{raw}}$ combining retrieval rank score $S_{\mathrm{ret}}$ and lexical surface coverage $S_{\mathrm{cov}}$:
+\begin{equation}
+C_{\mathrm{raw}} = 0.55 \cdot S_{\mathrm{ret}} + 0.45 \cdot S_{\mathrm{cov}}.
+\label{eq:confidence}
+\end{equation}
+To map raw scores into empirical probabilities, an isotonic regression mapping $f_{\mathrm{iso}}$ can be applied:
+\begin{equation}
+C_{\mathrm{cal}} = f_{\mathrm{iso}}(C_{\mathrm{raw}}).
+\label{eq:isotonic}
+\end{equation}
+In this evaluation, we report the baseline pre-calibration metrics of the raw multi-factor score; empirical post-calibration improvements are not separately reported.
+
+\section{Experimental Setup}
+
+\subsection{Hardware and Software Environment}
+Benchmarks were executed on a dedicated host running Linux 7.1.8 x86\_64 (12 logical vCPUs, 6 physical cores, 31.06~GB RAM, NVIDIA GeForce RTX 3050 Laptop GPU with 3.68~GB VRAM). The software stack includes Python 3.14.6, PyTorch 2.13.0, ChromaDB 1.5.9, FAISS 1.15.0, FastEmbed 0.8.0, FlashRank 0.2.10, PostgreSQL 16, Redis 7 (AOF enabled), and local Ollama inference ($qwen3:4b\text{-}q4\_K\_M$).
+
+\subsection{Corpus and Benchmark Dataset}
+The evaluation corpus contains 20 enterprise policies across 8 departments, comprising 22 versions, 127 structural chunks, 33 extracted facts, and 370 canonical question--answer pairs. The held-out benchmark suite (\texttt{benchmark\_test.json}) consists of 301 labeled test queries across 9 operational categories, detailed in Table~\ref{tab:benchmark_distribution}.
+
+\begin{table}[!t]
+\caption{Benchmark Query Category Distribution ($N=301$)}
+\label{tab:benchmark_distribution}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrr}
+\toprule
+\textbf{Query Category} & \textbf{Count} & \textbf{Percentage (\%)} \\
+\midrule
+Compiled Canonical QA & 225 & 74.75 \\
+Structured Fact Retrieval & 44 & 14.62 \\
+Semantic Retrieval & 8 & 2.66 \\
+Unanswerable / Out-of-Domain & 8 & 2.66 \\
+Adversarial / Policy Violation & 5 & 1.66 \\
+Temporal Historical Lookup & 4 & 1.33 \\
+Department Authorization & 3 & 1.00 \\
+Version Comparison & 2 & 0.66 \\
+Confidentiality Boundary & 2 & 0.66 \\
+\midrule
+\textbf{Total Benchmark Queries} & \textbf{301} & \textbf{100.00} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+The benchmark is dominated by compiled QA and structured fact queries (89.37\% combined), reflecting standard employee policy lookups but limiting the sample size for complex semantic, adversarial, and temporal queries.
+
+\subsection{Evaluation Metrics and Definitions}
+\begin{itemize}
+    \item \textbf{Retrieval Quality}: Recall@1, Recall@5, Recall@10, MRR@10, and NDCG@10 evaluated against gold evidence chunks.
+    \item \textbf{Latency}: Mean, P50 (median), P95, and P99 latency in milliseconds.
+    \item \textbf{Answer Correctness}: Exact match, partial match, combined acceptable coverage, mean token F1, citation precision, recall, and F1.
+    \item \textbf{Safety and Invariants}: Adversarial refusal accuracy, stale-answer rate, wrong-version leakage, unauthorized cross-scope reuse, and unsafe served rate.
+    \item \textbf{Calibration Baseline}: Pre-calibration Brier score and Expected Calibration Error (ECE).
+\end{itemize}
+
+\section{Results and Empirical Evaluation}
+
+\subsection{Retrieval and Ranking Performance}
+Table~\ref{tab:retrieval_metrics} presents retrieval performance over the 301 benchmark queries evaluated against gold evidence chunks.
+
+\begin{table}[!t]
+\caption{Retrieval and Ranking Metrics on Gold Evidence}
+\label{tab:retrieval_metrics}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Retriever Configuration} & \textbf{Recall@1} & \textbf{Recall@5} & \textbf{MRR@10} & \textbf{NDCG@10} \\
+\midrule
+Dense (BGE-Small ONNX) & 0.9861 & 0.9861 & 0.9861 & 0.9861 \\
+BM25 (Partitioned Sparse) & 0.9792 & 0.9861 & 0.9826 & 0.9835 \\
+Hybrid RRF Fusion & 0.9861 & 0.9861 & 0.9861 & 0.9861 \\
+\textbf{Hybrid + FlashRank (Ours)} & \textbf{0.9861} & \textbf{0.9861} & \textbf{0.9861} & \textbf{0.9861} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+On this 127-chunk corpus, dense and hybrid configurations saturate at 0.9861 across Recall@5, MRR@10, and NDCG@10. In this setting, the reranker primarily assists confidence arbitration on out-of-domain queries rather than expanding recall.
+
+\subsection{Latency Analysis by Execution Route}
+Table~\ref{tab:latency_breakdown} details latency measurements across all 301 benchmark queries.
+
+\begin{table}[!t]
+\caption{Empirical Latency Breakdown Across Routing Tiers ($N=301$)}
+\label{tab:latency_breakdown}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Pipeline Route} & \textbf{Traffic (\%)} & \textbf{Mean (ms)} & \textbf{P50 (ms)} & \textbf{P95 (ms)} & \textbf{P99 (ms)} \\
+\midrule
+Tier 0: \texttt{FAST\_PATH\_FACT} & 48.50 & 20.90 & \textbf{20.19} & 33.71 & 41.54 \\
+Tier 1: \texttt{FAST\_PATH\_COMPILED\_QA} & 5.65 & 23.62 & \textbf{23.28} & 29.16 & 33.54 \\
+Tier 2: \texttt{HYBRID\_RAG} & 35.55 & 120.37 & \textbf{120.50} & 144.80 & 146.68 \\
+Cross-Cutting Refusal / Abstain & 10.30 & 119.57 & 116.55 & 154.21 & 173.39 \\
+\midrule
+\textbf{Composite System (Overall)} & \textbf{100.00} & \textbf{66.57} & \textbf{29.65} & \textbf{136.49} & \textbf{146.69} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Because 54.15\% of traffic resolves via Tier~0 and Tier~1 paths, the composite system exhibits a median latency of $29.65\ms$, with tail latency at $136.49\ms$ (P95) and $146.69\ms$ (P99).
+
+\subsection{Incremental Compilation Performance}
+Table~\ref{tab:compilation_metrics} compares incremental compilation with the full rebuild baseline.
+
+\begin{table}[!t]
+\caption{Knowledge Compilation and Index Update Performance}
+\label{tab:compilation_metrics}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Compilation Strategy} & \textbf{Time (ms)} & \textbf{Re-indexed} & \textbf{Complexity} & \textbf{Speedup} \\
+\midrule
+Full Global Rebuild Baseline & 2579.31 & 127 chunks & $O(N)$ & $1.00\times$ \\
+\textbf{Incremental Delta (Ours)} & \textbf{3.57} & \textbf{0 chunks} & $O(|\Delta|)$ & $\mathbf{721.95\times}$ \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Reusing unchanged chunks reduced update time to $3.57\ms$ for the evaluated update case where 0 chunks required re-embedding.
+
+\subsection{End-to-End Generative Quality and Safety}
+Table~\ref{tab:answer_accuracy} reports answer quality and safety metrics across the 301 benchmark queries.
+
+\begin{table}[!t]
+\caption{End-to-End Query Outcomes, Citation, and Safety Metrics ($N=301$)}
+\label{tab:answer_accuracy}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrr}
+\toprule
+\textbf{Outcome / Metric} & \textbf{Count / Value} & \textbf{Percentage} \\
+\midrule
+\multicolumn{3}{l}{\textit{Mutually Exclusive Query Outcomes ($N=301$):}} \\
+Exact / Fully Correct Answers & 84 / 301 & 27.91\% \\
+Partially Correct Answers & 61 / 301 & 20.27\% \\
+Correct Refusal / Safe Abstention & 16 / 301 & 5.32\% \\
+Incorrect Answers / Failed Non-Refusals & 140 / 301 & 46.51\% \\
+\midrule
+\textbf{Total Benchmark Outcomes} & \textbf{301 / 301} & \textbf{100.00\%} \\
+\midrule
+\multicolumn{3}{l}{\textit{Sub-group and Operational Metrics:}} \\
+Combined Acceptable Generation Coverage & 145 / 301 & 48.18\% \\
+Security/Adversarial Refusal Accuracy & 16 / 18 & \textbf{88.89\%} \\
+Mean Token F1 Score & --- & 0.3516 \\
+Citation Precision & --- & \textbf{0.7973} \\
+Citation Recall & --- & 0.2487 \\
+Citation F1 Score & --- & 0.2993 \\
+Stale / Unsafe Cache Served Rate & --- & \textbf{0.00\%} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+The 301 benchmark queries comprise 283 answer-seeking queries and 18 security, authorization, or out-of-domain queries where safe abstention is the required behavior. Across the complete 301-query evaluation, 84 queries (27.91\%) yielded exact fully correct answers, 61 (20.27\%) yielded partially correct answers, and 16 (5.32\%) were correctly refused or safely abstained, while 140 queries (46.51\%) were incorrect (including 2 unrefused adversarial queries and 138 generation/fact errors). On the 18-query security/adversarial subset specifically, the system achieved an 88.89\% (16/18) refusal accuracy. Combined acceptable generation coverage on answer queries reached 48.18\% (145/301). The results reflect the capacity and quantization constraints of the local 4-bit generator while citation precision was measured at 0.7973.
+
+\subsection{Multi-Tier Cache Invariants}
+Table~\ref{tab:cache_safety} summarizes semantic cache safety metrics evaluated over 30 test queries.
+
+\begin{table}[!t]
+\caption{Semantic Cache Safety Invariants and Performance}
+\label{tab:cache_safety}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lr}
+\toprule
+\textbf{Cache Safety Metric} & \textbf{Measured Empirical Value} \\
+\midrule
+Evaluated Cache Warmup Queries & 30 \\
+L1/L2 Cache Hit Rate (Held-out eval) & 0.00\% \\
+Mean Cache Miss Latency & 82.45 ms \\
+Mean Cache Hit Latency & 80.58 ms \\
+Measured Cache Speedup Factor & 1.02$\times$ \\
+\textbf{Stale-Answer Rate (Post-Invalidation)} & \textbf{0.00\%} \\
+\textbf{Wrong-Version Cache Rate} & \textbf{0.00\%} \\
+\textbf{Unauthorized Cross-Scope Cache Reuse} & \textbf{0.00\%} \\
+\textbf{Unsafe-Served Rate} & \textbf{0.00\%} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Because the evaluation used non-repeating held-out queries, cache hit rate was 0.00\% and latency speedup was minimal ($1.02\times$). The primary contribution of the cache evaluation is verifying isolation invariants: zero observed stale, wrong-version, or cross-scope responses under the test conditions.
+
+\subsection{NLI Validation and Confidence Calibration}
+Table~\ref{tab:nli_validation} details DeBERTa-v3 cross-encoder performance on 14 domain policy test pairs.
+
+\begin{table}[!t]
+\caption{DeBERTa-v3 NLI Grounding Verification Confusion Matrix}
+\label{tab:nli_validation}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Gold Label \textbackslash\ Predicted} & \textbf{Entailment} & \textbf{Contradiction} & \textbf{Unknown} & \textbf{Class Recall} \\
+\midrule
+Entailment & 4 & 0 & 1 & 80.0\% \\
+Contradiction & 0 & 5 & 0 & \textbf{100.0\%} \\
+Unknown & 0 & 1 & 3 & 75.0\% \\
+\midrule
+\textbf{Overall Macro-F1} & \multicolumn{4}{c}{\textbf{85.71\%} (12 / 14 correct)} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+On this 14-pair subset, contradiction recall was 5/5 and entailment recall was 4/5. For confidence calibration, the baseline raw uncalibrated multi-factor score produced a Brier score of 0.6401 and ECE of 0.2954, indicating overconfidence prior to calibration. Empirical post-calibration metrics were not separately recorded.
+
+\subsection{Vector Scalability Benchmark}
+Table~\ref{tab:scalability} benchmarks FAISS HNSW search on synthetic corpora up to $N = 10{,}000$ vectors ($d=384$).
+
+\begin{table}[!t]
+\caption{FAISS HNSW Vector Scalability Benchmark ($d=384$)}
+\label{tab:scalability}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{rrrrrc}
+\toprule
+\textbf{Vectors ($N$)} & \textbf{Build (ms)} & \textbf{Size (MB)} & \textbf{P50 (ms)} & \textbf{P95 (ms)} & \textbf{Recall@5 (\%)} \\
+\midrule
+100 & 3.98 & 0.20 & 0.047 & 0.088 & 100.0 \\
+500 & 30.13 & 0.98 & 0.064 & 0.160 & 100.0 \\
+2,000 & 84.41 & 3.91 & 0.242 & 0.401 & 100.0 \\
+10,000 & 978.58 & 19.53 & \textbf{1.043} & \textbf{1.502} & \textbf{95.6} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+At $N=10{,}000$, FAISS HNSW query latency was $1.043\ms$ (P50) with $95.6\%$ Recall@5.
+
+\section{Ablation Studies}
+
+Table~\ref{tab:ablation_study} reports architectural ablations across a 30-query validation subset.
+
+\begin{table}[!t]
+\caption{Architectural Component Ablation Study ($N=30$)}
+\label{tab:ablation_study}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Configuration} & \textbf{P50 (ms)} & \textbf{P95 (ms)} & \textbf{Ans F1} & \textbf{Cit F1} & \textbf{LLM Calls} \\
+\midrule
+\textbf{B7 Proposed Full System} & 109.79 & 131.90 & \textbf{41.28\%} & \textbf{30.62\%} & \textbf{0 / 30} \\
+A1 w/o Knowledge Compiler & 52.01 & 64.88 & 28.51\% & 10.00\% & 30 / 30 \\
+A2 w/o Fact Resolver & 107.07 & 130.24 & 41.28\% & 30.62\% & 0 / 30 \\
+A3 w/o Compiled QA & 111.10 & 130.20 & 41.28\% & 30.62\% & 0 / 30 \\
+A4 w/o Temporal Resolver & 108.47 & 130.41 & 41.28\% & 30.62\% & 0 / 30 \\
+A5 w/o FlashRank Reranker & 112.59 & 137.32 & 41.28\% & 30.62\% & 0 / 30 \\
+A6 w/o Confidence Gate & 103.72 & 131.05 & 41.28\% & 30.62\% & 0 / 30 \\
+A7 w/o Multi-Tier Cache & 113.44 & 132.89 & 41.28\% & 30.62\% & 0 / 30 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Ablating the Knowledge Compiler (A1) reduces Answer F1 from 41.28\% to 28.51\% and Citation F1 to 10.00\%, while increasing LLM calls to 30/30. In configurations A2--A7, Answer F1 is unchanged in this 30-query subset because the router falls back to adjacent deterministic paths; this indicates that this subset does not isolate individual component contributions beyond the compiler.
+
+\section{Systematic Error and Failure Mode Analysis}
+
+An analysis of 203 logged error events from \texttt{error\_analysis.csv} is categorized in Table~\ref{tab:error_breakdown}.
+
+\begin{table}[!t]
+\caption{Systematic Failure Mode \& Error Breakdown ($N=203$)}
+\label{tab:error_breakdown}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrr}
+\toprule
+\textbf{Primary Failure Mode} & \textbf{Count} & \textbf{Percentage (\%)} \\
+\midrule
+Citation Granularity Mismatch & 119 & 58.62 \\
+Quantized Generator Length Truncation & 45 & 22.17 \\
+Fact Entity / Scope Ambiguity & 24 & 11.82 \\
+Conservative Abstention (NLI Contradiction) & 15 & 7.39 \\
+\midrule
+\textbf{Total Analyzed Failure Events} & \textbf{203} & \textbf{100.00} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+The primary failure modes include:
+\begin{enumerate}
+    \item \textbf{Citation Granularity Mismatch (58.62\%)}: The retrieval engine identified the correct policy and version, but cited a broader section rather than the exact sub-clause paragraph specified in the gold annotation.
+    \item \textbf{Quantized Generator Length Truncation (22.17\%)}: The 4-bit local model generated concise summaries rather than verbatim descriptions, reducing exact token match scores.
+    \item \textbf{Fact Entity Ambiguity (11.82\%)}: Queries with overlapping policy attributes routed to default relational triples.
+    \item \textbf{Conservative Abstention (7.39\%)}: Strict NLI thresholds caused the verifier to reject marginally supported responses.
+\end{enumerate}
+
+\section{Discussion}
+
+The experimental findings support three main observations:
+\begin{enumerate}
+    \item \textbf{Deterministic Invariant Constraints}: Applying temporal intervals $[\tau_s, \tau_e]$ and authorization predicates $A(c, u)$ before similarity scoring prevents out-of-scope candidates from entering the retrieval candidate pool.
+    \item \textbf{Tiered Execution Efficiency}: Resolving 54.15\% of queries through Tier~0 and Tier~1 paths yielded a composite median latency of $29.65\ms$ under the evaluated workload.
+    \item \textbf{Retrieval vs. Generation Performance}: High retrieval scores (0.9861 MRR@10) do not imply high exact generation accuracy on resource-constrained local models (27.91\% exact match), demonstrating the importance of evaluating both tiers independently.
+\end{enumerate}
+
+\section{Limitations and Threats to Validity}
+
+\begin{enumerate}
+    \item \textbf{Corpus Scale}: The evaluation was conducted on 20 policies (127 chunks). Testing across larger, noisier collections is necessary to assess retrieval scaling.
+    \item \textbf{Hardware and Quantization Constraints}: Local generation was evaluated using a 4-bit $qwen3:4b$ model on a 3.68~GB VRAM GPU.
+    \item \textbf{Benchmark Category Skew}: 89.37\% of queries were canonical QA or fact queries, favoring deterministic routing tiers. Generalization to unseen paraphrased, conversational, or adversarial inputs requires broader balanced benchmarks.
+    \item \textbf{Incremental Update Evaluation}: The measured $721.95\times$ speedup reflects a specific low-delta workload with 0 modified chunks; performance across varying delta sizes (e.g., 10\%--50\% modified chunks) remains future work.
+    \item \textbf{Cache Evaluation}: The cache test set measured isolation and correctness ($0.00\%$ leaks) rather than performance acceleration under repeated-query traffic.
+    \item \textbf{Sample Sizes}: NLI validation ($N=14$) and adversarial refusal ($N=18$) provide initial indications on small subsets rather than statistically comprehensive guarantees.
+\end{enumerate}
+
+\section{Reproducibility Statement}
+
+The repository provides an automated reproduction script (\texttt{scripts/reproduce\_results.sh}) intended to regenerate the benchmark dataset, execute evaluation runs, and verify the test suite:
+\begin{quote}
+\texttt{bash scripts/reproduce\_results.sh}
+\end{quote}
+
+\section{Conclusion}
+
+This paper presented \textbf{\PolicyLedger}, a version-aware enterprise policy intelligence architecture that combines date-interval validity constraints, incremental SHA-256 knowledge compilation, four-tier adaptive query routing, and pre-retrieval scope enforcement. Under the evaluated workload, the system achieved a median response latency of $29.65\ms$, a $721.95\times$ compilation speedup on low-delta updates, and $0.00\%$ observed cache isolation violations on test cases. Future work will focus on scaling to larger corpora, testing across variable update delta ratios, and evaluating higher-capacity generation models.
+
+\section*{Acknowledgment}
+The author thanks the department faculty and laboratory colleagues for their valuable feedback and computational support during this research.
+
+\begin{thebibliography}{99}
+
+\bibitem{lewis2020rag}
+P.~Lewis, E.~Perez, A.~Piktus, F.~Petroni, V.~Karpukhin, N.~Goyal, H.~K\"{u}ttler, M.~Lewis, W.-t.~Yih, T.~Rockt\"{a}schel, S.~Riedel, and D.~Kiela, ``Retrieval-augmented generation for knowledge-intensive NLP tasks,'' in \emph{Advances in Neural Information Processing Systems (NeurIPS)}, vol.~33, 2020, pp. 9459--9474.
+
+\bibitem{gao2024rag_survey}
+Y.~Gao, Y.~Xiong, X.~Gao, K.~Jia, J.~Pan, Y.~Bi, Y.~Dai, J.~Sun, M.~Wang, and H.~Wang, ``Retrieval-augmented generation for large language models: A survey,'' \emph{arXiv preprint arXiv:2312.10997}, 2024.
+
+\bibitem{karpukhin2020dpr}
+V.~Karpukhin, B.~O\u{g}uz, S.~Min, P.~Lewis, L.~Wu, S.~Edunov, D.~Chen, and W.-t.~Yih, ``Dense passage retrieval for open-domain question answering,'' in \emph{Proc. Conf. Empirical Methods Natural Lang. Process. (EMNLP)}, 2020, pp. 6769--6781.
+
+\bibitem{xiao2023bge}
+S.~Xiao, Z.~Liu, P.~Zhang, and N.~Muennighoff, ``C-Pack: Packaged resources to advance general Chinese embedding,'' \emph{arXiv preprint arXiv:2309.07597}, 2023.
+
+\bibitem{robertson2009bm25}
+S.~Robertson and H.~Zaragoza, ``The probabilistic relevance framework: BM25 and beyond,'' \emph{Found. Trends Inf. Retrieval}, vol.~3, no.~4, pp. 333--389, 2009.
+
+\bibitem{cormack2009rrf}
+G.~V.~Cormack, C.~L.~A.~Clarke, and S.~B\"{u}ttcher, ``Reciprocal rank fusion outperforms Condorcet and individual rank learning methods,'' in \emph{Proc. 32nd Int. ACM SIGIR Conf. Res. Develop. Inf. Retrieval (SIGIR)}, 2009, pp. 758--759.
+
+\bibitem{jiao2020tinybert}
+X.~Jiao, Y.~Yin, L.~Shang, X.~Jiang, X.~Chen, L.~Li, F.~Wang, and Q.~Liu, ``TinyBERT: Distilling BERT for natural language understanding,'' in \emph{Findings of the Assoc. Comput. Linguistics: EMNLP}, 2020, pp. 4163--4174.
+
+\bibitem{pradeep2023flashrank}
+R.~Pradeep, K.~Wetzel, and J.~Lin, ``FlashRank: Lightweight cross-encoder ranking for neural search pipelines,'' \emph{Technical Report}, 2023.
+
+\bibitem{campos2014temporal_ir}
+R.~Campos, G.~Dias, A.~M.~Jorge, and C.~Jatowt, ``Survey on temporal information retrieval,'' \emph{ACM Comput. Surv.}, vol.~47, no.~2, pp. 23:1--23:38, 2014.
+
+\bibitem{dhingra2022temporal_lm}
+B.~Dhingra, J.~R.~Cole, J.~M.~Eisenschlos, D.~Gillick, J.~Eisenstein, and W.~W.~Cohen, ``Time-aware language models as temporal knowledge bases,'' \emph{Trans. Assoc. Comput. Linguistics (TACL)}, vol.~10, pp. 257--273, 2022.
+
+\bibitem{huwiler2025versionrag}
+D.~Huwiler, K.~Stockinger, and J.~F\"{u}rst, ``VersionRAG: Version-aware retrieval-augmented generation for evolving documents,'' \emph{arXiv preprint arXiv:2510.08109}, 2025.
+
+\bibitem{malkov2020hnsw}
+Y.~A.~Malkov and D.~A.~Yashunin, ``Efficient and robust approximate nearest neighbor search using hierarchical navigable small world graphs,'' \emph{IEEE Trans. Pattern Anal. Mach. Intell.}, vol.~42, no.~4, pp. 824--836, Apr. 2020.
+
+\bibitem{johnson2017faiss}
+J.~Johnson, M.~Douze, and H.~J\'{e}gou, ``Billion-scale similarity search with GPUs,'' \emph{IEEE Trans. Big Data}, vol.~7, no.~3, pp. 535--547, 2021.
+
+\bibitem{guo2017calibration}
+C.~Guo, G.~Pleiss, Y.~Sun, and K.~Q.~Weinberger, ``On calibration of modern neural networks,'' in \emph{Proc. 34th Int. Conf. Mach. Learn. (ICML)}, PMLR, vol.~70, 2017, pp. 1321--1330.
+
+\bibitem{he2021deberta}
+P.~He, X.~Liu, J.~Gao, and W.~Chen, ``DeBERTa: Decoding-enhanced BERT with disentangled attention,'' in \emph{Proc. Int. Conf. Learn. Representations (ICLR)}, 2021.
+
+\bibitem{asai2024selfrag}
+A.~Asai, Z.~Wu, Y.~Wang, A.~Sil, and H.~Hajishirzi, ``Self-RAG: Learning to retrieve, generate, and critique through self-reflection,'' in \emph{Proc. Int. Conf. Learn. Representations (ICLR)}, 2024.
+
+\end{thebibliography}
+
+% Author biography placeholder compliant with generic journal submission
+\begin{IEEEbiographynophoto}{Suyash Pradhan}
+is a researcher in Computer Science and Engineering. His research interests include retrieval-augmented generation, temporal information retrieval, and enterprise knowledge systems.
+\end{IEEEbiographynophoto}
+
+\end{document}
