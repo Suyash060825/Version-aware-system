@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}AI RAG Dashboard — Policy Ledger{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left"><h1>AI & RAG Dashboard</h1><p>Vector database health, indexing jobs, and search analytics</p></div>
+</div>
+
+<div class="stat-grid mb3" style="grid-template-columns:repeat(5,1fr)">
+  <div class="stat-card"><div class="stat-val">{{ indexed_policies }}</div><div class="stat-label">Indexed policies</div></div>
+  <div class="stat-card"><div class="stat-val">{{ chunk_count }}</div><div class="stat-label">Total chunks</div></div>
+  <div class="stat-card"><div class="stat-val">{{ total_queries }}</div><div class="stat-label">Total queries</div></div>
+  <div class="stat-card {% if failed_jobs > 0 %}red{% endif %}"><div class="stat-val">{{ failed_jobs }}</div><div class="stat-label">Failed index jobs</div></div>
+  <div class="stat-card {% if failed_queries > 0 %}amber{% endif %}"><div class="stat-val">{{ failed_queries }}</div><div class="stat-label">Unanswered queries</div></div>
+</div>
+
+<div class="grid2 mb3">
+  <div class="card">
+    <div class="card-label">Vector database status</div>
+    <table style="font-size:13px;width:100%">
+      {% macro row(k,v) %}<tr><td style="padding:.35rem .4rem;color:var(--faint);width:140px">{{ k }}</td><td style="padding:.35rem .4rem;font-family:var(--font-mono);font-size:12px">{{ v }}</td></tr>{% endmacro %}
+      {{ row('Engine', 'ChromaDB (persistent)') }}
+      {{ row('Embedding model', embedder_model) }}
+      {{ row('Total vectors', vec_stats.get('total_chunks', '—')) }}
+      {{ row('Collection', vec_stats.get('collection', 'policy_chunks')) }}
+      {{ row('Storage path', vec_stats.get('path', '—')) }}
+      {{ row('LLM provider', llm_provider) }}
+      {{ row('Status', 'Healthy' if not vec_stats.get('error') else 'Error: ' + vec_stats.get('error', '')) }}
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Feedback summary</div>
+    {% set total_fb = thumbs_up + thumbs_down %}
+    {% set pct = ((thumbs_up / total_fb) * 100)|int if total_fb > 0 else 0 %}
+    <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1rem">
+      <div style="text-align:center"><div style="font-size:28px;font-family:var(--font-mono);font-weight:700;color:var(--archive)">{{ thumbs_up }}</div><div style="font-size:12px;color:var(--faint)">Helpful</div></div>
+      <div style="text-align:center"><div style="font-size:28px;font-family:var(--font-mono);font-weight:700;color:var(--red)">{{ thumbs_down }}</div><div style="font-size:12px;color:var(--faint)">Not helpful</div></div>
+      <div style="flex:1"><div style="font-size:12px;color:var(--faint);margin-bottom:.3rem">Satisfaction rate</div>
+        <div style="height:10px;background:var(--rule);border-radius:5px;overflow:hidden"><div style="height:100%;background:var(--archive);width:{{ pct }}%;border-radius:5px;transition:width .5s"></div></div>
+        <div style="font-size:13px;font-weight:600;margin-top:.3rem">{{ pct }}%</div>
+      </div>
+    </div>
+    <div class="card-label mt2">Top searched topics</div>
+    {% for q, count in top_queries %}
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.4rem;font-size:13px">
+      <span style="flex:1;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ q }}</span>
+      <span class="text-mono" style="color:var(--faint)">{{ count }}x</span>
+    </div>
+    {% else %}<div class="text-faint" style="font-size:13px">No queries yet</div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="grid2 mb3">
+  <div class="card">
+    <div class="card-label">Observability & Cascade</div>
+    <table style="font-size:13px;width:100%">
+      {{ row('Cache Hit Rate', cache_hit_rate ~ '%') }}
+      {{ row('Avg Latency (Miss)', llm_avg_ms ~ ' ms' if llm_avg_ms else '—') }}
+      {{ row('Avg Latency (Hit)', '~10 ms (Redis)') }}
+      {{ row('Cascade (Ollama)', ollama_req|int ~ ' reqs') }}
+      
+      {{ row('Real Token Cost', '$' ~ cost_usd) }}
+      {{ row('Grounding Rejections', grounding_rej|int) }}
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-label">Blast Radius (Invalidation)</div>
+    <div style="font-size:13px; color:var(--ink2); margin-bottom:1rem">
+      When policies are updated, cached answers that depend on them are invalidated to prevent stale output.
+    </div>
+    <div style="font-size:32px; font-weight:700; color:var(--archive); font-family:var(--font-mono)">
+      {{ invalidations|int }}
+    </div>
+    <div style="font-size:12px; color:var(--faint)">Cached answers invalidated by version drift</div>
+  </div>
+</div>
+
+<div class="card mb3">
+  <div class="card-label">Re-index policies</div>
+  <p style="font-size:13px;color:var(--ink2);margin-bottom:1rem">Re-index and compile any policy version through the multi-stage knowledge compiler (normalizer, structural chunker, fact extractor, canonical QA synthesizer, and vector indexer).</p>
+  <div id="policyIndexList"></div>
+</div>
+
+<div class="card">
+  <div class="card-label">Recent knowledge compilation jobs</div>
+  {% if recent_jobs %}
+  <div class="table-wrap" style="margin-top:.5rem">
+    <table>
+      <thead><tr><th>Time</th><th>Policy</th><th>Version</th><th>Chunks</th><th>Facts</th><th>Q&As</th><th>Stage</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for job in recent_jobs %}
+        <tr>
+          <td class="td-mono">{{ job.completed_at.strftime('%d %b %H:%M') if job.completed_at else '—' }}</td>
+          <td><strong>{{ job.policy_title }}</strong></td>
+          <td class="td-mono">{{ job.version_label }}</td>
+          <td class="td-mono" style="font-weight:600">{{ job.chunks_indexed }}</td>
+          <td class="td-mono">{{ job.fact_count }}</td>
+          <td class="td-mono">{{ job.qa_count }}</td>
+          <td><span class="pill {% if job.status in ['ready', 'success', 'validated'] %}pill-active{% elif job.status == 'failed' %}pill-rejected{% else %}pill-draft{% endif %}">{{ job.status }}</span></td>
+          <td>
+            <button class="btn btn-sm btn-ghost" onclick="inspectPolicyChunks({{ job.policy_id }}, '{{ job.policy_title|replace("'", "\\'") }}')">Inspect Chunks →</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="text-faint" style="font-size:13px;margin-top:.5rem">No compilation jobs yet. Publish or re-index a policy to trigger compilation.</div>{% endif %}
+</div>
+
+<!-- Chunks Inspection Modal -->
+<div id="chunksModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(26,31,28,0.6);z-index:9999;align-items:center;justify-content:center;padding:1.5rem">
+  <div style="background:var(--paper2);border:1px solid var(--rule);border-radius:var(--r);width:100%;max-width:900px;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow2);overflow:hidden">
+    <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h3 id="modalPolicyTitle" style="font-family:var(--font-serif);font-size:17px;font-weight:700">Policy Chunks</h3>
+        <p id="modalPolicySub" style="font-size:12px;color:var(--faint);margin-top:2px">Semantic chunks extracted and indexed in vector store</p>
+      </div>
+      <button class="btn btn-sm btn-ghost" onclick="closeChunksModal()" style="font-size:18px;line-height:1">✕</button>
+    </div>
+    <div style="padding:.75rem 1.25rem;border-bottom:1px solid var(--rule);background:var(--paper)">
+      <input type="text" id="chunkSearchInput" placeholder="Filter chunks by section path or text snippet…" oninput="filterChunksModal()" style="width:100%;padding:.45rem .8rem;border:1px solid var(--rule2);border-radius:var(--r);font-size:13px;background:var(--paper2)">
+    </div>
+    <div id="modalChunksBody" style="padding:1.25rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:.75rem">
+      <div class="text-faint" style="font-size:13px">Loading chunks...</div>
+    </div>
+    <div style="padding:.75rem 1.25rem;border-top:1px solid var(--rule);display:flex;justify-content:space-between;align-items:center;background:var(--paper)">
+      <span id="modalChunkCount" class="text-mono" style="font-size:12px;color:var(--faint)">0 chunks</span>
+      <button class="btn btn-sm btn-secondary" onclick="closeChunksModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentLoadedChunks = [];
+
+async function indexPolicy(policyId, versionId, btn) {
+  if (!versionId) {
+    btn.textContent = 'No active version';
+    btn.className = 'btn btn-sm btn-danger';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Compiling...';
+  try {
+    const res = await fetch(`/rag/admin/index/${policyId}/${versionId}`, {method:'POST'});
+    const d = await res.json();
+    if (d.success) {
+      btn.textContent = `Indexed (${d.chunks} chunks)`;
+      btn.className = 'btn btn-sm btn-secondary';
+      showToast(`Compiled & indexed ${d.chunks} chunks, ${d.facts || 0} facts successfully`);
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      btn.textContent = `Failed: ${d.error || d.message}`;
+      btn.className = 'btn btn-sm btn-danger';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    btn.textContent = 'Error';
+    btn.className = 'btn btn-sm btn-danger';
+    btn.disabled = false;
+  }
+}
+
+async function inspectPolicyChunks(policyId, policyTitle) {
+  const modal = document.getElementById('chunksModal');
+  const titleEl = document.getElementById('modalPolicyTitle');
+  const subEl = document.getElementById('modalPolicySub');
+  const bodyEl = document.getElementById('modalChunksBody');
+  const countEl = document.getElementById('modalChunkCount');
+  
+  titleEl.textContent = policyTitle || `Policy #${policyId}`;
+  subEl.textContent = 'Fetching semantic chunks and section paths...';
+  bodyEl.innerHTML = '<div class="text-faint" style="font-size:13px">Loading semantic chunks from vector store...</div>';
+  modal.style.display = 'flex';
+  
+  try {
+    const res = await fetch(`/rag/api/policy/${policyId}/chunks`);
+    const data = await res.json();
+    if (data.error) {
+      bodyEl.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+      return;
+    }
+    currentLoadedChunks = data.chunks || [];
+    subEl.textContent = `Active version ${data.version_label} · ${currentLoadedChunks.length} semantic chunks`;
+    countEl.textContent = `${currentLoadedChunks.length} chunks total`;
+    renderChunks(currentLoadedChunks);
+  } catch(e) {
+    bodyEl.innerHTML = '<div class="alert alert-danger">Failed to fetch policy chunks.</div>';
+  }
+}
+
+function renderChunks(chunks) {
+  const bodyEl = document.getElementById('modalChunksBody');
+  if (!chunks || chunks.length === 0) {
+    bodyEl.innerHTML = '<div class="text-faint" style="font-size:13px;text-align:center;padding:2rem">No chunks found for this policy version. Click "Index" to compile.</div>';
+    return;
+  }
+  bodyEl.innerHTML = chunks.map((c, i) => `
+    <div style="background:var(--paper);border:1px solid var(--rule);border-radius:var(--r);padding:.85rem;font-size:12.5px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;flex-wrap:wrap;gap:.4rem">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <span class="pill pill-active" style="font-size:9px">#${i+1}</span>
+          <span style="font-weight:600;color:var(--ink)">${c.section_path || 'General Section'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.6rem">
+          <span class="text-mono" style="font-size:11px;color:var(--faint)">ID: ${c.chunk_id}</span>
+          <span class="text-mono" style="font-size:11px;color:var(--archive)">${c.char_count} chars</span>
+          ${c.text_hash ? `<span class="pill pill-draft" style="font-size:8.5px" title="SHA-256 Text Hash">Hash: ${c.text_hash}</span>` : ''}
+        </div>
+      </div>
+      <div style="color:var(--ink2);line-height:1.55;background:var(--paper2);padding:.6rem .8rem;border-radius:2px;border:1px solid var(--rule);white-space:pre-wrap;font-family:var(--font-mono);font-size:11.5px">${escapeHtml(c.text)}</div>
+    </div>
+  `).join('');
+}
+
+function filterChunksModal() {
+  const q = (document.getElementById('chunkSearchInput').value || '').toLowerCase().trim();
+  if (!q) {
+    renderChunks(currentLoadedChunks);
+    return;
+  }
+  const filtered = currentLoadedChunks.filter(c => 
+    (c.section_path && c.section_path.toLowerCase().includes(q)) ||
+    (c.text && c.text.toLowerCase().includes(q)) ||
+    (c.chunk_id && c.chunk_id.toLowerCase().includes(q))
+  );
+  renderChunks(filtered);
+}
+
+function closeChunksModal() {
+  document.getElementById('chunksModal').style.display = 'none';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Load active policies for re-indexing
+const policyIndexEl = document.getElementById('policyIndexList');
+policyIndexEl.innerHTML = '<div class="text-faint" style="font-size:13px">Loading policies...</div>';
+fetch('/admin/api/documents').then(r=>r.json()).then(docs => {
+  if (!docs.length) { policyIndexEl.innerHTML = '<div class="text-faint" style="font-size:13px">No policies found</div>'; return; }
+  policyIndexEl.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Policy</th><th>Version</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+  ${docs.map(d=>`<tr>
+    <td style="font-weight:600">${d.title}</td>
+    <td class="td-mono">${d.current_version || 'No active version'}</td>
+    <td><span class="pill pill-${d.status}">${d.status}</span></td>
+    <td>
+      <div class="gap-row">
+        <button class="btn btn-sm btn-primary" onclick="indexPolicy(${d.id}, ${d.version_id}, this)">Index</button>
+        <button class="btn btn-sm btn-secondary" onclick="inspectPolicyChunks(${d.id}, '${d.title.replace(/'/g, "\\'")}')">Inspect Chunks</button>
+      </div>
+    </td>
+  </tr>`).join('')}
+  </tbody></table></div>`;
+}).catch(()=>{
+  policyIndexEl.innerHTML = '<div class="text-faint">Could not load policies</div>';
+});
+</script>
+{% endblock %}

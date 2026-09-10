@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard — Policy Ledger{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>Gamification Leaderboard</h1>
+    <p>Points, badges, and streaks computed live from quiz attempts, acknowledgements, comments, and completed action items — no separate ledger to fall out of sync.</p>
+  </div>
+</div>
+
+<div class="card mb3">
+  <div class="card-label">Department ranking (by average points/head)</div>
+  <div class="table-wrap" style="margin-top:.5rem">
+    <table>
+      <thead><tr><th>Department</th><th>Headcount</th><th>Total points</th><th>Avg points/head</th></tr></thead>
+      <tbody>
+        {% for row in dept_ranking %}
+        <tr>
+          <td class="td-title">{{ row.name }}</td>
+          <td>{{ row.headcount }}</td>
+          <td class="text-mono">{{ row.total_points }}</td>
+          <td class="text-mono" style="font-weight:600">{{ row.avg_points }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="color:var(--faint);text-align:center;padding:1.5rem">No active users yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-label">Top 50 employees</div>
+  <div class="table-wrap" style="margin-top:.5rem">
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Department</th><th>Points</th><th>Streak</th><th>Badges</th></tr></thead>
+      <tbody>
+        {% for s in ranked %}
+        <tr>
+          <td class="text-mono" style="color:var(--faint)">{{ loop.index }}</td>
+          <td class="td-title">{{ s.user.name }}</td>
+          <td>{{ s.user.department.name if s.user.department else '—' }}</td>
+          <td class="text-mono" style="font-weight:600">{{ s.points }}</td>
+          <td>{% if s.streak %}🔥 {{ s.streak }}d{% else %}—{% endif %}</td>
+          <td style="font-size:16px" title="{{ s.badge_count }} badge(s)">
+            {% for b in s.badges %}{{ b[3] }}{% else %}<span style="font-size:12.5px;color:var(--faint)">none yet</span>{% endfor %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="color:var(--faint);text-align:center;padding:1.5rem">No active users yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

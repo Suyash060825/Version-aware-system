@@ -1,0 +1,168 @@
+services:
+  # ============================================================================
+  # Nginx Reverse Proxy / Load Balancer & SSL Termination
+  # ============================================================================
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: policy_ledger_nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro,z
+    depends_on:
+      web:
+        condition: service_healthy
+
+  # ============================================================================
+  # Production Flask + Gunicorn Web Application
+  # ============================================================================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: policy_ledger_web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be provided}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be provided}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:?DEFAULT_ADMIN_PASSWORD must be provided}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be provided}@postgres:5432/${POSTGRES_DB:-policy_ledger}
+      - REDIS_URL=redis://redis:6379/0
+      - HF_HOME=/app/data/huggingface
+      - LLM_BACKEND=${LLM_BACKEND:-ollama}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}
+      - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-http://ollama:11434}
+      - EMBEDDING_ENGINE=${EMBEDDING_ENGINE:-fastembed}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      - FASTEMBED_MODEL=${FASTEMBED_MODEL:-BAAI/bge-small-en-v1.5}
+      - RERANKER_ENGINE=${RERANKER_ENGINE:-flashrank}
+      - RERANKER_MODEL=${RERANKER_MODEL:-ms-marco-TinyBERT-L-2-v2}
+      - FLASHRANK_MODEL=${FLASHRANK_MODEL:-ms-marco-TinyBERT-L-2-v2}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LMSTUDIO_BASE_URL=http://host.docker.internal:1234/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - ./data:/app/data:z
+      - ./instance:/app/instance:z
+
+  # ============================================================================
+  # Celery Asynchronous Ingestion & Contradiction Worker
+  # ============================================================================
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: policy_ledger_celery
+    command: celery -A tasks.celery_app worker --loglevel=info --concurrency=4
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be provided}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be provided}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:?DEFAULT_ADMIN_PASSWORD must be provided}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be provided}@postgres:5432/${POSTGRES_DB:-policy_ledger}
+      - REDIS_URL=redis://redis:6379/0
+      - HF_HOME=/app/data/huggingface
+      - LLM_BACKEND=${LLM_BACKEND:-ollama}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}
+      - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-http://ollama:11434}
+      - EMBEDDING_ENGINE=${EMBEDDING_ENGINE:-fastembed}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      - FASTEMBED_MODEL=${FASTEMBED_MODEL:-BAAI/bge-small-en-v1.5}
+      - RERANKER_ENGINE=${RERANKER_ENGINE:-flashrank}
+      - RERANKER_MODEL=${RERANKER_MODEL:-ms-marco-TinyBERT-L-2-v2}
+      - FLASHRANK_MODEL=${FLASHRANK_MODEL:-ms-marco-TinyBERT-L-2-v2}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ============================================================================
+  # PostgreSQL 16 with pgvector extension
+  # ============================================================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: policy_ledger_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be provided}
+      - POSTGRES_DB=${POSTGRES_DB:-policy_ledger}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # Redis 7 Cache, L1/L2 Semantic Store & Celery Broker
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: policy_ledger_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --appendfsync everysec
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # Ollama Local High-Throughput Inference Engine
+  # ============================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: policy_ledger_ollama
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:
+  app_data:
+  upload_data:

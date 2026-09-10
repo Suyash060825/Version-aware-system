@@ -1,0 +1,1055 @@
+[
+  {
+    "id": "qa_772",
+    "category": "compiled_qa",
+    "query": "What are the rules for Health & Group Medical Insurance Policy - 2. Dependent Eligibility?",
+    "target_answer": "Dependent Eligibility Coverage includes employee, legally married spouse, and up to 2 dependent children up to age 25.",
+    "ground_truth_policy": "Health & Group Medical Insurance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p6-v8-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_620",
+    "category": "compiled_qa",
+    "query": "What are the eligibility requirements for Remote Work Policy - 1. Eligibility?",
+    "target_answer": "Eligibility Employees with 12+ months tenure may apply for remote work, subject to manager approval.",
+    "ground_truth_policy": "Remote Work Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p1-v1-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_807",
+    "category": "compiled_qa",
+    "query": "What are the rules for Notice Period & Resignation Policy - 2. Probation Period Notice?",
+    "target_answer": "Probation Period Notice Employees on probation must serve a notice period of 1 month.",
+    "ground_truth_policy": "Notice Period & Resignation Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p8-v10-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_804",
+    "category": "compiled_qa",
+    "query": "What are the rules for Notice Period & Resignation Policy - 1. Standard Notice Period?",
+    "target_answer": "Standard Notice Period Confirmed employees must serve a notice period of 2 months upon formal resignation.",
+    "ground_truth_policy": "Notice Period & Resignation Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p8-v10-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_931",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Gifts, Hospitality & Anti-Bribery Policy - 3. Gift Register?",
+    "target_answer": "Gift Register Any gift received exceeding Rs. 2,000 must be declared in the Compliance Gift Register within 5 working days.",
+    "ground_truth_policy": "Gifts, Hospitality & Anti-Bribery Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p16-v18-ss4-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_808",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Notice Period & Resignation Policy - 3. Notice Buyout?",
+    "target_answer": "Notice Buyout Notice buyout is subject to business continuity approval by the Department Head and HR Director.",
+    "ground_truth_policy": "Notice Period & Resignation Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p8-v10-ss4-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "fact_para_242",
+    "category": "fact",
+    "query": "How much is the incident reporting deadline?",
+    "target_answer": "2 hours",
+    "ground_truth_policy": "IT Security Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": [
+      "p4-v6-ss6-c0"
+    ],
+    "target_date": null,
+    "provenance": {
+      "source": "human_paraphrased",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "qa_966",
+    "category": "compiled_qa",
+    "query": "What are the rules for Workplace Health & Emergency Safety Policy - 1. Emergency Drills?",
+    "target_answer": "Emergency Drills Fire evacuation drills are conducted quarterly across all office facilities.",
+    "ground_truth_policy": "Workplace Health & Emergency Safety Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p19-v21-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "unans_02",
+    "category": "unanswerable",
+    "query": "Can employees claim reimbursement for personal crypto mining electricity costs?",
+    "target_answer": "INSUFFICIENT_EVIDENCE",
+    "ground_truth_policy": null,
+    "expected_version": null,
+    "gold_chunk_ids": [],
+    "target_date": null,
+    "provenance": {
+      "source": "adversarial_unanswerable_curated",
+      "reviewed": true,
+      "reviewer_id": "auditor-04"
+    }
+  },
+  {
+    "id": "qa_825",
+    "category": "compiled_qa",
+    "query": "What are the rules for Prevention of Sexual Harassment (POSH) Policy - 4. Investigation SLA?",
+    "target_answer": "Investigation SLA Investigations must be completed within 90 days of complaint submission with full confidentiality.",
+    "ground_truth_policy": "Prevention of Sexual Harassment (POSH) Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p9-v11-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_780",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Health & Group Medical Insurance Policy - 4. Cashless Hospitalization?",
+    "target_answer": "Cashless Hospitalization Cashless claims are available across 6,000+ network hospitals.",
+    "ground_truth_policy": "Health & Group Medical Insurance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p6-v8-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_830",
+    "category": "compiled_qa",
+    "query": "What are the rules for Intellectual Property & Invention Policy Section 1?",
+    "target_answer": "INTELLECTUAL PROPERTY & INVENTION POLICY \u2014 v1.0",
+    "ground_truth_policy": "Intellectual Property & Invention Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p10-v12-ss1-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_930",
+    "category": "compiled_qa",
+    "query": "What are the restrictions or prohibited activities under Gifts, Hospitality & Anti-Bribery Policy - 2. Government Officials?",
+    "target_answer": "Government Officials Offering or giving any gift, meal, or benefit to government officials is strictly prohibited under the Prevention of Corruption Act.",
+    "ground_truth_policy": "Gifts, Hospitality & Anti-Bribery Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p16-v18-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_619",
+    "category": "compiled_qa",
+    "query": "Who is eligible under Remote Work Policy - 1. Eligibility?",
+    "target_answer": "Eligibility Employees with 12+ months tenure may apply for remote work, subject to manager approval.",
+    "ground_truth_policy": "Remote Work Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p1-v1-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_887",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Hardware, Laptop & BYOD Asset Policy - 5. BYOD Mobile Policy?",
+    "target_answer": "BYOD Mobile Policy Personal smartphones accessing corporate email must install the Company Mobile Device Management (MDM) profile.",
+    "ground_truth_policy": "Hardware, Laptop & BYOD Asset Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p13-v15-ss6-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_921",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Gifts, Hospitality & Anti-Bribery Policy Section 1?",
+    "target_answer": "GIFTS, HOSPITALITY & ANTI-BRIBERY POLICY \u2014 v1.0",
+    "ground_truth_policy": "Gifts, Hospitality & Anti-Bribery Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p16-v18-ss1-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_623",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Remote Work Policy - 2. Schedule?",
+    "target_answer": "Schedule Employees may work remotely up to 1 day per week.",
+    "ground_truth_policy": "Remote Work Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p1-v1-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_980",
+    "category": "compiled_qa",
+    "query": "What are the rules for Social Media & Public Communications Policy - 2. Personal Social Media Disclaimer?",
+    "target_answer": "Personal Social Media Disclaimer When discussing industry topics online, employees must include the disclaimer: 'Views expressed are personal and not of my employer.'",
+    "ground_truth_policy": "Social Media & Public Communications Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p20-v22-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_670",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Leave Policy - 4. Application?",
+    "target_answer": "Application Submit to manager via email, minimum 5 working days in advance.",
+    "ground_truth_policy": "Leave Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p2-v3-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_828",
+    "category": "compiled_qa",
+    "query": "What are the rules for Prevention of Sexual Harassment (POSH) Policy - 5. Anti-Retaliation?",
+    "target_answer": "Anti-Retaliation Strict disciplinary action up to immediate termination will be taken against anyone attempting retaliation.",
+    "ground_truth_policy": "Prevention of Sexual Harassment (POSH) Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p9-v11-ss6-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_841",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Intellectual Property & Invention Policy - 4. Post-Employment Non-Solicitation?",
+    "target_answer": "Post-Employment Non-Solicitation Employees agree not to solicit company clients or employees for a period of 12 months following departure.",
+    "ground_truth_policy": "Intellectual Property & Invention Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p10-v12-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_649",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Remote Work Policy - 4. Internet Allowance?",
+    "target_answer": "Internet Allowance Rs. 500/month internet reimbursement claimable via the expense portal.",
+    "ground_truth_policy": "Remote Work Policy",
+    "expected_version": "2.0",
+    "gold_chunk_ids": "[\"p1-v2-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_731",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding IT Security Policy - 4. Data Classification?",
+    "target_answer": "Data Classification All company data must be classified as Public, Internal, Confidential, or Restricted and handled accordingly.",
+    "ground_truth_policy": "IT Security Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p4-v6-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_801",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Notice Period & Resignation Policy Section 1?",
+    "target_answer": "NOTICE PERIOD & RESIGNATION POLICY \u2014 v1.0",
+    "ground_truth_policy": "Notice Period & Resignation Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p8-v10-ss1-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "fact_246",
+    "category": "fact",
+    "query": "What is the medical insurance limit for Medical Insurance Cover under Health & Group Medical Insurance Policy?",
+    "target_answer": "Rs. 5,00,000 INR",
+    "ground_truth_policy": "Health & Group Medical Insurance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": [
+      "p6-v8-ss2-c0"
+    ],
+    "target_date": null,
+    "provenance": {
+      "source": "knowledge_compiler_fact_db",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "qa_847",
+    "category": "compiled_qa",
+    "query": "What are the rules for Data Privacy & DPDP Compliance Policy - 1. Principles of Data Processing?",
+    "target_answer": "Principles of Data Processing Personal data must be collected lawfully, processed transparently, and limited strictly to declared business purposes.",
+    "ground_truth_policy": "Data Privacy & DPDP Compliance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p11-v13-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_926",
+    "category": "compiled_qa",
+    "query": "What is the maximum allowed value for business gifts?",
+    "target_answer": "Gift Threshold Employees may only accept modest promotional items up to a gift limit of Rs.",
+    "ground_truth_policy": "Gifts, Hospitality & Anti-Bribery Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p16-v18-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_814",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Notice Period & Resignation Policy - 4. Handover & Exit Clearance?",
+    "target_answer": "Handover & Exit Clearance All company property, laptops, access badges, and knowledge documentation must be handed over 3 days prior to the last working day.",
+    "ground_truth_policy": "Notice Period & Resignation Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p8-v10-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "fact_252",
+    "category": "fact",
+    "query": "What is the learning budget for Annual Learning Budget under Learning & Educational Assistance Policy?",
+    "target_answer": "Rs. 40,000 INR per year",
+    "ground_truth_policy": "Learning & Educational Assistance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": [
+      "p12-v14-ss2-c0"
+    ],
+    "target_date": null,
+    "provenance": {
+      "source": "knowledge_compiler_fact_db",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "qa_856",
+    "category": "compiled_qa",
+    "query": "What are the core working hours?",
+    "target_answer": "Breach Notification Any confirmed data breach involving PII must be notified to the Data Protection Officer (DPO) within 6 hours of discovery.",
+    "ground_truth_policy": "Data Privacy & DPDP Compliance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p11-v13-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_690",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Leave Policy - 3. Carry-Forward?",
+    "target_answer": "Carry-Forward Up to 5 days may be carried to next year.",
+    "ground_truth_policy": "Leave Policy",
+    "expected_version": "2.0",
+    "gold_chunk_ids": "[\"p2-v4-ss4-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_717",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Code of Conduct - 5. POSH Compliance?",
+    "target_answer": "POSH Compliance Any complaints regarding sexual harassment must be reported to the Internal Complaints Committee (ICC).",
+    "ground_truth_policy": "Code of Conduct",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p3-v5-ss6-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_855",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Data Privacy & DPDP Compliance Policy - 4. Breach Notification?",
+    "target_answer": "Breach Notification Any confirmed data breach involving PII must be notified to the Data Protection Officer (DPO) within 6 hours of discovery.",
+    "ground_truth_policy": "Data Privacy & DPDP Compliance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p11-v13-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_638",
+    "category": "compiled_qa",
+    "query": "What are the eligibility requirements for Remote Work Policy - 1. Eligibility?",
+    "target_answer": "Eligibility All full-time employees may apply from day one, subject to manager approval and role suitability.",
+    "ground_truth_policy": "Remote Work Policy",
+    "expected_version": "2.0",
+    "gold_chunk_ids": "[\"p1-v2-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "fact_240",
+    "category": "fact",
+    "query": "What is the bereavement leave for Bereavement Leave under Leave Policy?",
+    "target_answer": "3 days",
+    "ground_truth_policy": "Leave Policy",
+    "expected_version": "2.0",
+    "gold_chunk_ids": [
+      "p2-v4-ss7-c0"
+    ],
+    "target_date": null,
+    "provenance": {
+      "source": "knowledge_compiler_fact_db",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "qa_617",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Remote Work Policy - 1. Eligibility?",
+    "target_answer": "Eligibility Employees with 12+ months tenure may apply for remote work, subject to manager approval.",
+    "ground_truth_policy": "Remote Work Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p1-v1-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_710",
+    "category": "compiled_qa",
+    "query": "What are the rules for Code of Conduct - 2. Conflicts of Interest?",
+    "target_answer": "Conflicts of Interest Disclose any personal interests that may conflict with company interests to your manager.",
+    "ground_truth_policy": "Code of Conduct",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p3-v5-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_937",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Attendance & Punctuality Policy - 1. Working Schedule?",
+    "target_answer": "Working Schedule Standard work day consists of 9 hours including a 1-hour lunch and rest break.",
+    "ground_truth_policy": "Attendance & Punctuality Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p17-v19-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_696",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Leave Policy - 5. Maternity / Paternity?",
+    "target_answer": "Maternity / Paternity Maternity: 26 weeks paid (Maternity Benefit Act 2017). Paternity: 10 days paid.",
+    "ground_truth_policy": "Leave Policy",
+    "expected_version": "2.0",
+    "gold_chunk_ids": "[\"p2-v4-ss6-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "fact_232",
+    "category": "fact",
+    "query": "What is the annual leave for Annual Leave under Leave Policy?",
+    "target_answer": "18 days",
+    "ground_truth_policy": "Leave Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": [
+      "p2-v3-ss2-c0"
+    ],
+    "target_date": null,
+    "provenance": {
+      "source": "knowledge_compiler_fact_db",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "qa_747",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Travel & Expense Policy - 2. Flight Booking?",
+    "target_answer": "Flight Booking Economy class for domestic travel.",
+    "ground_truth_policy": "Travel & Expense Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p5-v7-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_817",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Prevention of Sexual Harassment (POSH) Policy - 1. Policy Statement?",
+    "target_answer": "Policy Statement The company maintains zero tolerance for sexual harassment and discriminatory behavior in the workplace.",
+    "ground_truth_policy": "Prevention of Sexual Harassment (POSH) Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p9-v11-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_761",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Travel & Expense Policy - 5. Reimbursement?",
+    "target_answer": "Reimbursement Submit all original receipts via the expense portal within 7 days of return. Reimbursement processed within 10 working days.",
+    "ground_truth_policy": "Travel & Expense Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p5-v7-ss6-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "sem_07",
+    "category": "semantic_retrieval",
+    "query": "What is the required notice period for voluntary resignation by managerial staff?",
+    "target_answer": "Managerial and executive roles require a minimum 30-day written notice period prior to separation.",
+    "ground_truth_policy": "Employment Terms & Separation Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": [],
+    "target_date": null,
+    "provenance": {
+      "source": "human_authored_domain_expert",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "qa_820",
+    "category": "compiled_qa",
+    "query": "What are the rules for Prevention of Sexual Harassment (POSH) Policy - 2. Internal Committee (IC)?",
+    "target_answer": "Internal Committee (IC) An Internal Complaints Committee (ICC) presided over by a senior woman employee handles all formal complaints.",
+    "ground_truth_policy": "Prevention of Sexual Harassment (POSH) Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p9-v11-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_800",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Performance Evaluation & Promotion Policy - 5. Appeals?",
+    "target_answer": "Appeals Employees may appeal appraisal ratings to the HR Talent Committee within 14 days of receipt.",
+    "ground_truth_policy": "Performance Evaluation & Promotion Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p7-v9-ss6-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "sem_02",
+    "category": "semantic_retrieval",
+    "query": "Can employees engage in freelance consulting while employed full time?",
+    "target_answer": "Dual employment or external consulting requires prior written authorization from HR and department director to prevent conflicts of interest.",
+    "ground_truth_policy": "Code of Conduct & Ethics",
+    "expected_version": "1.0",
+    "gold_chunk_ids": [],
+    "target_date": null,
+    "provenance": {
+      "source": "human_authored_domain_expert",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "fact_237",
+    "category": "fact",
+    "query": "What is the sick leave for Sick Leave under Leave Policy?",
+    "target_answer": "12 days",
+    "ground_truth_policy": "Leave Policy",
+    "expected_version": "2.0",
+    "gold_chunk_ids": [
+      "p2-v4-ss3-c0"
+    ],
+    "target_date": null,
+    "provenance": {
+      "source": "knowledge_compiler_fact_db",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "qa_687",
+    "category": "compiled_qa",
+    "query": "How many days of annual leave do employees get?",
+    "target_answer": "Sick Leave 12 days paid sick leave per year. Medical certificate needed for 2+ consecutive days.",
+    "ground_truth_policy": "Leave Policy",
+    "expected_version": "2.0",
+    "gold_chunk_ids": "[\"p2-v4-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_784",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Performance Evaluation & Promotion Policy Section 1?",
+    "target_answer": "PERFORMANCE EVALUATION & PROMOTION POLICY \u2014 v1.0",
+    "ground_truth_policy": "Performance Evaluation & Promotion Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p7-v9-ss1-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_961",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Overtime & On-Call Engineering Policy - 4. Mandatory Rest Period?",
+    "target_answer": "Mandatory Rest Period Engineers responding to severe night incidents (between 12 AM and 6 AM) are required to take a mandatory 6-hour morning rest period.",
+    "ground_truth_policy": "Overtime & On-Call Engineering Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p18-v20-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_826",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Prevention of Sexual Harassment (POSH) Policy - 4. Investigation SLA?",
+    "target_answer": "Investigation SLA Investigations must be completed within 90 days of complaint submission with full confidentiality.",
+    "ground_truth_policy": "Prevention of Sexual Harassment (POSH) Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p9-v11-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_870",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Learning & Educational Assistance Policy - 4. Approval Flow?",
+    "target_answer": "Approval Flow Course proposals must be submitted through the Learning Portal with manager sign-off prior to course registration.",
+    "ground_truth_policy": "Learning & Educational Assistance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p12-v14-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_866",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Learning & Educational Assistance Policy - 2. Certification Reimbursement?",
+    "target_answer": "Certification Reimbursement 100% of examination fees for approved industry certifications (AWS, GCP, PMP, CISSP) are reimbursed upon passing.",
+    "ground_truth_policy": "Learning & Educational Assistance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p12-v14-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_742",
+    "category": "compiled_qa",
+    "query": "What are the rules for Travel & Expense Policy - 1. Pre-Approval?",
+    "target_answer": "Pre-Approval All business travel must be pre-approved by the reporting manager and Finance.",
+    "ground_truth_policy": "Travel & Expense Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p5-v7-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_852",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Data Privacy & DPDP Compliance Policy - 3. Data Retention?",
+    "target_answer": "Data Retention Customer logs are retained for 180 days.",
+    "ground_truth_policy": "Data Privacy & DPDP Compliance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p11-v13-ss4-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_860",
+    "category": "compiled_qa",
+    "query": "What are the rules for Learning & Educational Assistance Policy - 1. Annual Learning Budget?",
+    "target_answer": "Annual Learning Budget Full-time employees are eligible for an annual learning budget of Rs.",
+    "ground_truth_policy": "Learning & Educational Assistance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p12-v14-ss2-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_902",
+    "category": "compiled_qa",
+    "query": "What is the limit or entitlement for Employee Referral Bonus Policy - 3. Candidate Eligibility?",
+    "target_answer": "Candidate Eligibility Referred candidates must not have applied to the company within the preceding 6 months.",
+    "ground_truth_policy": "Employee Referral Bonus Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p14-v16-ss4-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_738",
+    "category": "compiled_qa",
+    "query": "What are the rules for IT Security Policy - 6. MFA?",
+    "target_answer": "MFA Multi-factor authentication is mandatory for all company accounts.",
+    "ground_truth_policy": "IT Security Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p4-v6-ss7-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_949",
+    "category": "compiled_qa",
+    "query": "What is the policy regarding Attendance & Punctuality Policy - 4. Unauthorized Absence?",
+    "target_answer": "Unauthorized Absence 3 consecutive days of unexcused absence without communication constitutes job abandonment and triggers formal enquiry.",
+    "ground_truth_policy": "Attendance & Punctuality Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p17-v19-ss5-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "fact_234",
+    "category": "fact",
+    "query": "What is the maternity leave for Maternity Leave under Leave Policy?",
+    "target_answer": "12 weeks",
+    "ground_truth_policy": "Leave Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": [
+      "p2-v3-ss6-c0"
+    ],
+    "target_date": null,
+    "provenance": {
+      "source": "knowledge_compiler_fact_db",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "fact_para_254",
+    "category": "fact",
+    "query": "How much is the referral bonus junior?",
+    "target_answer": "Rs. 25,000 INR",
+    "ground_truth_policy": "Employee Referral Bonus Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": [
+      "p14-v16-ss2-c0"
+    ],
+    "target_date": null,
+    "provenance": {
+      "source": "human_paraphrased",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "qa_626",
+    "category": "compiled_qa",
+    "query": "How many days per week can employees work remotely?",
+    "target_answer": "Schedule Employees may work remotely up to 1 day per week. Minimum 4 in-office days required.",
+    "ground_truth_policy": "Remote Work Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p1-v1-ss3-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_755",
+    "category": "compiled_qa",
+    "query": "What is the procedure for Travel & Expense Policy - 3. Hotel?",
+    "target_answer": "Hotel Maximum Rs. 5,000/night for domestic travel.",
+    "ground_truth_policy": "Travel & Expense Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p5-v7-ss4-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "fact_para_246",
+    "category": "fact",
+    "query": "How much is the medical insurance limit?",
+    "target_answer": "Rs. 5,00,000 INR",
+    "ground_truth_policy": "Health & Group Medical Insurance Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": [
+      "p6-v8-ss2-c0"
+    ],
+    "target_date": null,
+    "provenance": {
+      "source": "human_paraphrased",
+      "reviewed": true,
+      "reviewer_id": "auditor-01"
+    }
+  },
+  {
+    "id": "qa_791",
+    "category": "compiled_qa",
+    "query": "What are the rules for Performance Evaluation & Promotion Policy - 3. Promotion Criteria?",
+    "target_answer": "Promotion Criteria Promotion requires a minimum of 18 months in the current role and consecutive ratings of 4 or 5.",
+    "ground_truth_policy": "Performance Evaluation & Promotion Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p7-v9-ss4-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_944",
+    "category": "compiled_qa",
+    "query": "What are the rules for Attendance & Punctuality Policy - 3. Half-Day Threshold?",
+    "target_answer": "Half-Day Threshold Swipe-ins recorded after 11:00 AM without prior manager approval are automatically deducted as a half-day leave.",
+    "ground_truth_policy": "Attendance & Punctuality Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p17-v19-ss4-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_751",
+    "category": "compiled_qa",
+    "query": "What are the rules for Travel & Expense Policy - 3. Hotel?",
+    "target_answer": "Hotel Maximum Rs. 5,000/night for domestic travel.",
+    "ground_truth_policy": "Travel & Expense Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p5-v7-ss4-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  },
+  {
+    "id": "qa_899",
+    "category": "compiled_qa",
+    "query": "What are the rules for Employee Referral Bonus Policy - 3. Candidate Eligibility?",
+    "target_answer": "Candidate Eligibility Referred candidates must not have applied to the company within the preceding 6 months.",
+    "ground_truth_policy": "Employee Referral Bonus Policy",
+    "expected_version": "1.0",
+    "gold_chunk_ids": "[\"p14-v16-ss4-c0\"]",
+    "target_date": null,
+    "provenance": {
+      "source": "compiled_canonical_qa",
+      "reviewed": true,
+      "reviewer_id": "auditor-02"
+    }
+  }
+]

@@ -1,0 +1,10 @@
+Metric,Count,Percentage / Mean
+Total Evaluated Test Queries,301,100.0%
+Exact / Fully Correct Answers,83,27.57%
+Partially Correct Answers,42,13.95%
+Incorrect Answers,158,52.49%
+Abstained Correctly (Adversarial/Security),18,100.00%
+Mean Token F1 Score,-,0.3369
+Citation Precision,-,0.7791
+Citation Recall,-,0.2704
+Citation F1,-,0.3183

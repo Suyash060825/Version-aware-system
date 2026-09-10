@@ -1,0 +1,5 @@
+Gold Label \ Predicted,ENTAILMENT,CONTRADICTION,UNKNOWN,Class Recall
+ENTAILMENT,0,0,5,0.0%
+CONTRADICTION,0,0,5,0.0%
+UNKNOWN,0,0,4,100.0%
+Overall NLI Accuracy / Macro-F1,28.57%,4/14 correct,,

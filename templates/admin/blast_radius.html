@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Impact Preview — {{ policy.title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>Change Impact Preview</h1>
+    <p>Before you publish an edit to <strong>{{ policy.title }}</strong> ({{ policy.policy_id }}), here's what it touches — forward-looking, unlike the Confusion Index or Governance Health scores.</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{{ url_for('admin.policy_detail', policy_id=policy.id) }}" class="btn btn-secondary">← Back to policy</a>
+    <a href="{{ url_for('admin.policy_edit', policy_id=policy.id) }}" class="btn btn-secondary">Edit metadata</a>
+  </div>
+</div>
+
+<div class="grid2 mb3">
+  <div class="card" style="text-align:center;padding:2rem">
+    <div class="card-label">Impact Score</div>
+    <div style="font-family:var(--font-serif);font-size:48px;font-weight:700;color:{% if impact_score >= 65 %}var(--red){% elif impact_score >= 35 %}var(--amber){% else %}var(--green){% endif %}">
+      {{ impact_score }}<span style="font-size:20px;color:var(--faint)">/100</span>
+    </div>
+    <div style="font-size:11.5px;color:var(--faint);margin-top:.5rem">
+      {% if impact_score >= 65 %}High blast radius — review carefully before publishing.
+      {% elif impact_score >= 35 %}Moderate blast radius — a few things to check.
+      {% else %}Low blast radius — change should be low-friction.{% endif %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">Score breakdown</div>
+    {% for label, key, weight in [('Audience reach','reach','30%'),('Linked artifacts (meetings/quiz/what-if)','artifacts','25%'),('Existing AI risk score','risk','25%'),('Open conflicts / HR-flagged what-ifs','conflicts','20%')] %}
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem;font-size:12.5px">
+      <span style="flex:1">{{ label }} <span style="color:var(--faint)">({{ weight }})</span></span>
+      <span class="text-mono" style="font-weight:600">{{ sub_scores[key] }}%</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="stat-grid mb3">
+  <div class="stat-card {% if reack_count %}amber{% endif %}"><div class="stat-val">{{ reack_count }}</div><div class="stat-label">Employees who'll need to re-acknowledge</div></div>
+  <div class="stat-card"><div class="stat-val">{{ audience }}</div><div class="stat-label">Audience in scope ({{ audience_scope }})</div></div>
+  <div class="stat-card {% if quiz_count %}amber{% endif %}"><div class="stat-val">{{ quiz_count }}</div><div class="stat-label">Quiz attempts that'll go stale{% if quiz_pass_rate is not none %} ({{ quiz_pass_rate }}% pass rate){% endif %}</div></div>
+  <div class="stat-card {% if conflicts %}red{% endif %}"><div class="stat-val">{{ conflicts|length }}</div><div class="stat-label">Open contradiction flags</div></div>
+</div>
+
+<div class="card mb3">
+  <div class="card-label">Visual Impact Topology</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:1.5rem;background:var(--paper2);border:1px solid var(--rule);border-radius:6px;margin-top:.6rem;flex-wrap:wrap;gap:1rem">
+    <div style="flex:1;min-width:180px;text-align:center;padding:1rem;background:var(--paper);border:1px solid var(--rule);border-radius:6px">
+      <div style="font-size:11px;font-family:var(--font-mono);color:var(--faint);text-transform:uppercase">Upstream Decisions</div>
+      <div style="font-size:16px;font-weight:700;color:#7a2a8a;margin-top:.3rem">{{ meeting_rows|length }} Meetings</div>
+      <div style="font-size:12px;color:var(--ink2)">Originating source</div>
+    </div>
+    <div style="font-size:20px;color:var(--faint)">➔</div>
+    <div style="flex:1.2;min-width:200px;text-align:center;padding:1rem;background:var(--archive2);border:2px solid var(--archive);border-radius:6px">
+      <div style="font-size:11px;font-family:var(--font-mono);color:var(--archive3);text-transform:uppercase">Target Change</div>
+      <div style="font-size:16px;font-weight:700;color:var(--archive);margin-top:.3rem">{{ policy.title }}</div>
+      <div style="font-size:12px;color:var(--ink2)">v{{ policy.latest_version_number or '1.0' }} ({{ policy.status }})</div>
+    </div>
+    <div style="font-size:20px;color:var(--faint)">➔</div>
+    <div style="flex:1;min-width:180px;text-align:center;padding:1rem;background:var(--paper);border:1px solid var(--rule);border-radius:6px">
+      <div style="font-size:11px;font-family:var(--font-mono);color:var(--faint);text-transform:uppercase">Downstream Impact</div>
+      <div style="font-size:16px;font-weight:700;color:{% if impact_score >= 65 %}var(--red){% elif impact_score >= 35 %}var(--amber){% else %}var(--green){% endif %};margin-top:.3rem">{{ audience }} Users</div>
+      <div style="font-size:12px;color:var(--ink2)">{{ reack_count }} Re-acks · {{ whatif.total }} Scenarios</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid2 mb3">
+  <div class="card">
+    <div class="card-label">Linked meetings ({{ meeting_rows|length }})</div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.6rem">
+      {% for row in meeting_rows %}
+      <div style="display:flex;justify-content:space-between;gap:1rem;font-size:12.5px;padding:.4rem 0;border-bottom:1px solid var(--rule)">
+        <a href="{{ url_for('meetings.meeting_detail', meeting_id=row.meeting.id) }}">{{ row.meeting.title }}</a>
+        <span class="text-mono" style="color:var(--faint);flex-shrink:0">{{ row.decision_count }} decision{{ 's' if row.decision_count != 1 }}</span>
+      </div>
+      {% else %}
+      <div style="color:var(--faint);text-align:center;padding:1rem">No meetings reference this policy.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Grey-area exposure (What-If Simulator)</div>
+    <div style="font-size:12.5px;margin-bottom:.5rem">
+      <strong>{{ whatif.total }}</strong> scenario{{ 's' if whatif.total != 1 }} cited this policy ·
+      <strong>{{ whatif.uncertain }}</strong> came back uncertain ·
+      <strong>{{ whatif.flagged }}</strong> flagged for HR
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.4rem">
+      {% for wq in whatif.recent %}
+      <div style="font-size:12px;padding:.35rem 0;border-bottom:1px solid var(--rule);color:var(--ink2)">
+        "{{ wq.scenario_text[:100] }}{% if wq.scenario_text|length > 100 %}…{% endif %}"
+        <span class="pill {% if wq.flagged_for_hr %}pill-mandatory{% endif %}" style="margin-left:.4rem">{{ wq.verdict }}</span>
+      </div>
+      {% else %}
+      <div style="color:var(--faint);text-align:center;padding:1rem">No What-If scenarios cite this policy.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-label">Open conflicts with other policies</div>
+  <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:.6rem">
+    {% for c in conflicts %}
+    <div style="padding:.6rem 0;border-bottom:1px solid var(--rule);font-size:12.5px">
+      Conflicts with <a href="{{ url_for('admin.policy_detail', policy_id=(c.policy_b.id if c.policy_a_id == policy.id else c.policy_a.id)) }}">{{ (c.policy_b.title if c.policy_a_id == policy.id else c.policy_a.title) }}</a>
+      <div style="color:var(--faint);margin-top:.2rem">{{ c.description }}</div>
+    </div>
+    {% else %}
+    <div style="color:var(--faint);text-align:center;padding:1.5rem">No open contradiction flags for this policy — nothing pending here from the Contradiction Radar.</div>
+    {% endfor %}
+  </div>
+  {% if not has_ai_insight %}
+  <div style="margin-top:1rem;font-size:12px;color:var(--faint)">No AI-generated quiz/FAQ exists yet for this policy — nothing to regenerate on publish.</div>
+  {% endif %}
+</div>
+{% endblock %}

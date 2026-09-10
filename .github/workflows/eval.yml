@@ -1,0 +1,33 @@
+name: RAG Evaluation Suite
+on:
+  pull_request:
+    paths:
+      - 'rag/**'
+      - 'eval/**'
+      - 'docker-compose*'
+
+jobs:
+  rag-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Run Master Scientific Evaluation Suite
+        run: |
+          ./scripts/reproduce_results.sh
+        env:
+          FLASK_ENV: testing
+          DATABASE_URL: sqlite:///data/ledger.db
+          LLM_BACKEND: extractive
+      - name: Upload Results Artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: rag-eval-results
+          path: results/

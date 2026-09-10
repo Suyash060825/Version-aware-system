@@ -1,0 +1,14 @@
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+.playwright-mcp/
+*.pyc
+.env
+.git/
+.github/
+data/
+instance/
+*.db
+*.log
+

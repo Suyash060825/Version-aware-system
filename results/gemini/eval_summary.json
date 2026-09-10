@@ -1,0 +1,31 @@
+{
+  "evaluation_timestamp": "2026-08-26T22:57:28.611317+00:00",
+  "dataset": {
+    "benchmark_file": "data/benchmarks/benchmark_test.json",
+    "total_queries": 301,
+    "categories": [
+      "adversarial",
+      "semantic_retrieval",
+      "version_comparison",
+      "compiled_qa",
+      "confidentiality",
+      "unanswerable",
+      "temporal_historical",
+      "department_auth",
+      "fact"
+    ]
+  },
+  "metrics": {
+    "answer_accuracy_exact_pct": 27.57,
+    "token_f1_mean": 0.3369,
+    "citation_f1_mean": 0.3183,
+    "refusal_accuracy_pct": 100.0,
+    "brier_score": 0.503,
+    "expected_calibration_error_ece": 0.4338,
+    "latency_p50_ms": 71.63,
+    "latency_p95_ms": 85.27,
+    "latency_p99_ms": 102.95,
+    "cache_speedup_factor": 0.93,
+    "delta_compilation_speedup": 538.88
+  }
+}

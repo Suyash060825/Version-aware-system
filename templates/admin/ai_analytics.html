@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}AI Analytics — Policy Ledger{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>AI Analytics</h1>
+    <p>How well the chatbot is actually performing: what people ask, what it can't answer, whether they trust the answers, and roughly what it's costing to run.</p>
+  </div>
+</div>
+
+<div class="stat-grid mb3">
+  <div class="stat-card"><div class="stat-val">{{ total_sessions }}</div><div class="stat-label">Chat sessions</div></div>
+  <div class="stat-card"><div class="stat-val">{{ total_messages }}</div><div class="stat-label">Messages exchanged</div></div>
+  <div class="stat-card {% if accuracy.accuracy_pct is not none and accuracy.accuracy_pct < 70 %}amber{% endif %}">
+    <div class="stat-val">{{ accuracy.accuracy_pct if accuracy.accuracy_pct is not none else '—' }}{% if accuracy.accuracy_pct is not none %}%{% endif %}</div>
+    <div class="stat-label">AI accuracy ({{ accuracy.up }}👍 / {{ accuracy.down }}👎)</div>
+  </div>
+  <div class="stat-card {% if unknown_total %}amber{% endif %}"><div class="stat-val">{{ unknown_total }}</div><div class="stat-label">Unanswered / zero-result queries</div></div>
+</div>
+
+<div class="grid2 mb3">
+  <div class="card">
+    <div class="card-label">Top questions</div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.6rem">
+      {% for q in top_questions %}
+      <div style="display:flex;justify-content:space-between;gap:1rem;font-size:12.5px;padding:.4rem 0;border-bottom:1px solid var(--rule)">
+        <span>{{ q.question }}</span>
+        <span class="text-mono" style="color:var(--faint);flex-shrink:0">×{{ q.count }}</span>
+      </div>
+      {% else %}
+      <div style="color:var(--faint);text-align:center;padding:1rem">No chatbot questions logged yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Employee sentiment <span style="color:var(--faint);font-weight:400">(keyword estimate, not a trained model)</span></div>
+    {% if sentiment.total %}
+    <div style="display:flex;gap:.4rem;margin-top:.75rem;height:14px;border-radius:7px;overflow:hidden">
+      <div style="background:var(--green);width:{{ (sentiment.positive / sentiment.total * 100)|round }}%"></div>
+      <div style="background:var(--faint);width:{{ (sentiment.neutral / sentiment.total * 100)|round }}%"></div>
+      <div style="background:var(--red);width:{{ (sentiment.negative / sentiment.total * 100)|round }}%"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-top:.5rem;color:var(--ink2)">
+      <span>🟢 {{ sentiment.positive }} positive</span>
+      <span>⚪ {{ sentiment.neutral }} neutral</span>
+      <span>🔴 {{ sentiment.negative }} negative</span>
+    </div>
+    {% else %}
+    <div style="color:var(--faint);text-align:center;padding:1.5rem">No feedback comments logged yet.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb3">
+  <div class="card-label">Token usage &amp; estimated cost <span style="color:var(--faint);font-weight:400">(Prompt &amp; completion token telemetry across RAG completions, ${{ tokens.rate_per_1k }}/1K tokens)</span></div>
+  <div class="stat-grid" style="margin-top:.75rem">
+    <div class="stat-card"><div class="stat-val">{{ tokens.message_count }}</div><div class="stat-label">Messages (14d)</div></div>
+    <div class="stat-card"><div class="stat-val">{{ "{:,}".format(tokens.total_tokens_est) }}</div><div class="stat-label">Estimated tokens</div></div>
+    <div class="stat-card"><div class="stat-val">${{ tokens.cost_est_usd }}</div><div class="stat-label">Estimated cost (14d)</div></div>
+  </div>
+</div>
+
+<div class="grid2 mb3">
+  <div class="card">
+    <div class="card-label">Knowledge gaps <span style="color:var(--faint);font-weight:400">(same unanswered question asked 2+ times)</span></div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.6rem">
+      {% for g in gaps %}
+      <div style="display:flex;justify-content:space-between;gap:1rem;font-size:12.5px;padding:.4rem 0;border-bottom:1px solid var(--rule)">
+        <span>{{ g.query }}</span>
+        <span class="pill pill-mandatory">{{ g.times_asked }}×</span>
+      </div>
+      {% else %}
+      <div style="color:var(--faint);text-align:center;padding:1rem">No repeated unanswered questions yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Most-cited policies in chat answers</div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.6rem">
+      {% for row in popular %}
+      <div style="display:flex;justify-content:space-between;gap:1rem;font-size:12.5px;padding:.4rem 0;border-bottom:1px solid var(--rule)">
+        <a href="{{ url_for('admin.policy_detail', policy_id=row.policy.id) }}">{{ row.policy.title }}</a>
+        <span class="text-mono" style="color:var(--faint);flex-shrink:0">{{ row.citation_count }} cite{{ 's' if row.citation_count != 1 }}</span>
+      </div>
+      {% else %}
+      <div style="color:var(--faint);text-align:center;padding:1rem">No citations logged yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-label">Recent failed answers ({{ failed_total }} thumbs-down total)</div>
+  <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:.75rem">
+    {% for f in failed %}
+    <div style="padding:.65rem 0;border-bottom:1px solid var(--rule)">
+      <div style="font-size:12.5px">{{ f.answer }}{% if f.answer|length >= 220 %}…{% endif %}</div>
+      {% if f.comment %}<div style="font-size:11.5px;color:var(--faint);margin-top:.25rem">"{{ f.comment }}"</div>{% endif %}
+    </div>
+    {% else %}
+    <div style="color:var(--faint);text-align:center;padding:1.5rem">No downvoted answers yet.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

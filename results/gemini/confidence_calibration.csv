@@ -1,0 +1,4 @@
+Metric,Measured Value
+Total Evaluated Predictions,301
+Brier Calibration Score,0.503
+Expected Calibration Error (ECE),0.4338

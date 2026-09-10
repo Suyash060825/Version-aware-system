@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}403 Access Forbidden — Policy Ledger{% endblock %}
+{% block content %}
+<div style="max-width: 600px; margin: 4rem auto; text-align: center; background: var(--paper2); padding: 3rem 2rem; border-radius: var(--r); border: 1px solid var(--rule); box-shadow: var(--shadow);">
+  <div style="font-size: 3.5rem; margin-bottom: 1rem;">🔒</div>
+  <h1 style="font-family: var(--font-serif); font-size: 1.8rem; margin-bottom: 0.75rem; color: var(--red);">403 — Access Restricted</h1>
+  <p style="color: var(--ink2); font-size: 14px; line-height: 1.6; margin-bottom: 2rem;">
+    You do not have the required role or authorization to access this resource. If you believe this is in error, please contact your policy administrator or HR department.
+  </p>
+  <div style="display: flex; gap: 1rem; justify-content: center;">
+    <a href="{{ url_for('employee.dashboard') }}" style="background: var(--archive); color: #fff; padding: 0.65rem 1.3rem; border-radius: var(--r); font-weight: 600; font-size: 13.5px; text-decoration: none;">Go to Dashboard</a>
+    <a href="{{ url_for('employee.policy_browse') }}" style="background: var(--paper); color: var(--ink); border: 1px solid var(--rule2); padding: 0.65rem 1.3rem; border-radius: var(--r); font-weight: 600; font-size: 13.5px; text-decoration: none;">Browse Policies</a>
+  </div>
+</div>
+{% endblock %}
