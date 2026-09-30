@@ -1,0 +1,16 @@
+Query ID,Query (truncated),Route,Latency (ms),Fact Change Recalled,Confidence,Answer Snippet
+diff_01,What changed between v1 and v2 in the Remote Work Policy?,TEMPORAL_COMPARISON,30.59,True,0.85,Comparison of Remote Work Policy v1.0 vs v2.0:  - Modified (4 clauses): REMOTE WORK POLICY — v1.0 Effective Date: 2022-01-10 -> REMOTE WORK POLICY — v
+diff_02,How did the Remote Work Policy remote days change from version 1 to version 2?,HYBRID_RAG,54.08,True,0.616,"According to the Remote Work Policy (v2.0, Remote Work Policy): REMOTE WORK POLICY — v2.0 Effective Date: 2024-03-01 1."
+diff_03,What was added in Remote Work Policy v2.0 compared to v1.0?,FAST_PATH_FACT,17.67,True,1.0,"According to the Remote Work Policy (v2.0), the Remote Work is 3 days per week (weekly remote schedule)."
+diff_04,Compare Remote Work Policy version 1.0 and 2.0,FAST_PATH_FACT,21.86,True,1.0,"According to the Remote Work Policy (v1.0), the Remote Work is 1 days per week (weekly remote schedule)."
+diff_05,List the differences between old and new Remote Work Policy,HYBRID_RAG,89.11,True,0.519,"According to the Remote Work Policy (v1.0, Remote Work Policy Section 1): REMOTE WORK POLICY — v1.0 Effective Date: 2022-01-10"
+
+Summary
+Total Queries,5
+Diff Change Recall (%),100.0
+P50 Latency (ms),30.59
+P95 Latency (ms),82.11
+Route Distribution,"{'TEMPORAL_COMPARISON': None, 'HYBRID_RAG': None, 'FAST_PATH_FACT': None}"
+Ref Diff: Facts Changed,1
+Ref Diff: Facts Added,1
+Ref Diff: Facts Removed,0

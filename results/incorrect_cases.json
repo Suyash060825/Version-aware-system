@@ -1,0 +1,261 @@
+[
+  {
+    "query_id": "qa_618",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_650",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "fact_para_236",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "fact_para_239",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "comp_02",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_681",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_688",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "fact_231",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "fact_236",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_698",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "sem_03",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_655",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_680",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "temp_hist_04",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "fact_para_231",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "fact_227",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "temp_hist_05",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_631",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "fact_para_229",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_685",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_629",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "fact_239",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_621",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_691",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "comp_01",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_683",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_624",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_694",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_695",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_693",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "ABSTAINED"
+  },
+  {
+    "query_id": "fact_para_238",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_692",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_630",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_632",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_622",
+    "gold": "1.0",
+    "pred": "2.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_682",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  },
+  {
+    "query_id": "qa_697",
+    "gold": "2.0",
+    "pred": "1.0",
+    "mechanism": "retrieval_metadata",
+    "route": "HYBRID_RAG"
+  }
+]

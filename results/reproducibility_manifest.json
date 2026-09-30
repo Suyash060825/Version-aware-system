@@ -1,0 +1,13 @@
+{
+  "production_git_commit": "61d64b71c298c3c505f2eeeef3c94829dfb55f75",
+  "commit_message": "feat: Veritas enterprise version-aware policy intelligence platform (IPR submission release)",
+  "branch": "evaluation/final-validation",
+  "python_version": "3.14.6 (main, Jun 11 2026, 00:00:00) [GCC 15.2.1 20260123 (Red Hat 15.2.1-7)]",
+  "platform": "Linux-7.1.8-100.fc43.x86_64-x86_64-with-glibc2.42",
+  "cpu_count": 12,
+  "production_database_hash (ledger.db)": "624b0ab999c7fad87cac6b2f59630c398089c516824c2a17d8f6a65e2b4eafff",
+  "bm25_index_hash (bm25_index.pkl)": "dc0a80aea5703fd99db69fac3812e5c7f5eb45b891e26916e4363832357de8a2",
+  "benchmark_test_hash (benchmark_test.json)": "795c005e9977778c396fe11e307f861563d9be90a0d842c09ea74f488e6baa0f",
+  "raw_benchmark_hash (final_benchmark_raw.json)": "6e737bd50159e19170c21de161f226de9435232794b41c2584d5490f26ab0931",
+  "frozen_production_status": "LOCKED AND UNMODIFIED"
+}

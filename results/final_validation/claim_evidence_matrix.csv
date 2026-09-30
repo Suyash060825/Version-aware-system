@@ -1,0 +1,3 @@
+paper_claim,experiment,dataset,N,metric,result,artifact,verified,safe_to_publish
+version awareness,E2,benchmark,301,accuracy,0.85,version_accuracy.csv,YES,SAFE
+incremental compilation,E1,delta_sweep,5,speedup,15x,incremental_update.csv,YES,SAFE

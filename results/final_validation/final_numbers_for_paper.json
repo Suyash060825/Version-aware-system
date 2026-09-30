@@ -1,0 +1,13 @@
+[
+  {
+    "metric": "version accuracy",
+    "value": 0.85,
+    "unit": "ratio",
+    "N": 301,
+    "dataset": "benchmark",
+    "experiment": "version_accuracy",
+    "source_artifact": "version_accuracy.csv",
+    "safe_to_publish": "YES",
+    "notes": "Matches expectations"
+  }
+]

@@ -1,0 +1,9 @@
+Ablation Configuration,P50 Latency (ms),P95 Latency (ms),Answer F1 (%),Citation F1 (%),LLM Calls / 30 Queries
+B7 (Proposed Full System),109.79,131.9,41.28,30.62,0
+A1 (w/o Knowledge Compiler),52.01,64.88,28.51,10.0,30
+A2 (w/o Fact Resolver),107.07,130.24,41.28,30.62,0
+A3 (w/o Compiled QA),111.1,130.2,41.28,30.62,0
+A4 (w/o Temporal Resolver),108.47,130.41,41.28,30.62,0
+A5 (w/o FlashRank Reranker),112.59,137.32,41.28,30.62,0
+A6 (w/o Confidence Gate),103.72,131.05,41.28,30.62,0
+A7 (w/o Multi-Tier Cache),113.44,132.89,41.28,30.62,0

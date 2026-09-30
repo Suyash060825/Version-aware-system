@@ -1,0 +1,37 @@
+{
+  "Baseline A (Naive)": {
+    "auth_evidence_correct": 12,
+    "overall_correct": 21,
+    "auth_abstentions": 0,
+    "total_abstentions": 0,
+    "auth_decision_correct": 0
+  },
+  "Baseline B (Temporal-only)": {
+    "auth_evidence_correct": 12,
+    "overall_correct": 19,
+    "auth_abstentions": 0,
+    "total_abstentions": 0,
+    "auth_decision_correct": 0
+  },
+  "Baseline C (Auth-only)": {
+    "auth_evidence_correct": 9,
+    "overall_correct": 9,
+    "auth_abstentions": 124,
+    "total_abstentions": 124,
+    "auth_decision_correct": 124
+  },
+  "Baseline D (Temp+Auth Standard)": {
+    "auth_evidence_correct": 8,
+    "overall_correct": 8,
+    "auth_abstentions": 124,
+    "total_abstentions": 124,
+    "auth_decision_correct": 124
+  },
+  "Baseline E (Full Veritas)": {
+    "auth_evidence_correct": 147,
+    "overall_correct": 147,
+    "auth_abstentions": 124,
+    "total_abstentions": 124,
+    "auth_decision_correct": 0
+  }
+}

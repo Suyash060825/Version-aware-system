@@ -1,0 +1,6 @@
+Delta Level,Modified Chunks (|Δ|),Incremental Time (ms),Full Rebuild Time (ms),Re-Indexed Chunks,Unchanged Chunks,Speedup (×)
+0 chunks (0.0%),0,0.43,2303.1,0,6,5411.7
+1 chunk,1,4.77,2303.1,1,5,483.26
+1 chunks (~10%),1,3.62,2303.1,1,5,635.6
+1 chunks (~30%),1,3.82,2303.1,1,5,602.58
+3 chunks (~50%),3,4.0,2303.1,3,3,575.51

@@ -1,0 +1,5 @@
+Retriever,Recall@1,Recall@5,Recall@10,MRR@10,NDCG@10
+Dense (BGE-Small),0.9861,0.9861,0.9861,0.9861,0.9861
+BM25 (Sparse),0.9792,0.9861,0.9861,0.9826,0.9835
+Hybrid (Reciprocal Rank Fusion),0.9861,0.9861,0.9861,0.9861,0.9861
+Hybrid + FlashRank (Ours),0.9861,0.9861,0.9861,0.9861,0.9861

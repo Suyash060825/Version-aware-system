@@ -1,0 +1,7 @@
+Configuration,Fact-Subset P50 (ms),Fact-Subset Ans F1 (%),Fact-Subset Cit F1 (%),Fact LLM Calls,QA-Subset P50 (ms),QA-Subset Ans F1 (%),QA-Subset Cit F1 (%),QA LLM Calls,Mixed P50 (ms),Mixed Ans F1 (%),Mixed Cit F1 (%),Mixed LLM Calls
+B7 (Full System),16.71,47.67,76.67,0,84.24,31.99,74.0,0,76.32,40.02,59.67,0
+A1 (w/o Knowledge Compiler),41.07,41.09,0.0,15,37.73,30.23,0.0,15,45.08,28.23,0.0,30
+A2 (w/o Fact Resolver),22.5,47.67,76.67,0,96.3,31.99,74.0,0,87.95,40.02,59.67,0
+A3 (w/o Compiled QA),19.23,47.67,76.67,0,97.77,31.99,74.0,0,83.91,40.02,59.67,0
+A4 (w/o Temporal Resolver),22.91,47.67,76.67,0,101.28,31.99,74.0,0,84.84,40.02,59.67,0
+A5 (w/o FlashRank Reranker),28.84,47.67,76.67,0,99.95,31.99,74.0,0,85.79,40.02,59.67,0

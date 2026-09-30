@@ -1,0 +1,5 @@
+Metric,Mean,Std Dev,95% CI Lower,95% CI Upper,N
+Exact Match Accuracy (%),31.2292,46.3428,26.2458,36.5449,301
+Token F1 Score,0.3304,0.3348,0.2887,0.3757,229
+Version Selection Accuracy (%),73.4219,44.1748,68.4385,78.4053,301
+Citation Precision,0.7934,0.3911,0.7477,0.8381,284

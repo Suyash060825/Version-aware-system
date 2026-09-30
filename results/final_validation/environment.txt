@@ -1,0 +1,115 @@
+61d64b71c298c3c505f2eeeef3c94829dfb55f75
+On branch main
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   STARTUP.md
+	modified:   Version_Aware_Ieee.tex
+	modified:   config.py
+	modified:   data/bm25_index.pkl
+	modified:   data/canonical_qa_faiss.index
+	modified:   data/canonical_qa_faiss.meta.pkl
+	deleted:    data/canonical_qa_faiss_delta.index
+	modified:   data/chroma/8e0c90b7-45e2-4ff6-ad69-f6743345507d/length.bin
+	modified:   data/chroma/chroma.sqlite3
+	modified:   results/confidence_calibration.csv
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	IPR_Code.docx
+	IPR_Code.pdf
+	IPR_Code.txt
+	results/ablation_stratified.csv
+	results/calibration_proper.csv
+	results/confidence_intervals.csv
+	results/final_validation/
+	results/incremental_delta_sweep.csv
+	results/retrieval_metrics_strict.csv
+	results/tier3_diff.csv
+	scripts/build_ipr_code_docx.py
+	scripts/run_all_paper_experiments.py
+	scripts/run_calibration_proper.py
+	scripts/run_confidence_intervals.py
+	scripts/run_delta_sweep.py
+	scripts/run_retrieval_strict.py
+	scripts/run_stratified_ablation.py
+	scripts/run_tier3_eval.py
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Python 3.14.6
+chromadb                                 1.5.9
+faiss-cpu                                1.15.0
+fastembed                                0.8.0
+psycopg2-binary                          2.9.12
+redis                                    8.1.0
+sentence-transformers                    5.7.0
+transformers                             5.15.0
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           39 bits physical, 48 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  12
+On-line CPU(s) list:                     0-11
+Vendor ID:                               GenuineIntel
+Model name:                              11th Gen Intel(R) Core(TM) i5-11260H @ 2.60GHz
+CPU family:                              6
+Model:                                   141
+Thread(s) per core:                      2
+Core(s) per socket:                      6
+Socket(s):                               1
+Stepping:                                1
+CPU(s) scaling MHz:                      58%
+CPU max MHz:                             4400.0000
+CPU min MHz:                             800.0000
+BogoMIPS:                                5222.40
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb intel_pt avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req vnmi avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid movdiri movdir64b fsrm avx512_vp2intersect md_clear ibt flush_l1d arch_capabilities
+Virtualization:                          VT-x
+L1d cache:                               288 KiB (6 instances)
+L1i cache:                               192 KiB (6 instances)
+L2 cache:                                7.5 MiB (6 instances)
+L3 cache:                                12 MiB (1 instance)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-11
+Vulnerability Gather data sampling:      Mitigation; Microcode
+Vulnerability Ghostwrite:                Not affected
+Vulnerability Indirect target selection: Mitigation; Aligned branch/return thunks
+Vulnerability Itlb multihit:             Not affected
+Vulnerability L1tf:                      Not affected
+Vulnerability Mds:                       Not affected
+Vulnerability Meltdown:                  Not affected
+Vulnerability Mmio stale data:           Not affected
+Vulnerability Old microcode:             Not affected
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Not affected
+Vulnerability Spec rstack overflow:      Not affected
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI SW loop, KVM SW loop
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Not affected
+Vulnerability Tsx async abort:           Not affected
+Vulnerability Vmscape:                   Not affected
+               total        used        free      shared  buff/cache   available
+Mem:            31Gi       6.1Gi        20Gi       763Mi       5.4Gi        24Gi
+Swap:          8.0Gi          0B       8.0Gi
+Linux fedora 7.1.8-100.fc43.x86_64 #1 SMP PREEMPT_DYNAMIC Mon Aug 10 03:32:13 UTC 2026 x86_64 GNU/Linux
+Wed Sep 23 09:34:27 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.178.04             Driver Version: 580.178.04     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 3050 ...    Off |   00000000:01:00.0 Off |                  N/A |
+| N/A   52C    P0             16W /   80W |      12MiB /   4096MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            3224      G   /usr/bin/gnome-shell                      1MiB |
++-----------------------------------------------------------------------------------------+

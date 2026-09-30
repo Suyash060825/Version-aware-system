@@ -1,0 +1,6 @@
+.....res is: {'answer': 'The minimum password length is 12 characters.', 'score': 1.0000001192092896, 'confidence': 0.99, 'matched_question': 'What is minimum password length?', 'citations': [{'policy_id': 1, 'version_id': 1, 'policy_name': 'Security Policy', 'version': '1.0', 'section': '2. Password Rules', 'page': 1, 'chunk_id': 'chunk-sec-1'}], 'policy': <Policy POL-QA: Security Policy>, 'version': <PolicyVersion v1.0 of policy 1>, 'source_chunk_ids': '["chunk-sec-1"]', 'source_chunk': <PolicyChunkV2 1>}
+search results: [(1.0000001192092896, 1, 1)]
+..........Starting test...
+RESULT: {'answer': 'According to the Engineering Remote Work policy, engineers can work 3 days remotely.', 'citations': [{'policy_name': 'Engineering Remote Work Policy', 'version': '1.0', 'section': '3.1 Remote Days', 'page': 2, 'department': 'Engineering', 'policy_id': 10, 'relevance_score': 0.85}], 'chunks_used': 1, 'session_id': 'test-session-123', 'fallback': False, 'model': 'stub-model', 'cache_hit': False, 'confidence': 100, 'usage': {}, 'route': 'HYBRID_RAG'}
+....................
+35 passed in 13.54s

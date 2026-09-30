@@ -11,7 +11,6 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-os.environ["DATABASE_URL"] = "sqlite:///data/ledger.db"
 
 from app import create_app
 from models import (

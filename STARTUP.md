@@ -148,3 +148,31 @@ python scripts/test_policy_creation_lifecycle.py
 ```
 
 
+You ONLY need to run python seed.py in these 2 scenarios:
+
+  1. The very first time you launch on a brand-new machine or empty database.
+  2. If you explicitly wipe your database volumes, for example by running:
+    docker compose down -v   # Notice the '-v' flag which deletes volumes
+
+
+  ### Daily Usage (No re-seeding needed):
+
+    # Start your services
+    docker compose up -d
+
+    # Stop your services (preserves all data)
+    docker compose down
+
+
+
+    In daily development:
+
+   What You Want to Do                                      | Command to Run                                          | Time It Takes
+  ----------------------------------------------------------|---------------------------------------------------------|----------------------
+   Start your services                                      | docker compose up -d                                    | ~2 seconds
+   Stop your services                                       | docker compose down                                     | ~1 second
+   Rebuild after editing code                               | docker compose up -d --build                            | ~3–5 seconds (reuses cache)
+   Full cold rebuild (only if you change requirements.txt)  | docker compose up -d --build                            | 1–3 minutes
+
+  Once the current build finishes once, you will never have to wait through the initial cold build again.
+
