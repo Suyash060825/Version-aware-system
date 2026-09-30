@@ -347,7 +347,7 @@ def seed():
         if not hr:
             hr = User(name="HR Director", email="hr@company.com", role=UserRole.HR,
                       email_verified=True, is_active=True)
-            hr.set_password("HR@1234")
+            hr.set_password(os.getenv("HR_PASSWORD", "HR@1234"))
             db.session.add(hr)
             db.session.flush()
             print(f"[ok] HR user created: hr@company.com")
@@ -357,7 +357,7 @@ def seed():
         if not emp:
             emp = User(name="Sample Employee", email="employee@company.com", role=UserRole.EMPLOYEE,
                        email_verified=True, is_active=True)
-            emp.set_password("Emp@1234")
+            emp.set_password(os.getenv("EMPLOYEE_PASSWORD", "Emp@1234"))
             db.session.add(emp)
             print(f"[ok] Employee created: employee@company.com")
 

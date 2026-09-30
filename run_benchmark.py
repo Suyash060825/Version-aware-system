@@ -28,7 +28,7 @@ users = [
     "sales.exec@company.com",
     "mkt.specialist@company.com"
 ]
-password = "Admin@1234"
+password = os.getenv("BENCHMARK_PASSWORD", os.getenv("DEFAULT_ADMIN_PASSWORD", "Admin@1234"))
 
 sessions = []
 for u in users:

@@ -7,7 +7,8 @@ s = requests.Session()
 resp = s.get("http://localhost:5000/auth/login")
 csrf = re.search(r'name="csrf_token" value="(.*?)"', resp.text).group(1)
 
-login = s.post("http://localhost:5000/auth/login", data={"csrf_token": csrf, "email": "admin@company.com", "password": "Admin@1234"})
+import os
+login = s.post("http://localhost:5000/auth/login", data={"csrf_token": csrf, "email": "admin@company.com", "password": os.getenv("DEFAULT_ADMIN_PASSWORD", "Admin@1234")})
 
 api_csrf_match = re.search(r'meta name="csrf-token" content="(.*?)"', login.text)
 api_csrf = api_csrf_match.group(1) if api_csrf_match else csrf

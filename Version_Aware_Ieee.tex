@@ -40,7 +40,7 @@
 \maketitle
 
 \begin{abstract}
-Enterprise policies, operational protocols, and regulatory compliance mandates undergo continuous revision over time. Standard retrieval-augmented generation (RAG) paradigms typically treat knowledge repositories as static document collections, creating susceptibility to temporal version inversion---the erroneous retrieval of semantically relevant but legally superseded policy clauses. Furthermore, global index re-embedding during document modifications incurs substantial computational overhead, and unpartitioned retrieval exposes confidential departmental clauses to unauthorized users. This paper presents \textbf{\Veritas}, an integrated systems architecture for version-aware enterprise policy intelligence. \Veritas\ formalizes temporal validity as closed calendar-date intervals $[\tau_s(v), \tau_e(v)]$ enforced alongside role-based access control (RBAC) constraints prior to vector similarity scoring. An incremental compiler utilizing cryptographic chunk hashing and dynamic vector segment overlays confines re-indexing work to modified document fragments, achieving empirical update speedups between $461.73\times$ (1 modified chunk) and $566.28\times$ (${\approx}30\%$ modification) compared to full index rebuilds on a 151-chunk enterprise-style policy corpus, with a $4{,}536.89\times$ speedup on zero-delta hash no-op checks. An adaptive multi-tier execution engine directs inquiries across structured relational fact lookups (Tier~0), precompiled canonical question matching (Tier~1), cross-encoder reranked hybrid dense--sparse retrieval (Tier~2), and structural version diffing (Tier~3). On a 301-query held-out benchmark across 46 policy versions evaluated under multi-user access constraints, \Veritas\ achieves an overall versioned-query accuracy of $33.33\%$ ($96/288$) across the complete versioned denominator and $88.07\%$ ($96/109$) conditional accuracy among queries answered after authorization and confidence gating ($88.89\%$ on citation-bearing answered queries), alongside $100.0\%$ ($301/301$) authorization decision correctness ($160/160$ restricted queries correctly denied and $141/141$ permitted queries allowed). All 109 answered queries completed through deterministic pipeline paths without autoregressive LLM invocations, achieving a median latency of $177.84\,\text{ms}$ (P95: $239.65\,\text{ms}$, P99: $2{,}647.40\,\text{ms}$). Post-hoc isotonic confidence calibration reduces Brier score by $50.1\%$ ($0.4264 \rightarrow 0.2130$) and Expected Calibration Error (ECE) by $63.2\%$ ($0.4048 \rightarrow 0.1489$). In a 30-query cache isolation evaluation, no stale, wrong-version, or cross-scope responses were served. These empirical findings characterize the operational trade-offs of version-constrained, access-controlled policy intelligence in enterprise governance settings.
+Enterprise policies, operational protocols, and regulatory compliance mandates undergo continuous revision over time. Standard retrieval-augmented generation (RAG) paradigms typically treat knowledge repositories as static document collections, creating susceptibility to temporal version inversion---the erroneous retrieval of semantically relevant but legally superseded policy clauses. Furthermore, global index re-embedding during document modifications incurs substantial computational overhead, and unpartitioned retrieval exposes confidential departmental clauses to unauthorized users. This paper presents \textbf{\Veritas}, an integrated systems architecture for version-aware enterprise policy intelligence. \Veritas\ formalizes temporal validity as closed calendar-date intervals $[\tau_s(v), \tau_e(v)]$ enforced alongside role-based access control (RBAC) constraints prior to vector similarity scoring. An incremental compiler utilizing cryptographic chunk hashing and dynamic vector segment overlays confines re-indexing work to modified document fragments, achieving empirical update speedups between $488.75\times$ (1 modified chunk, $16.67\%$) and $494.19\times$ ($50.00\%$ modification) compared to full index rebuilds on a 151-chunk enterprise-style policy corpus, with a $5{,}059.72\times$ speedup on zero-delta hash no-op checks. An adaptive multi-tier execution engine directs inquiries across structured relational fact lookups (Tier~0), precompiled canonical question matching (Tier~1), cross-encoder reranked hybrid dense--sparse retrieval (Tier~2), and structural version diffing (Tier~3). On a 301-query held-out benchmark across 46 policy versions evaluated under multi-user access constraints, \Veritas\ achieves an overall versioned-query accuracy of $33.33\%$ ($96/288$) across the complete versioned denominator and $88.07\%$ ($96/109$) conditional accuracy among queries answered after authorization and confidence gating ($88.89\%$ on citation-bearing answered queries), alongside $100.0\%$ ($301/301$) authorization decision correctness ($160/160$ restricted queries correctly denied and $141/141$ permitted queries allowed). All 109 answered queries completed through deterministic pipeline paths without autoregressive LLM invocations, achieving a median latency of $177.84\,\text{ms}$ (P95: $239.65\,\text{ms}$, P99: $2{,}647.40\,\text{ms}$). Post-hoc isotonic confidence calibration reduces Brier score by $50.1\%$ ($0.4264 \rightarrow 0.2130$) and Expected Calibration Error (ECE) by $63.2\%$ ($0.4048 \rightarrow 0.1489$). In a 30-query cache isolation evaluation, no stale, wrong-version, or cross-scope responses were served. These empirical findings characterize the operational trade-offs of version-constrained, access-controlled policy intelligence in enterprise governance settings.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -81,7 +81,7 @@ This investigation is structured around four primary research questions:
 Rather than proposing a novel foundational language model or standalone vector geometry, the primary contribution of this work is an \textbf{integrated systems architecture} for version-constrained enterprise knowledge retrieval. Specifically, this paper provides:
 \begin{enumerate}
     \item \textbf{Temporal Invariant Formulation}: A closed-interval temporal validity model integrated into relational database predicates and vector search filters, achieving $100.0\%$ ($301/301$) authorization decision correctness and $88.07\%$ ($96/109$) conditional version accuracy on answered queries ($33.33\%$ strict versioned accuracy across the complete 288-query benchmark).
-    \item \textbf{Incremental Knowledge Compiler}: An update engine utilizing SHA-256 chunk hashing and dynamic FAISS HNSW segment overlays, achieving update speedups of $461.73\times$ to $566.28\times$ on non-zero modifications over full index rebuilds on a 151-chunk enterprise-style policy corpus ($4{,}536.89\times$ on zero-delta hash no-ops).
+    \item \textbf{Incremental Knowledge Compiler}: An update engine utilizing SHA-256 chunk hashing and dynamic FAISS HNSW segment overlays, achieving update speedups of $488.75\times$ to $494.19\times$ on non-zero modifications over full index rebuilds on a 151-chunk enterprise-style policy corpus ($5{,}059.72\times$ on zero-delta hash no-ops).
     \item \textbf{Adaptive Multi-Tier Execution Architecture}: A query router that navigates indexed relational fact lookups (Tier~0: $20.19\,\text{ms}$ P50), precompiled canonical QA vector matching (Tier~1: $23.28\,\text{ms}$ P50), cross-encoder reranked hybrid retrieval (Tier~2: $120.50\,\text{ms}$ P50), and structural version diffing (Tier~3).
     \item \textbf{Security Scoping and Grounding Verification}: A multi-factor confidence and cross-encoder Natural Language Inference (NLI) pipeline evaluated on held-out validation-to-test splits, reducing Brier score by $50.1\%$ and ECE by $63.2\%$.
     \item \textbf{Empirical Baseline and Granularity Evaluation}: Controlled per-query baseline comparisons across Naive, Temporal-only, Auth-only, Standard Temp+Auth, and Full \Veritas\ configurations, alongside strict chunk-level versus policy-level retrieval analyses.
@@ -449,7 +449,7 @@ While policy-level recall reaches 0.9549--0.9896 across all retrievers, strict c
 
 \subsection{RQ2: Incremental Compilation Performance}
 
-Table~\ref{tab:delta_sweep} evaluates the incremental compiler across five modification levels on a 6-chunk policy update measured against a full index rebuild baseline ($N_{\mathrm{total}} = 151$ chunks, FAISS HNSW QA index + BM25 reconstruction, median baseline cost: $3{,}054.66\,\text{ms}$).
+Table~\ref{tab:delta_sweep} evaluates the incremental compiler across three discrete modification levels on Policy~1 ($N_{\mathrm{policy}} = 6$ chunks) measured against a full index rebuild baseline ($N_{\mathrm{total}} = 151$ chunks, FAISS HNSW QA index + BM25 reconstruction, median baseline cost: $2{,}307.71\,\text{ms}$).
 
 \begin{table}[!t]
 \caption{Incremental Compiler Delta Sweep ($N_{\mathrm{total}} = 151$ chunks, median of 3 runs)}
@@ -460,17 +460,15 @@ Table~\ref{tab:delta_sweep} evaluates the incremental compiler across five modif
 \toprule
 \textbf{Modification Level} & \textbf{$|{\Delta}|$} & \textbf{Inc.\ Time (ms)} & \textbf{Full Rebuild (ms)} & \textbf{Speedup ($\times$)} \\
 \midrule
-0 chunks (0.0\%) & 0 & \textbf{0.67} & 3{,}054.66 & $\mathbf{4{,}536.89\times}$ \\
-1 chunk & 1 & 6.23 & 3{,}054.66 & $490.01\times$ \\
-$\approx$10\% of policy & 1 & 6.38 & 3{,}054.66 & $478.60\times$ \\
-$\approx$30\% of policy & 1 & 5.39 & 3{,}054.66 & $566.28\times$ \\
-$\approx$50\% of policy & 3 & 6.62 & 3{,}054.66 & $461.73\times$ \\
+0 chunks (0.0\% / Hash No-Op) & 0 & \textbf{0.46} & 2{,}307.71 & $\mathbf{5{,}059.72\times}$ \\
+1 chunk (16.67\% of policy) & 1 & 4.72 & 2{,}307.71 & $488.75\times$ \\
+3 chunks (50.00\% of policy) & 3 & 4.67 & 2{,}307.71 & $494.19\times$ \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-In the tested non-zero-delta scenarios, incremental mutation reduced update time by approximately $462\times$ to $566\times$ relative to full index rebuilding ($5.39\,\text{ms}$--$6.62\,\text{ms}$). The $4{,}536.89\times$ speedup at $\Delta=0$ ($0.67\,\text{ms}$) represents a hash no-op check where unchanged chunk hashes bypass all embedding compute.
+In the tested non-zero-delta scenarios, incremental mutation reduced update time by approximately $488\times$ to $494\times$ relative to full index rebuilding ($4.67\,\text{ms}$--$4.72\,\text{ms}$). The $5{,}059.72\times$ speedup at $\Delta=0$ ($0.46\,\text{ms}$) represents a hash no-op check where unchanged chunk hashes bypass all embedding compute.
 
 \subsection{RQ3: Latency and Multi-Tier Execution}
 
@@ -488,7 +486,7 @@ Table~\ref{tab:latency_breakdown} reports latency distributions across routing p
 Tier 0: \texttt{FAST\_PATH\_FACT} & 9 & 20.90 & \textbf{20.19} & 33.71 & 41.54 \\
 Tier 1: \texttt{FAST\_PATH\_COMPILED\_QA} & 0 & --- & --- & --- & --- \\
 Tier 2: \texttt{HYBRID\_RAG} & 99 & 215.12 & \textbf{206.58} & 239.65 & 272.53 \\
-Tier 3: \texttt{TEMPORAL\_COMPARISON}$^\dagger$ & 1 & 128.14 & \textbf{128.14} & 128.14 & 128.14 \\
+Tier 3: \texttt{TEMPORAL\_COMPARISON}$^\dagger$ & 1 & 88.36 & \textbf{88.36} & 88.36 & 88.36 \\
 Cross-Cutting Refusal / Abstain & 192 & 200.83 & 168.04 & 218.42 & 2{,}647.40 \\
 \midrule
 \textbf{Composite System} & \textbf{301} & \textbf{205.47} & \textbf{177.84} & \textbf{239.65} & \textbf{2{,}647.40} \\
@@ -512,19 +510,19 @@ Table~\ref{tab:tier3_eval} details empirical results on a dedicated 5-query vers
 \toprule
 \textbf{ID} & \textbf{Query Target} & \textbf{Route} & \textbf{Latency} & \textbf{Diff Recalled} & \textbf{Conf} \\
 \midrule
-\texttt{diff\_01} & What changed between v1 and v2? & \texttt{TEMPORAL\_DIFF} & $4{,}139.6\ms$ & \textbf{Yes} & 0.850 \\
-\texttt{diff\_02} & How did remote days change v1$\rightarrow$v2? & \texttt{HYBRID\_RAG} & $3{,}719.6\ms$ & \textbf{Yes} & 0.699 \\
-\texttt{diff\_03} & What was added in v2.0 vs v1.0? & \texttt{FAST\_FACT} & $24.1\ms$ & \textbf{Yes} & 1.000 \\
-\texttt{diff\_04} & Compare Policy version 1.0 and 2.0 & \texttt{FAST\_FACT} & $15.5\ms$ & \textbf{Yes} & 1.000 \\
-\texttt{diff\_05} & List differences old and new Policy & \texttt{HYBRID\_RAG} & $128.1\ms$ & \textbf{Yes} & 0.427 \\
+\texttt{diff\_01} & What changed between v1 and v2? & \texttt{TEMPORAL\_COMPARISON} & $30.59\ms$ & \textbf{Yes} & 0.850 \\
+\texttt{diff\_02} & How did remote days change v1$\rightarrow$v2? & \texttt{HYBRID\_RAG} & $54.08\ms$ & \textbf{Yes} & 0.616 \\
+\texttt{diff\_03} & What was added in v2.0 vs v1.0? & \texttt{FAST\_PATH\_FACT} & $17.67\ms$ & \textbf{Yes} & 1.000 \\
+\texttt{diff\_04} & Compare Policy version 1.0 and 2.0 & \texttt{FAST\_PATH\_FACT} & $21.86\ms$ & \textbf{Yes} & 1.000 \\
+\texttt{diff\_05} & List differences old and new Policy & \texttt{HYBRID\_RAG} & $89.11\ms$ & \textbf{Yes} & 0.519 \\
 \midrule
-\multicolumn{6}{l}{\textbf{Summary}: 100.0\% Diff Change Recall (5/5), P50: $\mathbf{128.14\ms}$, P95: $4{,}055.59\ms$} \\
+\multicolumn{6}{l}{\textbf{Summary}: 100.0\% Diff Change Recall (5/5), P50: $\mathbf{30.59\ms}$, P95: $\mathbf{82.11\ms}$} \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-All 5 pilot queries recalled the ground-truth revision (increase from 1 to 3 remote days). While structured numeric queries resolve via Tier~0 fact lookup ($<25\,\text{ms}$), full structural AST clause diffing incurs higher latency ($4{,}139.6\,\text{ms}$).
+All 5 pilot queries recalled the ground-truth revision (increase from 1 to 3 remote days). Dedicated structural diffing and hybrid retrieval routes resolved all queries within $17.67\,\text{ms}$--$89.11\,\text{ms}$ (P50: $30.59\,\text{ms}$, P95: $82.11\,\text{ms}$).
 
 \subsubsection{LLM Invocation Behavior}
 In the final 301-query online benchmark, \textbf{0 actual LLM invocations} and \textbf{0 LLM timeouts} occurred. All 109 answered queries were resolved through deterministic compiled retrieval and structured context assembly, while 192 queries were safely abstained. An evaluator bug in prior reports misclassified non-LLM deterministic paths as timeouts. Because no autoregressive LLM generations were dispatched during this benchmark run, end-to-end generative language quality is not evaluated in this study.
@@ -600,7 +598,7 @@ While these extensions represent functional capabilities within the software pla
 The empirical evaluation yields four primary observations:
 \begin{enumerate}
     \item \textbf{Deterministic Invariant Enforcement}: Pre-retrieval enforcement of temporal intervals $[\tau_s, \tau_e]$ and authorization predicates $A(c, u)$ prevents out-of-scope candidates from entering the active retrieval pool, achieving $100.0\%$ authorization decision correctness.
-    \item \textbf{Update Efficiency}: The incremental compiler restricts re-embedding compute to $O(|\Delta| \cdot d)$, delivering speedups between $462\times$ and $566\times$ for non-zero policy modifications on the evaluated corpus.
+    \item \textbf{Update Efficiency}: The incremental compiler restricts re-embedding compute to $O(|\Delta| \cdot d)$, delivering speedups between $488\times$ and $495\times$ for non-zero policy modifications on the evaluated corpus ($5{,}059.72\times$ on zero-delta hash no-ops).
     \item \textbf{Execution Latency}: Fast-path resolution enabled sub-$25\,\text{ms}$ responses for structured lookups, with composite median latency of $177.84\,\text{ms}$.
     \item \textbf{Calibration Impact}: Post-hoc isotonic calibration reduced out-of-sample ECE by $63.2\%$ on unseen test queries.
 \end{enumerate}
@@ -624,16 +622,11 @@ The empirical evaluation yields four primary observations:
 
 \section{Reproducibility Statement}
 
-All experimental artifacts, evaluation scripts, and benchmark datasets are reproducible via the repository harness:
-\begin{quote}
-\texttt{python3 scripts/reconcile\_all\_authoritative.py} \\
-\texttt{python3 scripts/verify\_internal\_consistency.py}
-\end{quote}
-All reported metrics, tables, and distributions match the authoritative evidence package in \texttt{results/FINAL\_AUTHORITATIVE\_RESULTS.md}.
+All experimental artifacts, evaluation scripts, and benchmark datasets are reproducible via the repository harness: \texttt{scripts/reconcile\_all\_authoritative.py} and \texttt{scripts/verify\_internal\_consistency.py}. All reported metrics, tables, and distributions match the authoritative evidence package in \texttt{results/FINAL\_AUTHORITATIVE\_RESULTS.md}.
 
 \section{Conclusion}
 
-This paper presented \textbf{\Veritas}, an enterprise policy intelligence architecture that integrates temporal validity interval constraints, role-based authorization gating, incremental SHA-256 knowledge compilation, and an adaptive multi-tier query router. On a 301-query benchmark over a 151-chunk corporate policy repository across 46 versions, \Veritas\ demonstrated: (i) $100.0\%$ ($301/301$) authorization decision correctness; (ii) $88.07\%$ ($96/109$) conditional version accuracy on answered queries ($33.33\%$ strict versioned accuracy across all 288 versioned queries); (iii) incremental compilation speedups between $461.73\times$ and $566.28\times$ on non-zero updates over full rebuilds ($4{,}536.89\times$ on zero-delta hash no-ops); (iv) a composite median response latency of $177.84\,\text{ms}$ (P95: $239.65\,\text{ms}$); (v) post-hoc confidence calibration reducing test-set Brier score by $50.1\%$ and ECE by $63.2\%$; and (vi) zero observed stale, wrong-version, or cross-scope cache responses in a 30-query isolation evaluation. However, strict version-selection accuracy remains bounded on the complete benchmark due to conservative abstention, strict chunk localization remains challenging, and generative LLM quality was not evaluated in this benchmark run. Future work will investigate query-side temporal intent extraction, graph-structured validity models for overlapping regulatory amendments, and large-scale generative evaluation across heterogeneous enterprise corpora.
+This paper presented \textbf{\Veritas}, an enterprise policy intelligence architecture that integrates temporal validity interval constraints, role-based authorization gating, incremental SHA-256 knowledge compilation, and an adaptive multi-tier query router. On a 301-query benchmark over a 151-chunk corporate policy repository across 46 versions, \Veritas\ demonstrated: (i) $100.0\%$ ($301/301$) authorization decision correctness; (ii) $88.07\%$ ($96/109$) conditional version accuracy on answered queries ($33.33\%$ strict versioned accuracy across all 288 versioned queries); (iii) incremental compilation speedups between $488.75\times$ and $494.19\times$ on non-zero updates over full rebuilds ($5{,}059.72\times$ on zero-delta hash no-ops); (iv) a composite median response latency of $177.84\,\text{ms}$ (P95: $239.65\,\text{ms}$); (v) post-hoc confidence calibration reducing test-set Brier score by $50.1\%$ and ECE by $63.2\%$; and (vi) zero observed stale, wrong-version, or cross-scope cache responses in a 30-query isolation evaluation. However, strict version-selection accuracy remains bounded on the complete benchmark due to conservative abstention, strict chunk localization remains challenging, and generative LLM quality was not evaluated in this benchmark run. Future work will investigate query-side temporal intent extraction, graph-structured validity models for overlapping regulatory amendments, and large-scale generative evaluation across heterogeneous enterprise corpora.
 
 \section*{Acknowledgment}
 The author thanks the laboratory colleagues and reviewers for their constructive feedback and technical support.

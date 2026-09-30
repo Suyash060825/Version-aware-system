@@ -91,15 +91,13 @@ All baselines were independently evaluated query-by-query over the identical 301
 ---
 
 ## 7. Incremental Knowledge Compilation
-Evaluated on the full 151-chunk corpus comparing incremental compiler mutations against full FAISS QA + BM25 rebuilds (median of 3 repetitions):
+Evaluated on the full 151-chunk corpus ($N_{\mathrm{total}} = 151$) comparing incremental compiler mutations on Policy 1 ($N_{\mathrm{policy}} = 6$) against full FAISS QA + BM25 rebuild baseline (median of 3 repetitions):
 
-| Delta Level ($\delta$) | Modified Chunks ($|\Delta|$) | Incremental Latency (ms) | Full Rebuild Latency (ms) | Re-Indexed Chunks | Speedup Factor |
-|---|---|---|---|---|---|
-| **$\delta = 0$ (Hash No-Op)** | 0 | 0.67 ms | 3054.66 ms | 0 | **$4536.89\times$** |
-| **$\delta = 1$ chunk (Non-zero)** | 1 | 6.23 ms | 3054.66 ms | 1 | **$490.01\times$** |
-| **$\delta \approx 10\%$** | 1 | 6.38 ms | 3054.66 ms | 1 | **$478.60\times$** |
-| **$\delta \approx 30\%$** | 1 | 5.39 ms | 3054.66 ms | 1 | **$566.28\times$** |
-| **$\delta \approx 50\%$** | 3 | 6.62 ms | 3054.66 ms | 3 | **$461.73\times$** |
+| Delta Level ($\delta$) | Modified Chunks ($|\Delta|$) | Incremental Latency (ms) | Full Rebuild Latency (ms) | Re-Indexed Chunks | Unchanged Chunks | Speedup Factor |
+|---|---|---|---|---|---|---|
+| **$\delta = 0$ chunks (0.0% / Hash No-Op)** | 0 | 0.46 ms | 2307.71 ms | 0 | 6 | **$5059.72\times$** |
+| **$\delta = 1$ chunk (16.67% of policy)** | 1 | 4.72 ms | 2307.71 ms | 1 | 5 | **$488.75\times$** |
+| **$\delta = 3$ chunks (50.00% of policy)** | 3 | 4.67 ms | 2307.71 ms | 3 | 3 | **$494.19\times$** |
 
 *Scientific Claim Statement:* Non-zero delta updates achieve an average speedup of $\sim 490\times$ over full index rebuilding. Affected re-embedding and affected-index mutation scale with the changed subset $|\Delta|$, while change detection remains dependent on candidate document content.
 
@@ -168,10 +166,14 @@ Evaluated with strict train/val/test separation (Validation $N=38$, Test $N=301$
 
 ---
 
-## 14. Version-Comparison Pilot
-- **Test Size:** $N = 2$ longitudinal comparative queries (`comp_01`, `comp_02`)
-- **Route Execution:** 100% routed correctly to `TEMPORAL_COMPARISON`
-- **Output:** Correctly identified multi-version diff structures between Policy versions without hallucinations.
+## 14. Tier-3 Version-Diff / Longitudinal Pilot
+Evaluated on the dedicated Tier-3 version comparison test set (`results/tier3_diff.csv`, $N = 5$):
+- **Pilot Test Size:** $N = 5$ comparative queries (`diff_01` to `diff_05`)
+- **Diff Change Recall:** **100.0% (5/5)**
+- **P50 Latency:** **30.59 ms**
+- **P95 Latency:** **82.11 ms**
+- **Individual Latencies:** `diff_01` = 30.59 ms, `diff_02` = 54.08 ms, `diff_03` = 17.67 ms, `diff_04` = 21.86 ms, `diff_05` = 89.11 ms
+- *Note:* In the 301 online benchmark subset, 2 comparative queries (`comp_01`, `comp_02`) were additionally evaluated under multi-user RBAC.
 
 ---
 

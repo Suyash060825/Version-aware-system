@@ -40,11 +40,11 @@ docker compose exec -T ollama ollama pull qwen3:4b-q4_K_M
 
 After seeding the database (`python seed.py`), the following pre-configured accounts are available:
 
-| Role | Email | Password | Description |
+| Role | Email | Password Environment Variable / Default | Description |
 | :--- | :--- | :--- | :--- |
-| **System Admin** | `admin@company.com` | Defined in `.env` (`Admin@6997d0cd111c34a0`) | Full access to Admin Panel, Knowledge Graph, Audits, Metrics, User Management |
-| **HR Director** | `hr@company.com` | `HR@1234` | Policy creation, version management, contradiction resolution, employee communications |
-| **Employee** | `employee@company.com` | `Emp@1234` | Policy search, AI Assistant chat, citation drawer, quizzes, and acknowledgment |
+| **System Admin** | `admin@company.com` | Defined in `.env` (`DEFAULT_ADMIN_PASSWORD`) | Full access to Admin Panel, Knowledge Graph, Audits, Metrics, User Management |
+| **HR Director** | `hr@company.com` | `HR_PASSWORD` (default: `HR@1234`) | Policy creation, version management, contradiction resolution, employee communications |
+| **Employee** | `employee@company.com` | `EMPLOYEE_PASSWORD` (default: `Emp@1234`) | Policy search, AI Assistant chat, citation drawer, quizzes, and acknowledgment |
 
 ---
 
@@ -137,8 +137,8 @@ python app.py
 To verify all system integrity, test suites, and views:
 
 ```bash
-# A. Run full unit & regression test suite (41/41 passing, 0 warnings)
-pytest
+# A. Run unit & regression test suite (35 passed, 0 failures)
+pytest tests/
 
 # B. Run comprehensive view health audit (69/69 passing across all Admin & Employee routes)
 python scripts/audit_all_views.py

@@ -66,11 +66,9 @@ def run_delta_sweep():
 
         # Delta levels: (label, num_modified_chunks)
         delta_levels = [
-            ("0 chunks (0.0%)", 0),
-            ("1 chunk", 1),
-            (f"{max(1, N_policy // 10)} chunks (~10%)", max(1, N_policy // 10)),
-            (f"{max(1, N_policy * 3 // 10)} chunks (~30%)", max(1, N_policy * 3 // 10)),
-            (f"{max(1, N_policy // 2)} chunks (~50%)", max(1, N_policy // 2)),
+            ("0 chunks (0.0% / Hash No-Op)", 0),
+            ("1 chunk (16.67% of policy)", 1),
+            ("3 chunks (50.00% of policy)", 3),
         ]
 
         rows = []

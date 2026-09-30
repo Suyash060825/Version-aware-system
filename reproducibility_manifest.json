@@ -1,0 +1,33 @@
+{
+  "project_name": "Veritas",
+  "paper_title": "Veritas: Version-Aware Enterprise Policy Intelligence via Incremental Knowledge Compilation and Adaptive Multi-Tier Retrieval",
+  "frozen_production_commit": "61d64b71c298c3c505f2eeeef3c94829dfb55f75",
+  "build_timestamp": "2026-09-30T21:51:00+05:30",
+  "sha256_checksums": {
+    "Version_Aware_Ieee.tex": "fecc5423e1da2a2eec764c071b45e4c5f2cebd64d68db23f4986c9cdef29c844",
+    "Version_Aware_Ieee.pdf": "8d8e345376ddfc8fdc0484cf9ed680c7c55f33292b4718f56cde7f1e2a26c1fe",
+    "figures/architecture.pdf": "4020a59fc438865529e7c54ef02e4d0d2b78a05c6d32ce784a9569b936081da2",
+    "IEEEtran.cls": "ebfa6747b0a331190bc19e34c9c7e0c46b5dc649774ba94c9adfd5c7d8122c6e"
+  },
+  "benchmark_summary": {
+    "total_queries": 301,
+    "versioned_queries": 288,
+    "strict_versioned_accuracy": "96/288 (33.33%)",
+    "answered_conditional_accuracy": "96/109 (88.07%)",
+    "citation_bearing_accuracy": "96/108 (88.89%)",
+    "authorization_decision_correctness": "301/301 (100.0%)",
+    "llm_invocations": 0,
+    "llm_timeouts": 0,
+    "median_latency_ms": 177.84,
+    "p95_latency_ms": 239.65,
+    "p99_latency_ms": 2647.40
+  },
+  "reproducibility_entrypoints": [
+    "python3 scripts/run_delta_sweep.py",
+    "python3 scripts/run_retrieval_strict.py",
+    "python3 scripts/run_calibration_proper.py",
+    "python3 scripts/reconcile_all_authoritative.py",
+    "python3 scripts/verify_internal_consistency.py",
+    "pytest tests/"
+  ]
+}
