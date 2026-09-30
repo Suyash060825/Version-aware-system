@@ -1,0 +1,126 @@
+{
+  "dataset_summary": {
+    "benchmark_file": "data/benchmarks/benchmark_test.json",
+    "total_queries": 301,
+    "versioned_queries": 288,
+    "unanswerable_or_adversarial_queries": 13
+  },
+  "version_accuracy": {
+    "overall_accuracy_count": 96,
+    "overall_accuracy_pct": 31.89,
+    "overall_accuracy_fraction": "96/301",
+    "versioned_accuracy_pct": 33.33,
+    "versioned_accuracy_fraction": "96/288",
+    "conditional_on_authorized_pct": 68.09,
+    "conditional_on_authorized_fraction": "96/141",
+    "conditional_on_answered_pct": 88.07,
+    "conditional_on_answered_fraction": "96/109",
+    "resolved_147_discrepancy_explanation": "147 was an unverified aggregate claim based on theoretical ~167 authorized coverage. The true raw benchmark record exhibits exactly 96 version-correct selections out of 109 answered queries (88.07% conditional, 33.33% across all 288 versioned queries)."
+  },
+  "authorization_and_abstention": {
+    "total_authorized_queries": 141,
+    "total_denied_queries": 160,
+    "total_abstentions": 192,
+    "auth_block_abstentions": 160,
+    "confidence_gate_abstentions": 32,
+    "total_answered_queries": 109
+  },
+  "llm_invocation_behavior": {
+    "actual_llm_invocations": 0,
+    "llm_invoked_successfully": 0,
+    "llm_invoked_timed_out": 0,
+    "llm_not_invoked_deterministic_route": 109,
+    "llm_not_invoked_abstention": 192,
+    "other_runtime_failures": 0,
+    "note": "Evaluator bug previously reported 301 Ollama timeouts by treating llm_used==False as timeout. In reality 0 timeouts occurred because 0 LLM calls were dispatched."
+  },
+  "latency": {
+    "mean_ms": 205.47,
+    "p50_ms": 177.84,
+    "p95_ms": 239.65,
+    "p99_ms": 2647.4
+  },
+  "category_breakdown": {
+    "compiled_qa": {
+      "total": 225,
+      "expected_versioned": 225,
+      "correct_version": 85,
+      "authorized": 97,
+      "denied": 128,
+      "abstained": 132,
+      "answered": 93
+    },
+    "fact": {
+      "total": 44,
+      "expected_versioned": 44,
+      "correct_version": 9,
+      "authorized": 14,
+      "denied": 30,
+      "abstained": 32,
+      "answered": 12
+    },
+    "semantic_retrieval": {
+      "total": 8,
+      "expected_versioned": 8,
+      "correct_version": 0,
+      "authorized": 7,
+      "denied": 1,
+      "abstained": 8,
+      "answered": 0
+    },
+    "adversarial": {
+      "total": 5,
+      "expected_versioned": 0,
+      "correct_version": 0,
+      "authorized": 5,
+      "denied": 0,
+      "abstained": 5,
+      "answered": 0
+    },
+    "unanswerable": {
+      "total": 8,
+      "expected_versioned": 0,
+      "correct_version": 0,
+      "authorized": 8,
+      "denied": 0,
+      "abstained": 8,
+      "answered": 0
+    },
+    "temporal_historical": {
+      "total": 4,
+      "expected_versioned": 4,
+      "correct_version": 1,
+      "authorized": 3,
+      "denied": 1,
+      "abstained": 3,
+      "answered": 1
+    },
+    "version_comparison": {
+      "total": 2,
+      "expected_versioned": 2,
+      "correct_version": 0,
+      "authorized": 2,
+      "denied": 0,
+      "abstained": 0,
+      "answered": 2
+    },
+    "department_auth": {
+      "total": 3,
+      "expected_versioned": 3,
+      "correct_version": 1,
+      "authorized": 3,
+      "denied": 0,
+      "abstained": 2,
+      "answered": 1
+    },
+    "confidentiality": {
+      "total": 2,
+      "expected_versioned": 2,
+      "correct_version": 0,
+      "authorized": 2,
+      "denied": 0,
+      "abstained": 2,
+      "answered": 0
+    }
+  }
+}

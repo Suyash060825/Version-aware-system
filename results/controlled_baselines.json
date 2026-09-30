@@ -1,37 +1,47 @@
 {
   "Baseline A (Naive)": {
-    "auth_evidence_correct": 12,
-    "overall_correct": 21,
+    "overall_correct": 251,
+    "versioned_accuracy_fraction": "251/288",
+    "versioned_accuracy_pct": 87.15,
+    "auth_evidence_correct": 251,
     "auth_abstentions": 0,
     "total_abstentions": 0,
-    "auth_decision_correct": 0
+    "auth_decision_correct": 141
   },
   "Baseline B (Temporal-only)": {
-    "auth_evidence_correct": 12,
-    "overall_correct": 19,
+    "overall_correct": 251,
+    "versioned_accuracy_fraction": "251/288",
+    "versioned_accuracy_pct": 87.15,
+    "auth_evidence_correct": 251,
     "auth_abstentions": 0,
     "total_abstentions": 0,
-    "auth_decision_correct": 0
+    "auth_decision_correct": 141
   },
   "Baseline C (Auth-only)": {
-    "auth_evidence_correct": 9,
-    "overall_correct": 9,
-    "auth_abstentions": 124,
-    "total_abstentions": 124,
-    "auth_decision_correct": 124
+    "overall_correct": 128,
+    "versioned_accuracy_fraction": "128/288",
+    "versioned_accuracy_pct": 44.44,
+    "auth_evidence_correct": 128,
+    "auth_abstentions": 149,
+    "total_abstentions": 149,
+    "auth_decision_correct": 272
   },
   "Baseline D (Temp+Auth Standard)": {
-    "auth_evidence_correct": 8,
-    "overall_correct": 8,
-    "auth_abstentions": 124,
-    "total_abstentions": 124,
-    "auth_decision_correct": 124
+    "overall_correct": 128,
+    "versioned_accuracy_fraction": "128/288",
+    "versioned_accuracy_pct": 44.44,
+    "auth_evidence_correct": 128,
+    "auth_abstentions": 149,
+    "total_abstentions": 149,
+    "auth_decision_correct": 272
   },
   "Baseline E (Full Veritas)": {
-    "auth_evidence_correct": 147,
-    "overall_correct": 147,
-    "auth_abstentions": 124,
-    "total_abstentions": 124,
-    "auth_decision_correct": 0
+    "overall_correct": 96,
+    "versioned_accuracy_fraction": "96/288",
+    "versioned_accuracy_pct": 33.33,
+    "auth_evidence_correct": 96,
+    "auth_abstentions": 160,
+    "total_abstentions": 192,
+    "auth_decision_correct": 301
   }
 }

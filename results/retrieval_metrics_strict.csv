@@ -1,9 +1,9 @@
 Retriever,Eval Level,R@1,R@5,R@10,MRR@10,NDCG@10,P@1,P@5,N Queries
-Dense (BGE-Small),Policy-Level,0.9618,0.9861,0.9896,0.9692,0.9741,—,—,288
+Dense (BGE-Small),Policy-Level,0.9618,0.9861,0.9861,0.9688,0.973,—,—,288
 Dense (BGE-Small),Chunk-Level (Strict),0.0818,0.1338,0.1487,0.104,0.1148,0.0818,0.0268,269
 BM25 (Sparse),Policy-Level,0.9792,0.9896,0.9896,0.9835,0.985,—,—,288
-BM25 (Sparse),Chunk-Level (Strict),0.0669,0.1375,0.1413,0.097,0.1081,0.0669,0.0275,269
+BM25 (Sparse),Chunk-Level (Strict),0.0669,0.1413,0.1413,0.0965,0.1078,0.0669,0.0283,269
 Hybrid RRF,Policy-Level,0.9861,0.9896,0.9896,0.9878,0.9883,—,—,288
-Hybrid RRF,Chunk-Level (Strict),0.0818,0.145,0.1599,0.1096,0.1219,0.0818,0.029,269
-Hybrid + FlashRank (Ours),Policy-Level,0.9722,0.9896,0.9896,0.9769,0.9799,—,—,288
-Hybrid + FlashRank (Ours),Chunk-Level (Strict),0.0372,0.0855,0.1004,0.0573,0.0676,0.0372,0.0171,269
+Hybrid RRF,Chunk-Level (Strict),0.0781,0.1524,0.1599,0.109,0.1216,0.0781,0.0305,269
+Hybrid + FlashRank (Ours),Policy-Level,0.9549,0.9896,0.9896,0.967,0.9726,—,—,288
+Hybrid + FlashRank (Ours),Chunk-Level (Strict),0.0372,0.0855,0.0967,0.0569,0.0665,0.0372,0.0171,269
