@@ -132,7 +132,9 @@ class FactResolver:
 
             # Active version preference when not historical
             if version and version.is_active and not (temporal and temporal.is_historic):
-                score += 8
+                score += 15
+            if version and version.version_num:
+                score += float(version.version_num) * 2
 
             # Predicate match
             if pred in target_predicates:
@@ -157,21 +159,16 @@ class FactResolver:
             return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
         # PRECISION & AMBIGUITY REQUIREMENTS 8 & 9: Multi-attribute semantic ambiguity comparison
-        scored_candidates.sort(key=lambda x: x[0], reverse=True)
+        scored_candidates.sort(key=lambda x: (x[0], float(getattr(versions_map.get(x[1].version_id), 'version_num', 1.0) or 1.0)), reverse=True)
         best_score, best_fact = scored_candidates[0]
 
         if len(scored_candidates) > 1:
             second_score, second_fact = scored_candidates[1]
-            # Check semantic divergence beyond just fact.value (subject, predicate, policy, version, value, unit)
-            semantic_divergence = (
-                second_fact.value != best_fact.value or
-                second_fact.subject != best_fact.subject or
-                second_fact.predicate != best_fact.predicate or
-                second_fact.policy_id != best_fact.policy_id or
-                second_fact.version_id != best_fact.version_id or
-                second_fact.unit != best_fact.unit
-            )
-            if semantic_divergence and (best_score - second_score) < 10:
+            # Semantic conflict: conflicting facts across DIFFERENT policies, or distinct conflicting values within the same version
+            different_policy = (second_fact.policy_id != best_fact.policy_id)
+            conflicting_within_version = (second_fact.version_id == best_fact.version_id and second_fact.value != best_fact.value)
+            
+            if (different_policy or conflicting_within_version) and (best_score - second_score) < 10:
                 return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
         return self._format_fact_result(best_fact)

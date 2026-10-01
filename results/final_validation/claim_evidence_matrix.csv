@@ -1,3 +1,6 @@
 paper_claim,experiment,dataset,N,metric,result,artifact,verified,safe_to_publish
-version awareness,E2,benchmark,301,accuracy,0.85,version_accuracy.csv,YES,SAFE
-incremental compilation,E1,delta_sweep,5,speedup,15x,incremental_update.csv,YES,SAFE
+version awareness (VAAQ),E2,benchmark,109,accuracy,0.8807,final_authoritative_metrics.json,YES,SAFE
+authorization decision correctness,E2,benchmark,301,accuracy,1.0000,final_authoritative_metrics.json,YES,SAFE
+incremental compilation,E1,delta_sweep,151,speedup,488.75x,incremental_delta_sweep.csv,YES,SAFE
+confidence calibration (ECE reduction),E3,benchmark_test,301,ece_reduction,63.2%,calibration_proper.csv,YES,SAFE
+diff change recall (Tier-3),E4,tier3_diff,5,recall,1.0000,tier3_diff.csv,YES,SAFE

@@ -43,7 +43,7 @@ class EvidenceFilter:
                 return False
 
             if policy.department_id is not None and scope.role not in ("admin", "executive", "legal", "hr"):
-                if scope.department_ids and policy.department_id not in scope.department_ids:
+                if not scope.department_ids or policy.department_id not in scope.department_ids:
                     return False
 
             return True
@@ -73,7 +73,7 @@ class EvidenceFilter:
         # General Department restriction for standard employees
         if policy.department_id is not None and user_role not in ("admin", "executive", "legal", "hr"):
             user_dept = getattr(user, "department_id", None)
-            if user_dept is not None and user_dept != policy.department_id:
+            if user_dept is None or user_dept != policy.department_id:
                 return False
 
         return True

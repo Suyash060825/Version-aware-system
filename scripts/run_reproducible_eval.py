@@ -293,7 +293,7 @@ def run_reproducible_evaluation():
             if cat in ("unanswerable", "adversarial", "confidentiality", "department_auth"):
                 ver_correct = res.abstained
             elif exp_ver:
-                ver_correct = (str(exp_ver) == str(pred_ver)) or (str(exp_ver) in str(pred_ver)) or (f"v{exp_ver}" in str(pred_ver))
+                ver_correct = (not res.abstained) and pred_ver != "None" and ((str(exp_ver) == str(pred_ver)) or (str(exp_ver) in str(pred_ver)) or (f"v{exp_ver}" in str(pred_ver)))
             else:
                 ver_correct = len(res.citations) > 0
 

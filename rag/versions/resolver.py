@@ -234,7 +234,8 @@ class VersionResolver:
                 if v.is_valid_for_date(target_date):
                     return v
             # If target date is before all versions, return the earliest version
-            if target_date < versions[-1].effective_from:
+            earliest_from = versions[-1].effective_from
+            if earliest_from and target_date < earliest_from:
                 return versions[-1]
             return versions[0]
 

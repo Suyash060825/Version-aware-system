@@ -142,12 +142,7 @@ class MultiLevelCache:
         scope_str = ",".join(sorted(allowed_depts or [])) + f"|diff={is_diff_query}"
         return scope_str
 
-    def get(self, query_embedding: List[float], scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, is_diff_query: bool = False) -> Optional[dict]:
-        scope_key = self._make_scope_key(scope=scope, allowed_depts=allowed_depts, is_diff_query=is_diff_query)
-        cached = self.get_l2(query_embedding, scope_key=scope_key)
-        if not cached:
-            return None
-
+    def _validate_cached(self, cached: dict, scope: Optional[Any] = None) -> Optional[dict]:
         # Verify cached policies, versions, and source authorization still valid in DB
         try:
             from flask import has_app_context
@@ -183,22 +178,34 @@ class MultiLevelCache:
                             logger.info(f"Cached chunk {cid} no longer exists in DB. Invalidating cache hit.")
                             return None
             else:
-                # Outside application context with no DB access, do not serve unverifiable cache
                 return None
         except Exception as e:
-            # SECURITY REQUIREMENT: Cache validation exception must ALWAYS result in CACHE MISS (fail closed)
             logger.warning(f"Cache validation check failed unexpectedly: {e}. Treating as cache miss.")
             return None
 
         return cached
 
-    def put(self, query_embedding: List[float], answer: str, citations: list, chunks_used: int, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, model: str = "", confidence: Optional[float] = None, is_diff_query: bool = False):
+    def get_exact(self, query: str, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, is_diff_query: bool = False) -> Optional[dict]:
+        scope_key = self._make_scope_key(scope=scope, allowed_depts=allowed_depts, is_diff_query=is_diff_query)
+        q_hash = self._hash_query(query, scope_key=scope_key)
+        cached = self.get_l1(q_hash, scope_key=scope_key)
+        if not cached:
+            return None
+        return self._validate_cached(cached, scope)
+
+    def get(self, query_embedding: List[float], scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, is_diff_query: bool = False) -> Optional[dict]:
+        scope_key = self._make_scope_key(scope=scope, allowed_depts=allowed_depts, is_diff_query=is_diff_query)
+        cached = self.get_l2(query_embedding, scope_key=scope_key)
+        if not cached:
+            return None
+        return self._validate_cached(cached, scope)
+
+    def put(self, query_embedding: List[float], answer: str, citations: list, chunks_used: int, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, model: str = "", confidence: Optional[float] = None, is_diff_query: bool = False, query: Optional[str] = None):
         scope_key = self._make_scope_key(scope=scope, allowed_depts=allowed_depts, is_diff_query=is_diff_query)
         policy_ids = [c.get("policy_id") for c in citations if c.get("policy_id")]
         version_ids = [c.get("version_id") for c in citations if c.get("version_id")]
         chunk_ids = [c.get("chunk_id") for c in citations if c.get("chunk_id")]
         
-        # Preserve actual confidence score without inflating or hardcoding
         conf_val = float(confidence) if confidence is not None else 1.0
 
         res = {
@@ -216,6 +223,16 @@ class MultiLevelCache:
             version_ids=version_ids,
             chunk_ids=chunk_ids
         )
+        if query:
+            q_hash = self._hash_query(query, scope_key=scope_key)
+            self.set_l1(
+                query_hash=q_hash,
+                scope_key=scope_key,
+                result=res,
+                policy_ids=policy_ids,
+                version_ids=version_ids,
+                chunk_ids=chunk_ids
+            )
 
     def invalidate_policy(self, policy_id: int):
         """Purge only cached entries touching a modified policy without clearing unrelated data."""

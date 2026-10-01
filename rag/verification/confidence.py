@@ -43,8 +43,8 @@ class ConfidenceEngine:
         # Apply Isotonic Calibration to fix overconfidence (Brier/ECE)
         final = self._isotonic_calibrate(raw_final)
         
-        # Abstain if evidence coverage is low or composite confidence is below calibrated baseline
-        abstain = (coverage_conf < 0.25) or (retrieval_conf < 0.20) or (final < self.LOW_THRESHOLD)
+        # Abstain if evidence coverage is critically low or composite confidence is below calibrated baseline
+        abstain = (coverage_conf < 0.15) or (retrieval_conf < 0.15) or (final < 0.20)
             
         return ConfidenceScore(
             value=float(min(1.0, max(0.0, final))),

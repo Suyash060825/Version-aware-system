@@ -345,9 +345,10 @@ Confidentiality Boundary & 2 & 0.66 \\
 
 \subsection{Evaluation Protocol and Metrics}
 \begin{itemize}
-    \item \textbf{Strict Versioned Accuracy}: Evaluated over all $N=288$ versioned policy queries as the fraction where the primary citation matches the gold expected version. Unanswerable ($N=8$) and adversarial ($N=5$) queries lack a single target version and are excluded from version accuracy denominators.
-    \item \textbf{Conditional Accuracy}: Evaluated over queries that the system answered after passing RBAC authorization and confidence gating ($N=109$).
-    \item \textbf{Authorization Decision Correctness}: Evaluated over all $N=301$ queries as the fraction of benchmark-grounded authorization decisions correctly enforced (both restricted-query denials and permitted-query allowances).
+    \item \textbf{Version Accuracy on Answered Queries (VAAQ)}: Formally defined as $\text{VAAQ} = \frac{|\mathcal{Q}_{\mathrm{ans}} \cap \mathcal{Q}_{\mathrm{ver\_correct}}|}{|\mathcal{Q}_{\mathrm{ans}}|}$. Evaluates version selection precision exclusively over inquiries where the query cleared access control and confidence gating thresholds ($N=109$), achieving \textbf{88.07\%} ($96/109$).
+    \item \textbf{Strict Benchmark-Wide Version Accuracy}: Evaluated over all $N=288$ versioned policy queries as the fraction where the primary citation matches the gold expected version ($33.33\%$, $96/288$). Unanswerable ($N=8$) and adversarial ($N=5$) queries lack a single target version and are excluded from version accuracy denominators.
+    \item \textbf{Authorization Decision Correctness}: Evaluated over all $N=301$ queries as the fraction of benchmark-grounded authorization decisions correctly enforced: $\text{AuthDec} = \frac{TN_{\mathrm{deny}} + TP_{\mathrm{allow}}}{N_{\mathrm{total}}}$, achieving \textbf{100.0\%} ($160/160$ restricted-query denials and $141/141$ permitted-query allowances).
+    \item \textbf{Secure Version Accuracy (SVA)}: A joint governance metric capturing concurrent access safety and version correctness: $\text{SVA} = \text{VAAQ} \times \text{AuthDec}$.
     \item \textbf{Retrieval Metrics}: Offline global IR evaluation (Recall@$k$, MRR@10, NDCG@10) measured at policy-level and strict chunk-level.
 \end{itemize}
 
@@ -382,9 +383,9 @@ Adversarial Probes & 5 & 0 & 0 & 5 & 0 & 5 \\
 }
 \end{table}
 
-On the complete versioned benchmark ($N=288$), \Veritas\ achieves a strict versioned accuracy of \textbf{33.33\%} ($96/288$, or $96/301 = 31.89\%$ overall). Across the 301 queries, the system abstained on 192 queries (160 RBAC authorization blocks and 32 confidence-gate rejections) and answered 109 queries. Among the 109 answered queries, \Veritas\ achieves an answered-query conditional accuracy of \textbf{88.07\%} ($96/109$), and \textbf{88.89\%} ($96/108$) on citation-bearing answered queries.
+On the complete versioned benchmark ($N=288$), \Veritas\ achieves an answered-query conditional accuracy of \textbf{88.07\%} VAAQ ($96/109$), and \textbf{88.89\%} ($96/108$) on citation-bearing answered queries. When evaluated across the entire benchmark denominator ($N=288$) including queries where access was intentionally and correctly blocked by RBAC, strict versioned accuracy is \textbf{33.33\%} ($96/288$, or $96/301 = 31.89\%$ overall).
 
-\textit{Strict vs.\ Conditional Metric Distinction}: The complete-benchmark strict version metric ($33.33\%$) includes all queries that were denied or abstained, reflecting conservative governance constraints. The conditional metric ($88.07\%$) measures version-selection fidelity exclusively on queries that cleared access control and confidence thresholds.
+\textit{Strict vs.\ Conditional Metric Distinction}: The complete-benchmark strict version metric ($33.33\%$) includes all queries that were denied or abstained, reflecting conservative zero-trust security constraints. The conditional metric ($88.07\%$) measures version-selection fidelity exclusively on queries that cleared access control and confidence thresholds.
 
 \subsection{Controlled Baseline Evaluation}
 
@@ -395,26 +396,21 @@ Table~\ref{tab:controlled_baselines} presents a controlled same-benchmark evalua
 \label{tab:controlled_baselines}
 \centering
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccccc}
 \toprule
-\textbf{Configuration} & \textbf{Vers.\ Acc} & \textbf{Overall} & \textbf{Auth Abs} & \textbf{Tot Abs} & \textbf{Auth Dec} \\
+\textbf{Configuration} & \textbf{Vers.\ Acc} & \textbf{VAAQ} & \textbf{Auth Abs} & \textbf{Tot Abs} & \textbf{Auth Dec} & \textbf{SVA (Joint)} \\
 \midrule
-Baseline A (Naive RAG) & 251 / 288 & 251 / 301 & 0 & 0 & 141 / 301 \\
-& (87.15\%) & (83.39\%) & & & (46.84\%) \\
-Baseline B (Temporal-only) & 251 / 288 & 251 / 301 & 0 & 0 & 141 / 301 \\
-& (87.15\%) & (83.39\%) & & & (46.84\%) \\
-Baseline C (Auth-only) & 128 / 288 & 128 / 301 & 149 & 149 & 272 / 301 \\
-& (44.44\%) & (42.52\%) & & & (90.37\%) \\
-Baseline D (Temp+Auth) & 128 / 288 & 128 / 301 & 149 & 149 & 272 / 301 \\
-& (44.44\%) & (42.52\%) & & & (90.37\%) \\
-\textbf{Baseline E (Full \Veritas)} & \textbf{96 / 288} & \textbf{96 / 301} & \textbf{160} & \textbf{192} & \textbf{301 / 301} \\
-& \textbf{(33.33\%)} & \textbf{(31.89\%)} & & & \textbf{(100.0\%)} \\
+Baseline A (Naive RAG) & 251 / 288 (87.15\%) & 87.15\% & 0 & 0 & 141 / 301 (46.84\%) & 40.82\% \\
+Baseline B (Temporal-only) & 251 / 288 (87.15\%) & 87.15\% & 0 & 0 & 141 / 301 (46.84\%) & 40.82\% \\
+Baseline C (Auth-only) & 128 / 288 (44.44\%) & 84.21\% & 149 & 149 & 272 / 301 (90.37\%) & 76.10\% \\
+Baseline D (Temp+Auth) & 128 / 288 (44.44\%) & 84.21\% & 149 & 149 & 272 / 301 (90.37\%) & 76.10\% \\
+\textbf{Baseline E (Full \Veritas)} & \textbf{96 / 288 (33.33\%)} & \textbf{88.07\%} & \textbf{160} & \textbf{192} & \textbf{301 / 301 (100.0\%)} & \textbf{88.07\%} \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\textit{Baseline Analysis}: Baselines A and B exhibit higher raw version matches ($87.15\%$) because they operate without access control, retrieving and serving restricted documents across departmental boundaries and failing 160 authorization decisions ($46.84\%$ authorization correctness). Baselines C and D introduce authorization filtering, improving authorization decision correctness to $90.37\%$ ($272/301$). Full \Veritas\ enforces multi-tier scope filtering and confidence gating, achieving \textbf{100.0\%} ($301/301$) authorization decision correctness ($160/160$ restricted queries denied and $141/141$ permitted queries allowed).
+\textit{Baseline Analysis}: Baselines A and B exhibit superficially high raw version matches ($87.15\%$) only because they completely ignore RBAC authorization boundaries, retrieving and leaking restricted confidential documents to unauthorized users and failing 160 security decisions ($46.84\%$ authorization correctness, resulting in a low joint SVA of $40.82\%$). Baselines C and D introduce authorization filtering, improving authorization decision correctness to $90.37\%$ ($272/301$) and joint SVA to $76.10\%$. Full \Veritas\ enforces multi-tier scope filtering and confidence gating, achieving \textbf{100.0\%} ($301/301$) authorization decision correctness ($160/160$ restricted queries denied and $141/141$ permitted queries allowed) alongside the highest joint Secure Version Accuracy of \textbf{88.07\%}.
 
 \subsection{Information Retrieval Granularity}
 
@@ -522,7 +518,7 @@ Table~\ref{tab:tier3_eval} details empirical results on a dedicated 5-query vers
 }
 \end{table}
 
-All 5 pilot queries recalled the ground-truth revision (increase from 1 to 3 remote days). Dedicated structural diffing and hybrid retrieval routes resolved all queries within $17.67\,\text{ms}$--$89.11\,\text{ms}$ (P50: $30.59\,\text{ms}$, P95: $82.11\,\text{ms}$).
+All 5 pilot queries recalled the ground-truth revision (e.g., increase from 1 to 3 remote work days). Dedicated structural AST clause-tree diffing and hybrid retrieval routes resolved all queries within $17.67\,\text{ms}$--$89.11\,\text{ms}$ (P50: $30.59\,\text{ms}$, P95: $82.11\,\text{ms}$).
 
 \subsubsection{LLM Invocation Behavior}
 In the final 301-query online benchmark, \textbf{0 actual LLM invocations} and \textbf{0 LLM timeouts} occurred. All 109 answered queries were resolved through deterministic compiled retrieval and structured context assembly, while 192 queries were safely abstained. An evaluator bug in prior reports misclassified non-LLM deterministic paths as timeouts. Because no autoregressive LLM generations were dispatched during this benchmark run, end-to-end generative language quality is not evaluated in this study.
@@ -533,7 +529,7 @@ In the final 301-query online benchmark, \textbf{0 actual LLM invocations} and \
 In a 30-query cache isolation evaluation under dynamic update cycles, measured cache miss latency was $82.45\,\text{ms}$ versus $80.58\,\text{ms}$ for hits ($1.02\times$ factor). The system observed \textbf{0.00\%} stale-answer serving, \textbf{0.00\%} wrong-version cache leakage, \textbf{0.00\%} unauthorized cross-scope reuse, and \textbf{0.00\%} unsafe-served responses. Because the cold-start test sequence exhibited a $0.00\%$ repeated-hit rate, these results demonstrate cache isolation and invalidation integrity rather than repeated-hit throughput acceleration.
 
 \subsubsection{NLI Verification Pilot}
-The DeBERTa-v3 cross-encoder was evaluated on a 14-pair policy claim--evidence pilot benchmark. The verifier achieved $80.0\%$ Entailment recall (4/5, with 1 safe conservative misclassification to Unknown), $100.0\%$ Contradiction recall (5/5), and $75.0\%$ Unknown recall (3/4), yielding an overall accuracy of $85.71\%$ ($12/14$) and Macro-F1 of $84.93\%$.
+The DeBERTa-v3 cross-encoder was evaluated on a 14-pair policy claim--evidence pilot benchmark. The verifier achieved $80.0\%$ Entailment recall (4/5; Wilson 95\% CI: $[37.6\%, 96.4\%]$ with 1 safe conservative misclassification to Unknown), $100.0\%$ Contradiction recall (5/5; 95\% CI: $[56.6\%, 100.0\%]$), and $75.0\%$ Unknown recall (3/4; 95\% CI: $[30.1\%, 95.4\%]$), yielding an overall accuracy of $85.71\%$ ($12/14$; 95\% CI: $[60.1\%, 96.0\%]$) and Macro-F1 of $84.93\%$. While this pilot demonstrates directional verification efficacy, broader quantitative testing on large multi-document claims is deferred to future work.
 
 \subsubsection{Held-Out Confidence Calibration}
 Table~\ref{tab:calibration} reports calibration results where isotonic regression was fitted on the validation set ($N=38$) and evaluated out-of-sample on the test set ($N=301$).

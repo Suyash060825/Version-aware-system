@@ -55,11 +55,13 @@ class QueryEngine:
         # 1.5 Scoped Cache Lookup (L1 / L2)
         from rag.cache.semantic_cache import get_cache
         cache = get_cache()
-        from rag.embeddings.embedder import get_embedder
-        embedder = get_embedder()
-        q_emb = embedder.embed_query(normalized_query)
-
-        cached = cache.get(q_emb, scope=scope, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
+        cached = cache.get_exact(normalized_query, scope=scope, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
+        q_emb = None
+        if not cached:
+            from rag.embeddings.embedder import get_embedder
+            embedder = get_embedder()
+            q_emb = embedder.embed_query(normalized_query)
+            cached = cache.get(q_emb, scope=scope, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
         if cached:
             cits = self.citation_validator.validate_and_enrich(cached.get("citations", []), scope=scope)
             return QueryResult(
@@ -93,8 +95,12 @@ class QueryEngine:
             )
 
         # 3. Level 1: Precomputed Canonical QA Fast Path
-        if complexity <= ComplexityLevel.LEVEL_1_COMPILED_QA:
-            qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.80)
+        if complexity <= ComplexityLevel.LEVEL_1_COMPILED_QA or len(normalized_query.split()) <= 15:
+            if q_emb is None:
+                from rag.embeddings.embedder import get_embedder
+                embedder = get_embedder()
+                q_emb = embedder.embed_query(normalized_query)
+            qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.85)
             
             if qa_match:
                 pol = qa_match.get("policy")
@@ -170,7 +176,7 @@ class QueryEngine:
                             route="TEMPORAL_COMPARISON",
                             confidence=comparison_evidence_score,
                             citations=cits,
-                            policy_versions=[str(v1.version_num), str(v2.version_num)],
+                            policy_versions=[str(v2.version_num), str(v1.version_num)],
                             latency_ms=(time.time() - t_start) * 1000,
                             llm_used=False,
                             retrieval_count=2,
@@ -183,7 +189,7 @@ class QueryEngine:
         if temporal_context.policy_id:
             filters["policy_id"] = str(temporal_context.policy_id)
 
-        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50)
+        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50, scope=scope)
         
         # 6. Authorization Filtering using unified QueryScope
         authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
@@ -201,7 +207,7 @@ class QueryEngine:
             query=normalized_query,
             route="HYBRID_RAG",
             chunks=ranked,
-            scores=[c.get("rerank_score", c.get("hybrid_score", 0.5)) for c in ranked]
+            scores=[c.get("hybrid_score", 0.5) for c in ranked]
         )
         
         conf = self.confidence_engine.score(normalized_query, evidence)
@@ -256,17 +262,22 @@ class QueryEngine:
                     best_score = overlap
                     best_sentence = s
 
-            # Require at least 2 distinct content word matches for evidence bearing
-            if best_sentence and best_score >= 2:
+            if not best_sentence and sentences:
+                best_sentence = sentences[0]
+
+            if best_sentence:
                 policy_name = citations[0]["policy_name"] if citations else "Policy"
                 version_num = citations[0]["version"] if citations else "1.0"
                 final_answer = f"According to the {policy_name} (v{version_num}, {top_section}):\n{best_sentence}"
             else:
-                # If cannot extract verified answer-bearing sentence and no LLM grounding, abstain safely
                 return QueryResult.abstained("I could not find sufficient authoritative evidence to answer this specific question.", (time.time() - t_start) * 1000)
 
         # Cache successful verified answer preserving exact confidence score
-        cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3", confidence=conf.value)
+        if q_emb is None:
+            from rag.embeddings.embedder import get_embedder
+            embedder = get_embedder()
+            q_emb = embedder.embed_query(normalized_query)
+        cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3", confidence=conf.value, query=normalized_query)
 
         return QueryResult(
             answer=final_answer,
@@ -319,11 +330,11 @@ class QueryEngine:
             return
 
         # 3. Level 1: Precomputed Canonical QA Fast Path
-        if complexity <= ComplexityLevel.LEVEL_1_COMPILED_QA:
+        if complexity <= ComplexityLevel.LEVEL_1_COMPILED_QA or len(normalized_query.split()) <= 15:
             from rag.embeddings.embedder import get_embedder
             embedder = get_embedder()
             q_emb = embedder.embed_query(normalized_query)
-            qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.80)
+            qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.85)
             
             if qa_match:
                 pol = qa_match.get("policy")
@@ -424,7 +435,7 @@ class QueryEngine:
         if temporal_context.policy_id:
             filters["policy_id"] = str(temporal_context.policy_id)
 
-        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50)
+        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50, scope=scope)
         
         # 6. Authorization Filtering using unified QueryScope
         authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
@@ -457,7 +468,7 @@ class QueryEngine:
             query=normalized_query,
             route="HYBRID_RAG",
             chunks=ranked,
-            scores=[c.get("rerank_score", c.get("hybrid_score", 0.5)) for c in ranked]
+            scores=[c.get("hybrid_score", 0.5) for c in ranked]
         )
         
         conf = self.confidence_engine.score(normalized_query, evidence)
