@@ -38,23 +38,16 @@ class TestPolicyCreationLifecycle(unittest.TestCase):
             cls.admin_id = admin_user.id
             cls.admin_email = admin_user.email
 
-            # Clean up prior test runs
+            from rag.indexing.index_policy import delete_policy_from_index
             test_titles = [
                 "Automated Lifecycle Test Policy Alpha",
                 "Copy of Automated Lifecycle Test Policy Alpha",
                 "Healthcare Benefits Guidelines",
+                "Healthcare Benefits",
             ]
             for t in test_titles:
                 for old_p in Policy.query.filter_by(title=t).all():
-                    for v in old_p.versions:
-                        PolicyChunkV2.query.filter_by(policy_id=old_p.id, version_id=v.id).delete()
-                        PolicyFact.query.filter_by(policy_id=old_p.id, version_id=v.id).delete()
-                        q_ids = [q.id for q in CanonicalQuestion.query.filter_by(policy_id=old_p.id, version_id=v.id).all()]
-                        if q_ids:
-                            CompiledAnswer.query.filter(CompiledAnswer.question_id.in_(q_ids)).delete(synchronize_session=False)
-                            CanonicalQuestion.query.filter_by(policy_id=old_p.id, version_id=v.id).delete()
-                        CompilationJob.query.filter_by(policy_id=old_p.id, version_id=v.id).delete()
-                        db.session.delete(v)
+                    delete_policy_from_index(old_p.id)
                     db.session.delete(old_p)
             db.session.commit()
 
@@ -303,6 +296,28 @@ class TestPolicyCreationLifecycle(unittest.TestCase):
         # Verify recent jobs table includes the newly compiled policies
         self.assertIn("Automated Lifecycle Test Policy Alpha", html)
         print(f"[TEST 6] RAG Dashboard rendered accurately with {counts['indexed_policies']} indexed policies and {counts['total_chunks']} chunks.")
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up all policies and index entries created during testing."""
+        with cls.app.app_context():
+            from rag.indexing.index_policy import delete_policy_from_index
+            test_titles = [
+                "Automated Lifecycle Test Policy Alpha",
+                "Copy of Automated Lifecycle Test Policy Alpha",
+                "Healthcare Benefits Guidelines",
+                "Healthcare Benefits",
+            ]
+            for t in test_titles:
+                for old_p in Policy.query.filter_by(title=t).all():
+                    delete_policy_from_index(old_p.id)
+                    db.session.delete(old_p)
+            db.session.commit()
+
+            # Refresh BM25 and QA indexes
+            PersistentBM25Index().rebuild_from_db()
+            CanonicalQAIndex().rebuild_from_db()
+        print("\n[TEARDOWN] All test policies cleaned up and indexes synchronized.")
 
 
 if __name__ == "__main__":

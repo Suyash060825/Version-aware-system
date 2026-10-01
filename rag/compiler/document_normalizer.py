@@ -1,26 +1,44 @@
+import re
 import hashlib
 from rag.compiler.document_ir import DocumentIR, SectionNode
 from models import Policy, PolicyVersion
 
 class DocumentNormalizer:
     def normalize(self, raw_text: str, policy: Policy, version: PolicyVersion) -> DocumentIR:
-        import re
-        lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
-        cleaned = "\n".join(lines)
+        # 1. Normalize line endings and whitespace, preserving paragraph breaks (\n\n)
+        raw_lines = [line.strip() for line in raw_text.replace('\r\n', '\n').replace('\r', '\n').split('\n')]
+        cleaned = re.sub(r'\n{3,}', '\n\n', '\n'.join(raw_lines)).strip()
         
         # 2. Compute source hash
         source_hash = hashlib.sha256(cleaned.encode()).hexdigest()
         
-        # 3. Section parsing: split on numbered headings (e.g. "1. Eligibility", "2. Leave Rules")
+        # 3. Section parsing: split on standard corporate heading styles
+        # Supports: "Section 1: ...", "Article 2 - ...", "1. Eligibility", "1.1 Scope", "## Heading", "HEADING:"
+        heading_pattern = (
+            r'\n(?=(?:'
+            r'(?:Section|Article|Part|Clause)\s+\w+[\.\:\-\s]'
+            r'|\d+\.(?:\d+\.?)*\s+[A-Z]'
+            r'|#{1,4}\s+[A-Za-z0-9]'
+            r'|[A-Z][A-Za-z0-9\s]{3,40}:(?:\s*\n|\s+[A-Z])'
+            r'))'
+        )
         sections = []
-        raw_sections = re.split(r'\n(?=[0-9]+\.\s+[A-Z])', cleaned)
+        raw_sections = [s.strip() for s in re.split(heading_pattern, cleaned) if s.strip()]
         
         if len(raw_sections) > 1:
             for s_idx, sec_text in enumerate(raw_sections):
                 sec_lines = sec_text.strip().split('\n')
                 first_line = sec_lines[0].strip()
-                title_match = re.match(r'^[0-9]+\.\s+(.+)$', first_line)
-                sec_title = f"{policy.title} - {first_line}" if title_match else f"{policy.title} Section {s_idx+1}"
+                title_match = re.match(
+                    r'^(?:[0-9]+(?:\.[0-9]+)*|\b(?:Section|Article|Part|Clause)\s+\w+[\.\:\-]?|#{1,4})\s*(.*)$',
+                    first_line, re.IGNORECASE
+                )
+                if title_match and title_match.group(1):
+                    sec_title = f"{policy.title} - {first_line.lstrip('#').strip()}"
+                elif s_idx == 0:
+                    sec_title = f"{policy.title} - Overview"
+                else:
+                    sec_title = f"{policy.title} Section {s_idx+1}"
                 
                 sections.append(
                     SectionNode(

@@ -628,6 +628,8 @@ def policy_restore(policy_id):
 def policy_delete(policy_id):
     policy = Policy.query.get_or_404(policy_id)
     title = policy.title
+    from rag.indexing.index_policy import delete_policy_from_index
+    delete_policy_from_index(policy.id)
     db.session.delete(policy)
     db.session.commit()
     audit("policy.delete", "policy", policy_id, {"title": title})

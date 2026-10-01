@@ -219,6 +219,25 @@ class CanonicalQAIndex:
         self._index_revision += 1
         self.save()
 
+    def delete_policy(self, policy_id: int):
+        """
+        True incremental delete for all versions of a policy via tombstones in O(1) time.
+        """
+        for m in self._metadata:
+            if m.get("policy_id") == policy_id:
+                qid = m.get("question_id")
+                if qid is not None:
+                    self._tombstones.add(qid)
+
+        for m in self._delta_metadata:
+            if m.get("policy_id") == policy_id:
+                qid = m.get("question_id")
+                if qid is not None:
+                    self._tombstones.add(qid)
+
+        self._index_revision += 1
+        self.save()
+
     def update_policy_version_qa(self, policy_id: int, version_id: int, questions: List[Any], answers: List[Any], embeddings: List[List[float]]):
         """
         True incremental delta update:

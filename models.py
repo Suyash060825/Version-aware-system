@@ -221,6 +221,10 @@ class Policy(db.Model):
     versions = db.relationship("PolicyVersion", backref="policy", lazy="dynamic", cascade="all, delete-orphan", order_by="PolicyVersion.version_num.desc()")
     approvals = db.relationship("ApprovalWorkflow", backref="policy", lazy="dynamic", cascade="all, delete-orphan")
     acknowledgements = db.relationship("PolicyAcknowledgement", backref="policy", lazy="dynamic", cascade="all, delete-orphan")
+    chunks = db.relationship("PolicyChunkV2", backref="policy", lazy="dynamic", cascade="all, delete-orphan")
+    facts = db.relationship("PolicyFact", backref="policy", lazy="dynamic", cascade="all, delete-orphan")
+    canonical_questions = db.relationship("CanonicalQuestion", backref="policy", lazy="dynamic", cascade="all, delete-orphan")
+    compilation_jobs = db.relationship("CompilationJob", backref="policy", lazy="dynamic", cascade="all, delete-orphan")
     author = db.relationship("User", foreign_keys=[author_id])
     reviewer = db.relationship("User", foreign_keys=[reviewer_id])
     approver = db.relationship("User", foreign_keys=[approver_id])
@@ -277,6 +281,10 @@ class PolicyVersion(db.Model):
     # Relationships
     created_by = db.relationship("User", foreign_keys=[created_by_id])
     approved_by = db.relationship("User", foreign_keys=[approved_by_id])
+    chunks = db.relationship("PolicyChunkV2", backref="version", lazy="dynamic", cascade="all, delete-orphan")
+    facts = db.relationship("PolicyFact", backref="version", lazy="dynamic", cascade="all, delete-orphan")
+    canonical_questions = db.relationship("CanonicalQuestion", backref="version", lazy="dynamic", cascade="all, delete-orphan")
+    compilation_jobs = db.relationship("CompilationJob", backref="version", lazy="dynamic", cascade="all, delete-orphan")
 
     @property
     def version_number(self):
@@ -1267,6 +1275,7 @@ class CanonicalQuestion(db.Model):
     question_hash = db.Column(db.String(64), index=True)
     quality_score = db.Column(db.Float, default=1.0)
     created_at = db.Column(db.DateTime, default=now_utc)
+    answer = db.relationship("CompiledAnswer", backref="canonical_question", uselist=False, cascade="all, delete-orphan")
 
 class CompiledAnswer(db.Model):
     """Validated precomputed answers linked to canonical questions."""

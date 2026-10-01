@@ -37,10 +37,17 @@ class KnowledgeCompilerPipeline:
         self.temporal_extractor = TemporalExtractor()
 
     def _get_or_create_job(self, policy_id: int, version_id: int) -> CompilationJob:
-        job = CompilationJob.query.filter_by(policy_id=policy_id, version_id=version_id).first()
+        job = CompilationJob.query.filter_by(version_id=version_id).first()
         if not job:
             job = CompilationJob(policy_id=policy_id, version_id=version_id)
             db.session.add(job)
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                job = CompilationJob.query.filter_by(version_id=version_id).first()
+        elif job.policy_id != policy_id:
+            job.policy_id = policy_id
             db.session.commit()
         return job
 
@@ -139,6 +146,10 @@ class KnowledgeCompilerPipeline:
         for q in self._questions:
             db.session.add(q)
         db.session.flush()
+
+        new_q_ids = [q.id for q in self._questions if q.id]
+        if new_q_ids:
+            CompiledAnswer.query.filter(CompiledAnswer.question_id.in_(new_q_ids)).delete(synchronize_session=False)
         
         raw_answers = self.answer_generator.generate(self._questions, self._chunks)
         chunk_map = {c.chunk_id: [{"text": c.text}] for c in self._chunks}

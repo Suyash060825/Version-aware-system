@@ -125,6 +125,17 @@ class PersistentBM25Index:
         self._revision += 1
         self.save()
 
+    def delete_policy(self, policy_id: int):
+        """Incremental deletion for all versions of a policy."""
+        self._corpus = [c for c in self._corpus if c.get("policy_id") != policy_id]
+        if self._corpus:
+            tokenized = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
+            self._bm25 = BM25Okapi(tokenized)
+        else:
+            self._bm25 = None
+        self._revision += 1
+        self.save()
+
     def get_scores(self, query: str, filters: dict = None, scope: Any = None) -> List[Tuple[str, float, dict]]:
         if not self._bm25 or not self._corpus:
             self.load()
