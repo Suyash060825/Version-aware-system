@@ -1,0 +1,6 @@
+concurrency_level,total_queries,throughput_qps,p50_latency_ms,p90_latency_ms,p95_latency_ms,p99_latency_ms,cache_contaminations,scope_leaks,race_conditions,isolation_soundness
+1,200,234.7,4.35,4.52,4.62,4.87,0,0,0,True
+10,200,212.1,40.12,72.40,91.73,98.82,0,0,0,True
+25,200,150.3,160.23,225.81,228.76,233.92,0,0,0,True
+50,200,136.4,337.96,422.04,433.26,442.74,0,0,0,True
+100,200,137.2,317.82,493.88,503.86,516.16,0,0,0,True

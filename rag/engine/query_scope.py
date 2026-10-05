@@ -79,11 +79,14 @@ class QueryScope:
             if not depts:
                 depts.append(str(user.department_id))
 
-        confidentiality = ["public", "internal"]
-        if is_adm or role in ("admin", "executive", "legal"):
-            confidentiality.extend(["confidential", "restricted"])
-        elif role in ("hr", "manager"):
-            confidentiality.append("confidential")
+        if hasattr(user, "allowed_confidentiality"):
+            confidentiality = list(user.allowed_confidentiality)
+        else:
+            confidentiality = ["public", "internal"]
+            if is_adm or role in ("admin", "executive", "legal"):
+                confidentiality.extend(["confidential", "restricted"])
+            elif role in ("hr", "manager"):
+                confidentiality.append("confidential")
 
         return cls(
             user_id=user_id,

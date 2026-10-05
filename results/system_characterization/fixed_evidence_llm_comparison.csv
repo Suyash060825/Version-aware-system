@@ -1,0 +1,609 @@
+query_id,query_text,gold_answer,local_deterministic_answer,cloud_llm_simulated_answer,token_f1_local,contains_target_local,citation_valid_local,latency_local_ms
+Q-CAT-A-00001,What is the annual leave under Annual & Paid Time Off Policy?,30 days,"According to the Annual & Paid Time Off Policy (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v7.0), the standard annual leave is strictly set to 30 days.","According to the Annual & Paid Time Off Policy (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v7.0), the standard annual leave is strictly set to 30 days.",0.1212,True,True,0.11
+Q-CAT-A-00002,What is the sick leave under Sick & Medical Leave Policy?,15 days,"According to the Sick & Medical Leave Policy (v6.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v6.0), the standard sick leave is strictly set to 15 days.","According to the Sick & Medical Leave Policy (v6.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v6.0), the standard sick leave is strictly set to 15 days.",0.1250,True,True,0.01
+Q-CAT-A-00003,What is the maternity leave under Parental & Maternity Leave Policy?,26 weeks,"According to the Parental & Maternity Leave Policy (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline maternity leave is 26 weeks.","According to the Parental & Maternity Leave Policy (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline maternity leave is 26 weeks.",0.1538,True,True,0.01
+Q-CAT-A-00004,What is the bereavement leave under Bereavement & Compassionate Leave?,5 days,"According to the Bereavement & Compassionate Leave (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard bereavement leave is strictly set to 5 days.","According to the Bereavement & Compassionate Leave (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard bereavement leave is strictly set to 5 days.",0.1290,True,True,0.00
+Q-CAT-A-00005,What is the sabbatical limit under Sabbatical & Extended Study Leave?,12 months,"According to the Sabbatical & Extended Study Leave (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard sabbatical limit is strictly set to 12 months.","According to the Sabbatical & Extended Study Leave (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard sabbatical limit is strictly set to 12 months.",0.1250,True,True,0.00
+Q-CAT-A-00006,What is the probation period under Probation & Confirmation Guidelines?,3 months,"According to the Probation & Confirmation Guidelines (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard probation period is strictly set to 3 months.","According to the Probation & Confirmation Guidelines (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard probation period is strictly set to 3 months.",0.1290,True,True,0.00
+Q-CAT-A-00007,What is the notice period under Employee Notice Period Standards?,2 months,"According to the Employee Notice Period Standards (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard notice period is strictly set to 2 months.","According to the Employee Notice Period Standards (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard notice period is strictly set to 2 months.",0.1818,True,True,0.00
+Q-CAT-A-00008,What is the pip duration under Performance Improvement Plan (PIP)?,30 days,"According to the Performance Improvement Plan (PIP) (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline pip duration is 30 days.","According to the Performance Improvement Plan (PIP) (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline pip duration is 30 days.",0.1538,True,True,0.01
+Q-CAT-A-00009,What is the referral bonus under Employee Referral Reward Program?,75000 INR,"According to the Employee Referral Reward Program (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines referral bonus as follows:
+- Standard Allowance: 75000 INR
+- Tier-1 Metro Cap: 75000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Employee Referral Reward Program (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines referral bonus as follows:
+- Standard Allowance: 75000 INR
+- Tier-1 Metro Cap: 75000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1702,True,True,0.00
+Q-CAT-A-00010,What is the posh investigation days under Workplace Anti-Harassment & POSH?,30 days,"According to the Workplace Anti-Harassment & POSH (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline posh investigation days is 30 days.","According to the Workplace Anti-Harassment & POSH (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline posh investigation days is 30 days.",0.2222,True,True,0.01
+Q-CAT-A-00011,What is the hotel limit under Domestic Travel & Hotel Expense Policy?,10000 INR,"According to the Domestic Travel & Hotel Expense Policy (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines hotel limit as follows:
+- Standard Allowance: 10000 INR
+- Tier-1 Metro Cap: 10000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Domestic Travel & Hotel Expense Policy (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines hotel limit as follows:
+- Standard Allowance: 10000 INR
+- Tier-1 Metro Cap: 10000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1667,True,True,0.01
+Q-CAT-A-00012,What is the daily allowance metro under Metro City Per Diem Policy?,3000 INR,"According to the Metro City Per Diem Policy (v6.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines daily allowance metro as follows:
+- Standard Allowance: 3000 INR
+- Tier-1 Metro Cap: 3000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Metro City Per Diem Policy (v6.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines daily allowance metro as follows:
+- Standard Allowance: 3000 INR
+- Tier-1 Metro Cap: 3000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1633,True,True,0.01
+Q-CAT-A-00013,What is the daily allowance non metro under Non-Metro Travel Allowance?,2000 INR,"According to the Non-Metro Travel Allowance (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard daily allowance non metro is strictly set to 2000 INR.","According to the Non-Metro Travel Allowance (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard daily allowance non metro is strictly set to 2000 INR.",0.1212,True,True,0.00
+Q-CAT-A-00014,What is the international per diem under International Travel Expense Rules?,300 USD,"According to the International Travel Expense Rules (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines international per diem as follows:
+- Standard Allowance: 300 USD
+- Tier-1 Metro Cap: 300 USD
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the International Travel Expense Rules (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines international per diem as follows:
+- Standard Allowance: 300 USD
+- Tier-1 Metro Cap: 300 USD
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1667,True,True,0.00
+Q-CAT-A-00015,What is the expense filing deadline under Corporate Credit Card & Expense Filing?,30 days,"According to the Corporate Credit Card & Expense Filing (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard expense filing deadline is strictly set to 30 days.","According to the Corporate Credit Card & Expense Filing (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard expense filing deadline is strictly set to 30 days.",0.1176,True,True,0.00
+Q-CAT-A-00016,What is the entertainment per head under Client Entertainment & Meal Policy?,5000 INR,"According to the Client Entertainment & Meal Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard entertainment per head is strictly set to 5000 INR.","According to the Client Entertainment & Meal Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard entertainment per head is strictly set to 5000 INR.",0.1212,True,True,0.00
+Q-CAT-A-00017,What is the relocation allowance under Relocation Assistance & Moving Grant?,150000 INR,"According to the Relocation Assistance & Moving Grant (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard relocation allowance is strictly set to 150000 INR.","According to the Relocation Assistance & Moving Grant (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard relocation allowance is strictly set to 150000 INR.",0.1250,True,True,0.00
+Q-CAT-A-00018,What is the petty cash limit under Petty Cash & Emergency Disbursement?,10000 INR,"According to the Petty Cash & Emergency Disbursement (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard petty cash limit is strictly set to 10000 INR.","According to the Petty Cash & Emergency Disbursement (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard petty cash limit is strictly set to 10000 INR.",0.1212,True,True,0.00
+Q-CAT-A-00019,What is the capex board threshold under Capital Expenditure Approval Matrix?,10000000 INR,"According to the Capital Expenditure Approval Matrix (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline capex board threshold is 10000000 INR.","According to the Capital Expenditure Approval Matrix (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline capex board threshold is 10000000 INR.",0.1481,True,True,0.01
+Q-CAT-A-00020,What is the learning budget under Tuition & Certification Subsidy?,75000 INR,"According to the Tuition & Certification Subsidy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard learning budget is strictly set to 75000 INR.","According to the Tuition & Certification Subsidy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard learning budget is strictly set to 75000 INR.",0.1290,True,True,0.00
+Q-CAT-A-00021,What is the password rotation period under Password Complexity & Rotation Policy?,90 days,"According to the Password Complexity & Rotation Policy (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines password rotation period as follows:
+- Standard Allowance: 90 days
+- Tier-1 Metro Cap: 90 days
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Password Complexity & Rotation Policy (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines password rotation period as follows:
+- Standard Allowance: 90 days
+- Tier-1 Metro Cap: 90 days
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1667,True,True,0.00
+Q-CAT-A-00022,What is the mfa grace period under Multi-Factor Authentication (MFA) Mandate?,0 hours,"According to the Multi-Factor Authentication (MFA) Mandate (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard mfa grace period is strictly set to 0 hours.","According to the Multi-Factor Authentication (MFA) Mandate (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard mfa grace period is strictly set to 0 hours.",0.1212,True,True,0.00
+Q-CAT-A-00023,What is the incident reporting deadline under Security Incident Reporting SLA?,1 hours,"According to the Security Incident Reporting SLA (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline incident reporting deadline is 1 hours.","According to the Security Incident Reporting SLA (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline incident reporting deadline is 1 hours.",0.1481,True,True,0.01
+Q-CAT-A-00024,What is the vpn session timeout under Remote Access & VPN Encryption Policy?,8 hours,"According to the Remote Access & VPN Encryption Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard vpn session timeout is strictly set to 8 hours.","According to the Remote Access & VPN Encryption Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard vpn session timeout is strictly set to 8 hours.",0.1176,True,True,0.00
+Q-CAT-A-00025,What is the dlp file size alert mb under Data Loss Prevention & USB Lockdown?,50 MB,"According to the Data Loss Prevention & USB Lockdown (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard dlp file size alert mb is strictly set to 50 MB.","According to the Data Loss Prevention & USB Lockdown (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard dlp file size alert mb is strictly set to 50 MB.",0.1622,True,True,0.00
+Q-CAT-A-00026,What is the critical patch sla under Vulnerability Remediation Timelines?,1 days,"According to the Vulnerability Remediation Timelines (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline critical patch sla is 1 days.","According to the Vulnerability Remediation Timelines (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline critical patch sla is 1 days.",0.1538,True,True,0.01
+Q-CAT-A-00027,What is the screen lock timeout under Workstation Inactivity Screen Lock?,5 minutes,"According to the Workstation Inactivity Screen Lock (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard screen lock timeout is strictly set to 5 minutes.","According to the Workstation Inactivity Screen Lock (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard screen lock timeout is strictly set to 5 minutes.",0.1212,True,True,0.00
+Q-CAT-A-00028,What is the pam access duration under Privileged Access Management (PAM)?,1 hours,"According to the Privileged Access Management (PAM) (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline pam access duration is 1 hours.","According to the Privileged Access Management (PAM) (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline pam access duration is 1 hours.",0.1481,True,True,0.00
+Q-CAT-A-00029,What is the vendor audit frequency under Third-Party Vendor Risk Assessment?,12 months,"According to the Third-Party Vendor Risk Assessment (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard vendor audit frequency is strictly set to 12 months.","According to the Third-Party Vendor Risk Assessment (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard vendor audit frequency is strictly set to 12 months.",0.1212,True,True,0.00
+Q-CAT-A-00030,What is the restricted retention years under Data Classification & Handling Standard?,10 years,"According to the Data Classification & Handling Standard (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard restricted retention years is strictly set to 10 years.","According to the Data Classification & Handling Standard (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard restricted retention years is strictly set to 10 years.",0.1765,True,True,0.00
+Q-CAT-A-00031,What is the freeze notice days under Production Deployment & Freeze Policy?,1 days,"According to the Production Deployment & Freeze Policy (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v7.0), the standard freeze notice days is strictly set to 1 days.","According to the Production Deployment & Freeze Policy (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v7.0), the standard freeze notice days is strictly set to 1 days.",0.1765,True,True,0.00
+Q-CAT-A-00032,What is the oncall daily allowance under On-Call Rotation & Incident Pager Pay?,5000 INR,"According to the On-Call Rotation & Incident Pager Pay (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines oncall daily allowance as follows:
+- Standard Allowance: 5000 INR
+- Tier-1 Metro Cap: 5000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the On-Call Rotation & Incident Pager Pay (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines oncall daily allowance as follows:
+- Standard Allowance: 5000 INR
+- Tier-1 Metro Cap: 5000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1633,True,True,0.01
+Q-CAT-A-00033,What is the oss review threshold stars under Open Source Licensing & Usage Guideline?,1000 stars,"According to the Open Source Licensing & Usage Guideline (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard oss review threshold stars is strictly set to 1000 stars.","According to the Open Source Licensing & Usage Guideline (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard oss review threshold stars is strictly set to 1000 stars.",0.1667,True,True,0.00
+Q-CAT-A-00034,What is the min code approvals under Peer Code Review & Branch Protection?,2 approvals,"According to the Peer Code Review & Branch Protection (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard min code approvals is strictly set to 2 approvals.","According to the Peer Code Review & Branch Protection (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard min code approvals is strictly set to 2 approvals.",0.2222,True,True,0.00
+Q-CAT-A-00035,What is the dev cluster ttl days under Cloud Infrastructure Auto-Teardown?,3 days,"According to the Cloud Infrastructure Auto-Teardown (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard dev cluster ttl days is strictly set to 3 days.","According to the Cloud Infrastructure Auto-Teardown (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard dev cluster ttl days is strictly set to 3 days.",0.1765,True,True,0.00
+Q-CAT-A-00036,What is the tech debt sprint share under Technical Debt Remediation Allocation?,20 percent,"According to the Technical Debt Remediation Allocation (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard tech debt sprint share is strictly set to 20 percent.","According to the Technical Debt Remediation Allocation (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard tech debt sprint share is strictly set to 20 percent.",0.1176,True,True,0.00
+Q-CAT-A-00037,What is the hardware refresh under Engineering Hardware Refresh Standard?,2 years,"According to the Engineering Hardware Refresh Standard (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines hardware refresh as follows:
+- Standard Allowance: 2 years
+- Tier-1 Metro Cap: 2 years
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Engineering Hardware Refresh Standard (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines hardware refresh as follows:
+- Standard Allowance: 2 years
+- Tier-1 Metro Cap: 2 years
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.2083,True,True,0.00
+Q-CAT-A-00038,What is the api deprecation notice days under API Deprecation & Breaking Change Notice?,90 days,"According to the API Deprecation & Breaking Change Notice (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard api deprecation notice days is strictly set to 90 days.","According to the API Deprecation & Breaking Change Notice (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard api deprecation notice days is strictly set to 90 days.",0.1667,True,True,0.00
+Q-CAT-A-00039,What is the rto tier1 minutes under Disaster Recovery RTO and RPO Targets?,15 minutes,"According to the Disaster Recovery RTO and RPO Targets (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline rto tier1 minutes is 15 minutes.","According to the Disaster Recovery RTO and RPO Targets (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline rto tier1 minutes is 15 minutes.",0.2000,True,True,0.01
+Q-CAT-A-00040,What is the max ai prompt tokens under AI Tooling & LLM Copilot Usage Policy?,4000 tokens,"According to the AI Tooling & LLM Copilot Usage Policy (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard max ai prompt tokens is strictly set to 4000 tokens.","According to the AI Tooling & LLM Copilot Usage Policy (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard max ai prompt tokens is strictly set to 4000 tokens.",0.1622,True,True,0.00
+Q-CAT-A-00041,What is the gift limit under Corporate Code of Business Conduct?,2500 INR,"According to the Corporate Code of Business Conduct (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v7.0), the standard gift limit is strictly set to 2500 INR.","According to the Corporate Code of Business Conduct (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v7.0), the standard gift limit is strictly set to 2500 INR.",0.1212,True,True,0.00
+Q-CAT-A-00042,What is the whistleblower investigation days under Whistleblower Protection & Reporting?,21 days,"According to the Whistleblower Protection & Reporting (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline whistleblower investigation days is 21 days.","According to the Whistleblower Protection & Reporting (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline whistleblower investigation days is 21 days.",0.2857,True,True,0.01
+Q-CAT-A-00043,What is the coi disclosure days under Conflict of Interest & Outside Activities?,14 days,"According to the Conflict of Interest & Outside Activities (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard coi disclosure days is strictly set to 14 days.","According to the Conflict of Interest & Outside Activities (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard coi disclosure days is strictly set to 14 days.",0.1714,True,True,0.00
+Q-CAT-A-00044,What is the trading blackout days under Insider Trading & Securities Dealing?,30 days,"According to the Insider Trading & Securities Dealing (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard trading blackout days is strictly set to 30 days.","According to the Insider Trading & Securities Dealing (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard trading blackout days is strictly set to 30 days.",0.1765,True,True,0.00
+Q-CAT-A-00045,What is the nda post term years under Non-Disclosure & Trade Secrets Policy?,7 years,"According to the Non-Disclosure & Trade Secrets Policy (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard nda post term years is strictly set to 7 years.","According to the Non-Disclosure & Trade Secrets Policy (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard nda post term years is strictly set to 7 years.",0.1714,True,True,0.00
+Q-CAT-A-00046,What is the patent inventor award under Intellectual Property Assignment Terms?,200000 INR,"According to the Intellectual Property Assignment Terms (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines patent inventor award as follows:
+- Standard Allowance: 200000 INR
+- Tier-1 Metro Cap: 200000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Intellectual Property Assignment Terms (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines patent inventor award as follows:
+- Standard Allowance: 200000 INR
+- Tier-1 Metro Cap: 200000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1667,True,True,0.00
+Q-CAT-A-00047,What is the legal contract threshold under Contract Signing Authority Delegation?,2500000 INR,"According to the Contract Signing Authority Delegation (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines legal contract threshold as follows:
+- Standard Allowance: 2500000 INR
+- Tier-1 Metro Cap: 2500000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Contract Signing Authority Delegation (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines legal contract threshold as follows:
+- Standard Allowance: 2500000 INR
+- Tier-1 Metro Cap: 2500000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1667,True,True,0.01
+Q-CAT-A-00048,What is the subpoena notice hours under Subpoena & Law Enforcement Request Standard?,4 hours,"According to the Subpoena & Law Enforcement Request Standard (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard subpoena notice hours is strictly set to 4 hours.","According to the Subpoena & Law Enforcement Request Standard (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard subpoena notice hours is strictly set to 4 hours.",0.1714,True,True,0.00
+Q-CAT-A-00049,What is the pr response sla hours under Social Media Representation & PR Policy?,24 hours,"According to the Social Media Representation & PR Policy (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard pr response sla hours is strictly set to 24 hours.","According to the Social Media Representation & PR Policy (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard pr response sla hours is strictly set to 24 hours.",0.1667,True,True,0.00
+Q-CAT-A-00050,What is the document retention years under Document Retention & Legal Hold Policy?,8 years,"According to the Document Retention & Legal Hold Policy (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard document retention years is strictly set to 8 years.","According to the Document Retention & Legal Hold Policy (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard document retention years is strictly set to 8 years.",0.1714,True,True,0.00
+Q-CAT-A-00051,What is the gdpr sar fulfillment days under GDPR & Data Privacy Governance?,14 days,"According to the GDPR & Data Privacy Governance (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline gdpr sar fulfillment days is 14 days.","According to the GDPR & Data Privacy Governance (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline gdpr sar fulfillment days is 14 days.",0.2069,True,True,0.00
+Q-CAT-A-00052,What is the aml threshold under Anti-Money Laundering & KYC Standard?,10000000 INR,"According to the Anti-Money Laundering & KYC Standard (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines aml threshold as follows:
+- Standard Allowance: 10000000 INR
+- Tier-1 Metro Cap: 10000000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Anti-Money Laundering & KYC Standard (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines aml threshold as follows:
+- Standard Allowance: 10000000 INR
+- Tier-1 Metro Cap: 10000000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1702,True,True,0.00
+Q-CAT-A-00053,What is the safety drill frequency under Statutory Health & Workplace Safety Policy?,3 months,"According to the Statutory Health & Workplace Safety Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard safety drill frequency is strictly set to 3 months.","According to the Statutory Health & Workplace Safety Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard safety drill frequency is strictly set to 3 months.",0.1176,True,True,0.00
+Q-CAT-A-00054,What is the sanctions rescreen frequency under Export Control & Sanctions Screening?,14 days,"According to the Export Control & Sanctions Screening (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard sanctions rescreen frequency is strictly set to 14 days.","According to the Export Control & Sanctions Screening (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard sanctions rescreen frequency is strictly set to 14 days.",0.1212,True,True,0.01
+Q-CAT-A-00055,What is the carbon offset target under Environmental Sustainability & Carbon Target?,100 percent,"According to the Environmental Sustainability & Carbon Target (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard carbon offset target is strictly set to 100 percent.","According to the Environmental Sustainability & Carbon Target (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard carbon offset target is strictly set to 100 percent.",0.1212,True,True,0.00
+Q-CAT-A-00056,What is the fcpa audit cycle under Anti-Bribery & FCPA Compliance Protocol?,1 years,"According to the Anti-Bribery & FCPA Compliance Protocol (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard fcpa audit cycle is strictly set to 1 years.","According to the Anti-Bribery & FCPA Compliance Protocol (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard fcpa audit cycle is strictly set to 1 years.",0.1212,True,True,0.00
+Q-CAT-A-00057,What is the antitrust refresher frequency under Fair Competition & Antitrust Standard?,12 months,"According to the Fair Competition & Antitrust Standard (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard antitrust refresher frequency is strictly set to 12 months.","According to the Fair Competition & Antitrust Standard (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard antitrust refresher frequency is strictly set to 12 months.",0.1212,True,True,0.00
+Q-CAT-A-00058,What is the iso internal audit freq under Quality Management System (ISO 9001)?,4 months,"According to the Quality Management System (ISO 9001) (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline iso internal audit freq is 4 months.","According to the Quality Management System (ISO 9001) (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline iso internal audit freq is 4 months.",0.1379,True,True,0.00
+Q-CAT-A-00059,What is the regulator breach notice hours under Information Privacy Officer (DPO) Mandate?,24 hours,"According to the Information Privacy Officer (DPO) Mandate (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard regulator breach notice hours is strictly set to 24 hours.","According to the Information Privacy Officer (DPO) Mandate (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard regulator breach notice hours is strictly set to 24 hours.",0.1667,True,True,0.00
+Q-CAT-A-00060,What is the csr statutory share under Corporate Social Responsibility (CSR) Fund?,2 percent,"According to the Corporate Social Responsibility (CSR) Fund (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard csr statutory share is strictly set to 2 percent.","According to the Corporate Social Responsibility (CSR) Fund (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard csr statutory share is strictly set to 2 percent.",0.1714,True,True,0.00
+Q-CAT-A-00061,What is the min rfp bids under Vendor Selection & RFP Tendering Standard?,3 bids,"According to the Vendor Selection & RFP Tendering Standard (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline min rfp bids is 3 bids.","According to the Vendor Selection & RFP Tendering Standard (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline min rfp bids is 3 bids.",0.2069,True,True,0.01
+Q-CAT-A-00062,What is the po cfo threshold under Purchase Order (PO) Threshold Governance?,2000000 INR,"According to the Purchase Order (PO) Threshold Governance (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines po cfo threshold as follows:
+- Standard Allowance: 2000000 INR
+- Tier-1 Metro Cap: 2000000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Purchase Order (PO) Threshold Governance (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines po cfo threshold as follows:
+- Standard Allowance: 2000000 INR
+- Tier-1 Metro Cap: 2000000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1633,True,True,0.00
+Q-CAT-A-00063,What is the payment terms days under Vendor Payment Terms & Early Discount?,15 days,"According to the Vendor Payment Terms & Early Discount (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard payment terms days is strictly set to 15 days.","According to the Vendor Payment Terms & Early Discount (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard payment terms days is strictly set to 15 days.",0.1714,True,True,0.00
+Q-CAT-A-00064,What is the asset depreciation years under IT Asset Disposal & E-Waste Policy?,2 years,"According to the IT Asset Disposal & E-Waste Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard asset depreciation years is strictly set to 2 years.","According to the IT Asset Disposal & E-Waste Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard asset depreciation years is strictly set to 2 years.",0.2222,True,True,0.00
+Q-CAT-A-00065,What is the sole source vp signoffs under Sole Source Justification Protocol?,2 signoffs,"According to the Sole Source Justification Protocol (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline sole source vp signoffs is 2 signoffs.","According to the Sole Source Justification Protocol (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline sole source vp signoffs is 2 signoffs.",0.2667,True,True,0.01
+Q-CAT-A-00066,What is the supplier audit interval under Supplier Code of Ethical Conduct?,1 years,"According to the Supplier Code of Ethical Conduct (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard supplier audit interval is strictly set to 1 years.","According to the Supplier Code of Ethical Conduct (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard supplier audit interval is strictly set to 1 years.",0.1176,True,True,0.00
+Q-CAT-A-00067,What is the emergency spend cap under Emergency Procurement Authorization?,1000000 INR,"According to the Emergency Procurement Authorization (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines emergency spend cap as follows:
+- Standard Allowance: 1000000 INR
+- Tier-1 Metro Cap: 1000000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Emergency Procurement Authorization (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines emergency spend cap as follows:
+- Standard Allowance: 1000000 INR
+- Tier-1 Metro Cap: 1000000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1702,True,True,0.00
+Q-CAT-A-00068,What is the cycle count frequency under Warehouse Inventory & Stock Audit?,6 months,"According to the Warehouse Inventory & Stock Audit (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard cycle count frequency is strictly set to 6 months.","According to the Warehouse Inventory & Stock Audit (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard cycle count frequency is strictly set to 6 months.",0.1212,True,True,0.00
+Q-CAT-A-00069,What is the idle seat reclaim days under Software License Rationalization Standard?,14 days,"According to the Software License Rationalization Standard (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard idle seat reclaim days is strictly set to 14 days.","According to the Software License Rationalization Standard (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard idle seat reclaim days is strictly set to 14 days.",0.1714,True,True,0.00
+Q-CAT-A-00070,What is the transit insurance share under Logistics & Freight Forwarder Selection?,100 percent,"According to the Logistics & Freight Forwarder Selection (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard transit insurance share is strictly set to 100 percent.","According to the Logistics & Freight Forwarder Selection (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard transit insurance share is strictly set to 100 percent.",0.1212,True,True,0.00
+Q-CAT-A-00071,What is the medical insurance limit under Group Medical Insurance Coverage?,1500000 INR,"According to the Group Medical Insurance Coverage (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines medical insurance limit as follows:
+- Standard Allowance: 1500000 INR
+- Tier-1 Metro Cap: 1500000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Group Medical Insurance Coverage (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines medical insurance limit as follows:
+- Standard Allowance: 1500000 INR
+- Tier-1 Metro Cap: 1500000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1667,True,True,0.01
+Q-CAT-A-00072,What is the opd limit under Outpatient Department (OPD) Allowance?,20000 INR,"According to the Outpatient Department (OPD) Allowance (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines opd limit as follows:
+- Standard Allowance: 20000 INR
+- Tier-1 Metro Cap: 20000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Outpatient Department (OPD) Allowance (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines opd limit as follows:
+- Standard Allowance: 20000 INR
+- Tier-1 Metro Cap: 20000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1702,True,True,0.00
+Q-CAT-A-00073,What is the parental cover limit under Parental Health Insurance Scheme?,500000 INR,"According to the Parental Health Insurance Scheme (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard parental cover limit is strictly set to 500000 INR.","According to the Parental Health Insurance Scheme (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard parental cover limit is strictly set to 500000 INR.",0.1212,True,True,0.00
+Q-CAT-A-00074,What is the therapy sessions count under Mental Health & Wellness Subsidy?,16 sessions,"According to the Mental Health & Wellness Subsidy (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard therapy sessions count is strictly set to 16 sessions.","According to the Mental Health & Wellness Subsidy (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard therapy sessions count is strictly set to 16 sessions.",0.1765,True,True,0.00
+Q-CAT-A-00075,What is the health checkup cap under Executive Health Checkup Entitlement?,15000 INR,"According to the Executive Health Checkup Entitlement (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines health checkup cap as follows:
+- Standard Allowance: 15000 INR
+- Tier-1 Metro Cap: 15000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Executive Health Checkup Entitlement (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines health checkup cap as follows:
+- Standard Allowance: 15000 INR
+- Tier-1 Metro Cap: 15000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1667,True,True,0.00
+Q-CAT-A-00076,What is the gym monthly allowance under Gym & Fitness Reimbursement Program?,3000 INR,"According to the Gym & Fitness Reimbursement Program (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard gym monthly allowance is strictly set to 3000 INR.","According to the Gym & Fitness Reimbursement Program (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard gym monthly allowance is strictly set to 3000 INR.",0.1212,True,True,0.00
+Q-CAT-A-00077,What is the critical illness payout under Critical Illness Accelerated Benefit?,2000000 INR,"According to the Critical Illness Accelerated Benefit (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline critical illness payout is 2000000 INR.","According to the Critical Illness Accelerated Benefit (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline critical illness payout is 2000000 INR.",0.1481,True,True,0.00
+Q-CAT-A-00078,What is the life insurance ctc multiple under Group Term Life Insurance (GTLI)?,5 x_ctc,"According to the Group Term Life Insurance (GTLI) (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard life insurance ctc multiple is strictly set to 5 x_ctc.","According to the Group Term Life Insurance (GTLI) (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard life insurance ctc multiple is strictly set to 5 x_ctc.",0.1143,True,True,0.00
+Q-CAT-A-00079,What is the creche monthly stipend under Creche & Childcare Assistance Policy?,10000 INR,"According to the Creche & Childcare Assistance Policy (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard creche monthly stipend is strictly set to 10000 INR.","According to the Creche & Childcare Assistance Policy (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard creche monthly stipend is strictly set to 10000 INR.",0.1212,True,True,0.00
+Q-CAT-A-00080,What is the ergonomic grant under Ergonomic Assessment & Home Aid Grant?,15000 INR,"According to the Ergonomic Assessment & Home Aid Grant (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard ergonomic grant is strictly set to 15000 INR.","According to the Ergonomic Assessment & Home Aid Grant (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard ergonomic grant is strictly set to 15000 INR.",0.1212,True,True,0.00
+Q-CAT-A-00081,What is the remote work allowance under Hybrid & Remote Work Framework?,3 days,"According to the Hybrid & Remote Work Framework (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline remote work allowance is 3 days.","According to the Hybrid & Remote Work Framework (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline remote work allowance is 3 days.",0.1481,True,True,0.00
+Q-CAT-A-00082,What is the internet allowance under Home Internet & Broadband Subsidy?,1500 INR,"According to the Home Internet & Broadband Subsidy (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines internet allowance as follows:
+- Standard Allowance: 1500 INR
+- Tier-1 Metro Cap: 1500 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Home Internet & Broadband Subsidy (v5.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines internet allowance as follows:
+- Standard Allowance: 1500 INR
+- Tier-1 Metro Cap: 1500 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1702,True,True,0.00
+Q-CAT-A-00083,What is the core hours under Core Working Hours & Availability?,10 AM - 4 PM hours,"According to the Core Working Hours & Availability (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard core hours is strictly set to 10 AM - 4 PM hours.","According to the Core Working Hours & Availability (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard core hours is strictly set to 10 AM - 4 PM hours.",0.3500,True,True,0.00
+Q-CAT-A-00084,What is the wfa annual days under Work From Anywhere (WFA) Annual Policy?,60 days,"According to the Work From Anywhere (WFA) Annual Policy (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline wfa annual days is 60 days.","According to the Work From Anywhere (WFA) Annual Policy (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline wfa annual days is 60 days.",0.2000,True,True,0.00
+Q-CAT-A-00085,What is the home office setup grant under Home Office Ergonomic Furniture Grant?,50000 INR,"According to the Home Office Ergonomic Furniture Grant (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines home office setup grant as follows:
+- Standard Allowance: 50000 INR
+- Tier-1 Metro Cap: 50000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Home Office Ergonomic Furniture Grant (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines home office setup grant as follows:
+- Standard Allowance: 50000 INR
+- Tier-1 Metro Cap: 50000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1600,True,True,0.00
+Q-CAT-A-00086,What is the coworking passes monthly under Co-Working Space Day Pass Allowance?,10 passes,"According to the Co-Working Space Day Pass Allowance (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard coworking passes monthly is strictly set to 10 passes.","According to the Co-Working Space Day Pass Allowance (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard coworking passes monthly is strictly set to 10 passes.",0.1714,True,True,0.00
+Q-CAT-A-00087,What is the virtual social quarterly under Virtual Team Social & Lunch Fund?,3000 INR,"According to the Virtual Team Social & Lunch Fund (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard virtual social quarterly is strictly set to 3000 INR.","According to the Virtual Team Social & Lunch Fund (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard virtual social quarterly is strictly set to 3000 INR.",0.1176,True,True,0.00
+Q-CAT-A-00088,What is the cross border max days under Digital Nomad Tax & Cross-Border Work?,90 days,"According to the Digital Nomad Tax & Cross-Border Work (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard cross border max days is strictly set to 90 days.","According to the Digital Nomad Tax & Cross-Border Work (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard cross border max days is strictly set to 90 days.",0.1667,True,True,0.00
+Q-CAT-A-00089,What is the overtime approval lead hours under Overtime & Remote Time Tracking?,8 hours,"According to the Overtime & Remote Time Tracking (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard overtime approval lead hours is strictly set to 8 hours.","According to the Overtime & Remote Time Tracking (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard overtime approval lead hours is strictly set to 8 hours.",0.1714,True,True,0.00
+Q-CAT-A-00090,What is the quiet hours start under Right to Disconnect & Off-Hours Comm?,7 PM time,"According to the Right to Disconnect & Off-Hours Comm (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard quiet hours start is strictly set to 7 PM time.","According to the Right to Disconnect & Off-Hours Comm (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard quiet hours start is strictly set to 7 PM time.",0.1667,True,True,0.00
+Q-CAT-A-00091,What is the lost badge fee under Office Badge & Physical Access Control?,2000 INR,"According to the Office Badge & Physical Access Control (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines lost badge fee as follows:
+- Standard Allowance: 2000 INR
+- Tier-1 Metro Cap: 2000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.","According to the Office Badge & Physical Access Control (v7.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+The standard corporate schedule defines lost badge fee as follows:
+- Standard Allowance: 2000 INR
+- Tier-1 Metro Cap: 2000 INR
+- Special Exception Cap: Reimbursable up to 1.25x with VP signoff.",0.1633,True,True,0.00
+Q-CAT-A-00092,What is the visitor advance notice hours under Visitor Management & NDA Escort Rules?,2 hours,"According to the Visitor Management & NDA Escort Rules (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard visitor advance notice hours is strictly set to 2 hours.","According to the Visitor Management & NDA Escort Rules (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v4.0), the standard visitor advance notice hours is strictly set to 2 hours.",0.2162,True,True,0.00
+Q-CAT-A-00093,What is the late cab cutoff time under Corporate Fleet & Commuter Cab Service?,7:30 PM time,"According to the Corporate Fleet & Commuter Cab Service (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline late cab cutoff time is 7:30 PM time.","According to the Corporate Fleet & Commuter Cab Service (v4.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Clause 2.1: The baseline late cab cutoff time is 7:30 PM time.",0.2500,True,True,0.01
+Q-CAT-A-00094,What is the meal coupon subsidy under Cafeteria & Meal Subsidy Program?,150 INR,"According to the Cafeteria & Meal Subsidy Program (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard meal coupon subsidy is strictly set to 150 INR.","According to the Cafeteria & Meal Subsidy Program (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard meal coupon subsidy is strictly set to 150 INR.",0.1212,True,True,0.00
+Q-CAT-A-00095,What is the room auto cancel minutes under Meeting Room Booking & No-Show Policy?,5 minutes,"According to the Meeting Room Booking & No-Show Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard room auto cancel minutes is strictly set to 5 minutes.","According to the Meeting Room Booking & No-Show Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard room auto cancel minutes is strictly set to 5 minutes.",0.1667,True,True,0.00
+Q-CAT-A-00096,What is the max personal packages monthly under Personal Mail & Package Receiving Policy?,0 packages,"According to the Personal Mail & Package Receiving Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard max personal packages monthly is strictly set to 0 packages.","According to the Personal Mail & Package Receiving Policy (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard max personal packages monthly is strictly set to 0 packages.",0.1667,True,True,0.00
+Q-CAT-A-00097,What is the ev free charge hours under Parking Space Allocation & EV Charging?,5 hours,"According to the Parking Space Allocation & EV Charging (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard ev free charge hours is strictly set to 5 hours.","According to the Parking Space Allocation & EV Charging (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard ev free charge hours is strictly set to 5 hours.",0.1667,True,True,0.00
+Q-CAT-A-00098,What is the lost property retention days under Lost & Found Property Retention?,30 days,"According to the Lost & Found Property Retention (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard lost property retention days is strictly set to 30 days.","According to the Lost & Found Property Retention (v3.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v3.0), the standard lost property retention days is strictly set to 30 days.",0.1714,True,True,0.00
+Q-CAT-A-00099,What is the mandatory fire drills annual under Emergency Evacuation & Fire Safety Warden?,2 drills,"According to the Emergency Evacuation & Fire Safety Warden (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard mandatory fire drills annual is strictly set to 2 drills.","According to the Emergency Evacuation & Fire Safety Warden (v2.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v2.0), the standard mandatory fire drills annual is strictly set to 2 drills.",0.2162,True,True,0.00
+Q-CAT-A-00100,What is the clean desk audit freq under Clean Desk & Physical Confidentiality?,4 weeks,"According to the Clean Desk & Physical Confidentiality (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard clean desk audit freq is strictly set to 4 weeks.","According to the Clean Desk & Physical Confidentiality (v1.0, 2. Core Entitlements & Allowances):
+Core Entitlements & Allowances
+Under this policy version (v1.0), the standard clean desk audit freq is strictly set to 4 weeks.",0.1176,True,True,0.00

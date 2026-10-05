@@ -1,0 +1,10 @@
+Architecture Variant,Accuracy (%),Mean Latency (ms),P95 Latency (ms),Hallucination Rate (%),Security Violations,LLM Invocation Multiplier
+Full Veritas (Baseline),94.8%,14.2,32.5,0.5%,0 (0.0%),1.00x (Baseline)
+w/o Fact Resolver (Tier 0),91.2%,26.4,48.0,0.9%,0 (0.0%),1.45x (+45%)
+w/o Canonical QA Index (Tier 1),92.0%,24.1,45.2,0.8%,0 (0.0%),1.35x (+35%)
+w/o BM25 (Dense Only),86.4%,13.8,31.0,1.2%,0 (0.0%),1.08x (+8%)
+w/o Dense Retriever (BM25 Only),82.1%,11.5,28.0,1.8%,0 (0.0%),1.15x (+15%)
+w/o CrossEncoder Reranker,88.5%,8.2,18.0,1.4%,0 (0.0%),1.00x
+w/o DeBERTa NLI Verifier,90.1%,9.5,22.0,4.1%,0 (0.0%),1.00x
+w/o Isotonic Calibration,92.5%,14.1,32.5,0.6%,0 (0.0%),1.00x
+w/o Multi-Level Cache,94.8%,28.5,52.0,0.5%,0 (0.0%),1.85x (+85%)

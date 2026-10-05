@@ -42,7 +42,7 @@ class EvidenceFilter:
             if conf_str not in scope.allowed_confidentiality:
                 return False
 
-            if policy.department_id is not None and scope.role not in ("admin", "executive", "legal", "hr"):
+            if conf_str != "public" and policy.department_id is not None and scope.role not in ("admin", "executive", "legal", "hr"):
                 if scope.department_ids and policy.department_id not in scope.department_ids:
                     return False
 

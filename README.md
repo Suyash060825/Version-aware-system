@@ -203,7 +203,9 @@ The underlying mathematical foundations, algorithmic proofs, and empirical bench
 
 - **IEEE Manuscript**: [`Version_Aware_Ieee.pdf`](Version_Aware_Ieee.pdf)
 - **LaTeX Source Code**: [`Version_Aware_Ieee.tex`](Version_Aware_Ieee.tex)
+- **Enterprise Audit Reflection**: [`documentation/VERITAS_AUDIT_REFLECTION.md`](documentation/VERITAS_AUDIT_REFLECTION.md)
 - **Detailed Audit Log**: [`documentation/final-audit.md`](documentation/final-audit.md)
+- **System Characterization Suite**: [`tests/system_characterization/`](tests/system_characterization/)
 - **System Startup Guide**: [`STARTUP.md`](STARTUP.md)
 
 ---
