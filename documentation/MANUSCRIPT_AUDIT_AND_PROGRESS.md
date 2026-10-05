@@ -21,6 +21,25 @@ This document maintains a permanent, tamper-proof record of:
 
 ## 2. Ground-Truth Data Inventory (Verified against Source Files)
 
+### 2.0 Benchmark Identity & Corpus Taxonomy Standard
+To maintain strict provenance across all publications and technical reports, three distinct evaluation suites are explicitly identified:
+
+1. **Frozen Baseline Benchmark ($N=301$ queries)**: Located at `data/benchmarks/benchmark_test.json`. Evaluated against the live database seed for baseline end-to-end RAG latency and accuracy comparisons.
+2. **Internal Repository Benchmark ($N=462$ records)**: Located at `data/benchmarks/benchmark_all.json`. Comprehensive regression test harness used in continuous integration.
+3. **System Characterization Suite ($N=922$ queries)**: Located at `tests/system_characterization/corpus/ground_truth_ledger.json`. Expanded multi-tier enterprise stress-test corpus across 120 policies, 600 versions, 3,000 chunks, and 32 user archetypes.
+
+### 2.0.1 Multi-Tier Architecture Terminology Standard
+- **Tier 0 (Fast-Path Fact Engine)**: Sub-millisecond deterministic key-value parameter extraction ($0.95\text{ ms}$ P50).
+- **Tier 1 (Canonical Q&A Index)**: FAISS HNSW vector ANN matching over pre-compiled Q&A pairs ($1.85\text{ ms}$ P50).
+- **Tier 2 (Adaptive Hybrid RAG)**: Okapi BM25 + Dense BGE retrieval fused via RRF and reranked by Cross-Encoder.
+- **Tier 3 (Deterministic Diff Engine)**: Structured temporal clause and version diff comparison ($2.10\text{ ms}$ P50).
+- **Post-Retrieval Verification Stage**: Grounded generation, DeBERTa-v3 NLI entailment scoring, and isotonic confidence calibration.
+
+### 2.0.2 Publication Claim Audit Reference
+All mathematical claims and metrics intended for publication are audited and classified in [`results/system_characterization/publication_claim_audit.csv`](../results/system_characterization/publication_claim_audit.csv).
+
+---
+
 ### 2.1 Enterprise Corpus Scale (`data/ledger.db` & Vector Store)
 Extracted directly via SQL introspection on SQLite tables and FAISS metadata:
 

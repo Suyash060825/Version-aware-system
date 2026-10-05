@@ -1,0 +1,11 @@
+Git SHA: 449e69b343dd8c3483120ea7b00bf193ea25df15
+Python: Python 3.14.6
+Commit: 449e69b deep search
+Hardware CPU: 11th Gen Intel(R) Core(TM) i5-11260H @ 2.60GHz
+Architecture: x86_64
+OS Kernel: 7.1.8-100.fc43.x86_64
+Seed: 42
+Embedding Model: BAAI/bge-small-en-v1.5 (384-d dense vectors)
+Retriever: Hybrid (Okapi BM25 + BGE Dense + Reciprocal Rank Fusion + FlashRank ONNX TinyBERT Reranker)
+LLM Models: Local qwen3:4b-q4_K_M (Ollama); Cloud Gemini 2.0 Flash
+NLI Model: DeBERTa-v3-large (ONNX runtime)
