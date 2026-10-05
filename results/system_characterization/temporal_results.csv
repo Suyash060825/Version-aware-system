@@ -1,0 +1,601 @@
+policy_id,policy_title,version_num,version_label,effective_start,effective_end,exact_start_valid,mid_interval_valid,pre_start_rejected,post_end_rejected,temporal_soundness,is_active_version
+1,Annual & Paid Time Off Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+1,Annual & Paid Time Off Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+1,Annual & Paid Time Off Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+1,Annual & Paid Time Off Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+1,Annual & Paid Time Off Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+2,Sick & Medical Leave Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+2,Sick & Medical Leave Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+2,Sick & Medical Leave Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+2,Sick & Medical Leave Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+2,Sick & Medical Leave Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+3,Parental & Maternity Leave Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+3,Parental & Maternity Leave Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+3,Parental & Maternity Leave Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+3,Parental & Maternity Leave Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+3,Parental & Maternity Leave Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+4,Bereavement & Compassionate Leave,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+4,Bereavement & Compassionate Leave,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+4,Bereavement & Compassionate Leave,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+4,Bereavement & Compassionate Leave,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+4,Bereavement & Compassionate Leave,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+5,Sabbatical & Extended Study Leave,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+5,Sabbatical & Extended Study Leave,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+5,Sabbatical & Extended Study Leave,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+5,Sabbatical & Extended Study Leave,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+5,Sabbatical & Extended Study Leave,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+6,Probation & Confirmation Guidelines,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+6,Probation & Confirmation Guidelines,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+6,Probation & Confirmation Guidelines,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+6,Probation & Confirmation Guidelines,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+6,Probation & Confirmation Guidelines,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+7,Employee Notice Period Standards,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+7,Employee Notice Period Standards,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+7,Employee Notice Period Standards,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+7,Employee Notice Period Standards,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+7,Employee Notice Period Standards,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+8,Performance Improvement Plan (PIP),1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+8,Performance Improvement Plan (PIP),2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+8,Performance Improvement Plan (PIP),3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+8,Performance Improvement Plan (PIP),4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+8,Performance Improvement Plan (PIP),5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+9,Employee Referral Reward Program,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+9,Employee Referral Reward Program,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+9,Employee Referral Reward Program,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+9,Employee Referral Reward Program,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+9,Employee Referral Reward Program,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+10,Workplace Anti-Harassment & POSH,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+10,Workplace Anti-Harassment & POSH,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+10,Workplace Anti-Harassment & POSH,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+10,Workplace Anti-Harassment & POSH,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+10,Workplace Anti-Harassment & POSH,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+11,Domestic Travel & Hotel Expense Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+11,Domestic Travel & Hotel Expense Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+11,Domestic Travel & Hotel Expense Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+11,Domestic Travel & Hotel Expense Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+11,Domestic Travel & Hotel Expense Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+12,Metro City Per Diem Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+12,Metro City Per Diem Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+12,Metro City Per Diem Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+12,Metro City Per Diem Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+12,Metro City Per Diem Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+13,Non-Metro Travel Allowance,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+13,Non-Metro Travel Allowance,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+13,Non-Metro Travel Allowance,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+13,Non-Metro Travel Allowance,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+13,Non-Metro Travel Allowance,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+14,International Travel Expense Rules,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+14,International Travel Expense Rules,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+14,International Travel Expense Rules,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+14,International Travel Expense Rules,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+14,International Travel Expense Rules,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+15,Corporate Credit Card & Expense Filing,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+15,Corporate Credit Card & Expense Filing,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+15,Corporate Credit Card & Expense Filing,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+15,Corporate Credit Card & Expense Filing,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+15,Corporate Credit Card & Expense Filing,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+16,Client Entertainment & Meal Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+16,Client Entertainment & Meal Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+16,Client Entertainment & Meal Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+16,Client Entertainment & Meal Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+16,Client Entertainment & Meal Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+17,Relocation Assistance & Moving Grant,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+17,Relocation Assistance & Moving Grant,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+17,Relocation Assistance & Moving Grant,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+17,Relocation Assistance & Moving Grant,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+17,Relocation Assistance & Moving Grant,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+18,Petty Cash & Emergency Disbursement,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+18,Petty Cash & Emergency Disbursement,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+18,Petty Cash & Emergency Disbursement,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+18,Petty Cash & Emergency Disbursement,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+18,Petty Cash & Emergency Disbursement,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+19,Capital Expenditure Approval Matrix,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+19,Capital Expenditure Approval Matrix,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+19,Capital Expenditure Approval Matrix,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+19,Capital Expenditure Approval Matrix,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+19,Capital Expenditure Approval Matrix,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+20,Tuition & Certification Subsidy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+20,Tuition & Certification Subsidy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+20,Tuition & Certification Subsidy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+20,Tuition & Certification Subsidy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+20,Tuition & Certification Subsidy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+21,Password Complexity & Rotation Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+21,Password Complexity & Rotation Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+21,Password Complexity & Rotation Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+21,Password Complexity & Rotation Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+21,Password Complexity & Rotation Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+22,Multi-Factor Authentication (MFA) Mandate,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+22,Multi-Factor Authentication (MFA) Mandate,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+22,Multi-Factor Authentication (MFA) Mandate,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+22,Multi-Factor Authentication (MFA) Mandate,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+22,Multi-Factor Authentication (MFA) Mandate,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+23,Security Incident Reporting SLA,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+23,Security Incident Reporting SLA,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+23,Security Incident Reporting SLA,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+23,Security Incident Reporting SLA,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+23,Security Incident Reporting SLA,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+24,Remote Access & VPN Encryption Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+24,Remote Access & VPN Encryption Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+24,Remote Access & VPN Encryption Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+24,Remote Access & VPN Encryption Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+24,Remote Access & VPN Encryption Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+25,Data Loss Prevention & USB Lockdown,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+25,Data Loss Prevention & USB Lockdown,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+25,Data Loss Prevention & USB Lockdown,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+25,Data Loss Prevention & USB Lockdown,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+25,Data Loss Prevention & USB Lockdown,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+26,Vulnerability Remediation Timelines,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+26,Vulnerability Remediation Timelines,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+26,Vulnerability Remediation Timelines,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+26,Vulnerability Remediation Timelines,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+26,Vulnerability Remediation Timelines,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+27,Workstation Inactivity Screen Lock,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+27,Workstation Inactivity Screen Lock,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+27,Workstation Inactivity Screen Lock,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+27,Workstation Inactivity Screen Lock,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+27,Workstation Inactivity Screen Lock,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+28,Privileged Access Management (PAM),1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+28,Privileged Access Management (PAM),2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+28,Privileged Access Management (PAM),3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+28,Privileged Access Management (PAM),4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+28,Privileged Access Management (PAM),5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+29,Third-Party Vendor Risk Assessment,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+29,Third-Party Vendor Risk Assessment,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+29,Third-Party Vendor Risk Assessment,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+29,Third-Party Vendor Risk Assessment,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+29,Third-Party Vendor Risk Assessment,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+30,Data Classification & Handling Standard,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+30,Data Classification & Handling Standard,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+30,Data Classification & Handling Standard,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+30,Data Classification & Handling Standard,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+30,Data Classification & Handling Standard,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+31,Production Deployment & Freeze Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+31,Production Deployment & Freeze Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+31,Production Deployment & Freeze Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+31,Production Deployment & Freeze Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+31,Production Deployment & Freeze Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+32,On-Call Rotation & Incident Pager Pay,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+32,On-Call Rotation & Incident Pager Pay,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+32,On-Call Rotation & Incident Pager Pay,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+32,On-Call Rotation & Incident Pager Pay,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+32,On-Call Rotation & Incident Pager Pay,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+33,Open Source Licensing & Usage Guideline,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+33,Open Source Licensing & Usage Guideline,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+33,Open Source Licensing & Usage Guideline,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+33,Open Source Licensing & Usage Guideline,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+33,Open Source Licensing & Usage Guideline,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+34,Peer Code Review & Branch Protection,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+34,Peer Code Review & Branch Protection,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+34,Peer Code Review & Branch Protection,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+34,Peer Code Review & Branch Protection,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+34,Peer Code Review & Branch Protection,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+35,Cloud Infrastructure Auto-Teardown,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+35,Cloud Infrastructure Auto-Teardown,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+35,Cloud Infrastructure Auto-Teardown,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+35,Cloud Infrastructure Auto-Teardown,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+35,Cloud Infrastructure Auto-Teardown,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+36,Technical Debt Remediation Allocation,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+36,Technical Debt Remediation Allocation,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+36,Technical Debt Remediation Allocation,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+36,Technical Debt Remediation Allocation,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+36,Technical Debt Remediation Allocation,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+37,Engineering Hardware Refresh Standard,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+37,Engineering Hardware Refresh Standard,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+37,Engineering Hardware Refresh Standard,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+37,Engineering Hardware Refresh Standard,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+37,Engineering Hardware Refresh Standard,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+38,API Deprecation & Breaking Change Notice,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+38,API Deprecation & Breaking Change Notice,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+38,API Deprecation & Breaking Change Notice,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+38,API Deprecation & Breaking Change Notice,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+38,API Deprecation & Breaking Change Notice,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+39,Disaster Recovery RTO and RPO Targets,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+39,Disaster Recovery RTO and RPO Targets,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+39,Disaster Recovery RTO and RPO Targets,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+39,Disaster Recovery RTO and RPO Targets,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+39,Disaster Recovery RTO and RPO Targets,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+40,AI Tooling & LLM Copilot Usage Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+40,AI Tooling & LLM Copilot Usage Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+40,AI Tooling & LLM Copilot Usage Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+40,AI Tooling & LLM Copilot Usage Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+40,AI Tooling & LLM Copilot Usage Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+41,Corporate Code of Business Conduct,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+41,Corporate Code of Business Conduct,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+41,Corporate Code of Business Conduct,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+41,Corporate Code of Business Conduct,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+41,Corporate Code of Business Conduct,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+42,Whistleblower Protection & Reporting,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+42,Whistleblower Protection & Reporting,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+42,Whistleblower Protection & Reporting,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+42,Whistleblower Protection & Reporting,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+42,Whistleblower Protection & Reporting,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+43,Conflict of Interest & Outside Activities,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+43,Conflict of Interest & Outside Activities,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+43,Conflict of Interest & Outside Activities,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+43,Conflict of Interest & Outside Activities,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+43,Conflict of Interest & Outside Activities,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+44,Insider Trading & Securities Dealing,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+44,Insider Trading & Securities Dealing,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+44,Insider Trading & Securities Dealing,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+44,Insider Trading & Securities Dealing,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+44,Insider Trading & Securities Dealing,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+45,Non-Disclosure & Trade Secrets Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+45,Non-Disclosure & Trade Secrets Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+45,Non-Disclosure & Trade Secrets Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+45,Non-Disclosure & Trade Secrets Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+45,Non-Disclosure & Trade Secrets Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+46,Intellectual Property Assignment Terms,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+46,Intellectual Property Assignment Terms,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+46,Intellectual Property Assignment Terms,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+46,Intellectual Property Assignment Terms,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+46,Intellectual Property Assignment Terms,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+47,Contract Signing Authority Delegation,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+47,Contract Signing Authority Delegation,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+47,Contract Signing Authority Delegation,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+47,Contract Signing Authority Delegation,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+47,Contract Signing Authority Delegation,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+48,Subpoena & Law Enforcement Request Standard,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+48,Subpoena & Law Enforcement Request Standard,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+48,Subpoena & Law Enforcement Request Standard,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+48,Subpoena & Law Enforcement Request Standard,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+48,Subpoena & Law Enforcement Request Standard,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+49,Social Media Representation & PR Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+49,Social Media Representation & PR Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+49,Social Media Representation & PR Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+49,Social Media Representation & PR Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+49,Social Media Representation & PR Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+50,Document Retention & Legal Hold Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+50,Document Retention & Legal Hold Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+50,Document Retention & Legal Hold Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+50,Document Retention & Legal Hold Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+50,Document Retention & Legal Hold Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+51,GDPR & Data Privacy Governance,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+51,GDPR & Data Privacy Governance,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+51,GDPR & Data Privacy Governance,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+51,GDPR & Data Privacy Governance,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+51,GDPR & Data Privacy Governance,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+52,Anti-Money Laundering & KYC Standard,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+52,Anti-Money Laundering & KYC Standard,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+52,Anti-Money Laundering & KYC Standard,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+52,Anti-Money Laundering & KYC Standard,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+52,Anti-Money Laundering & KYC Standard,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+53,Statutory Health & Workplace Safety Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+53,Statutory Health & Workplace Safety Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+53,Statutory Health & Workplace Safety Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+53,Statutory Health & Workplace Safety Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+53,Statutory Health & Workplace Safety Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+54,Export Control & Sanctions Screening,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+54,Export Control & Sanctions Screening,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+54,Export Control & Sanctions Screening,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+54,Export Control & Sanctions Screening,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+54,Export Control & Sanctions Screening,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+55,Environmental Sustainability & Carbon Target,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+55,Environmental Sustainability & Carbon Target,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+55,Environmental Sustainability & Carbon Target,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+55,Environmental Sustainability & Carbon Target,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+55,Environmental Sustainability & Carbon Target,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+56,Anti-Bribery & FCPA Compliance Protocol,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+56,Anti-Bribery & FCPA Compliance Protocol,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+56,Anti-Bribery & FCPA Compliance Protocol,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+56,Anti-Bribery & FCPA Compliance Protocol,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+56,Anti-Bribery & FCPA Compliance Protocol,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+57,Fair Competition & Antitrust Standard,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+57,Fair Competition & Antitrust Standard,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+57,Fair Competition & Antitrust Standard,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+57,Fair Competition & Antitrust Standard,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+57,Fair Competition & Antitrust Standard,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+58,Quality Management System (ISO 9001),1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+58,Quality Management System (ISO 9001),2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+58,Quality Management System (ISO 9001),3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+58,Quality Management System (ISO 9001),4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+58,Quality Management System (ISO 9001),5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+59,Information Privacy Officer (DPO) Mandate,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+59,Information Privacy Officer (DPO) Mandate,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+59,Information Privacy Officer (DPO) Mandate,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+59,Information Privacy Officer (DPO) Mandate,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+59,Information Privacy Officer (DPO) Mandate,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+60,Corporate Social Responsibility (CSR) Fund,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+60,Corporate Social Responsibility (CSR) Fund,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+60,Corporate Social Responsibility (CSR) Fund,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+60,Corporate Social Responsibility (CSR) Fund,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+60,Corporate Social Responsibility (CSR) Fund,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+61,Vendor Selection & RFP Tendering Standard,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+61,Vendor Selection & RFP Tendering Standard,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+61,Vendor Selection & RFP Tendering Standard,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+61,Vendor Selection & RFP Tendering Standard,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+61,Vendor Selection & RFP Tendering Standard,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+62,Purchase Order (PO) Threshold Governance,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+62,Purchase Order (PO) Threshold Governance,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+62,Purchase Order (PO) Threshold Governance,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+62,Purchase Order (PO) Threshold Governance,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+62,Purchase Order (PO) Threshold Governance,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+63,Vendor Payment Terms & Early Discount,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+63,Vendor Payment Terms & Early Discount,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+63,Vendor Payment Terms & Early Discount,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+63,Vendor Payment Terms & Early Discount,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+63,Vendor Payment Terms & Early Discount,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+64,IT Asset Disposal & E-Waste Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+64,IT Asset Disposal & E-Waste Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+64,IT Asset Disposal & E-Waste Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+64,IT Asset Disposal & E-Waste Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+64,IT Asset Disposal & E-Waste Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+65,Sole Source Justification Protocol,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+65,Sole Source Justification Protocol,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+65,Sole Source Justification Protocol,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+65,Sole Source Justification Protocol,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+65,Sole Source Justification Protocol,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+66,Supplier Code of Ethical Conduct,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+66,Supplier Code of Ethical Conduct,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+66,Supplier Code of Ethical Conduct,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+66,Supplier Code of Ethical Conduct,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+66,Supplier Code of Ethical Conduct,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+67,Emergency Procurement Authorization,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+67,Emergency Procurement Authorization,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+67,Emergency Procurement Authorization,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+67,Emergency Procurement Authorization,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+67,Emergency Procurement Authorization,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+68,Warehouse Inventory & Stock Audit,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+68,Warehouse Inventory & Stock Audit,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+68,Warehouse Inventory & Stock Audit,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+68,Warehouse Inventory & Stock Audit,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+68,Warehouse Inventory & Stock Audit,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+69,Software License Rationalization Standard,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+69,Software License Rationalization Standard,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+69,Software License Rationalization Standard,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+69,Software License Rationalization Standard,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+69,Software License Rationalization Standard,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+70,Logistics & Freight Forwarder Selection,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+70,Logistics & Freight Forwarder Selection,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+70,Logistics & Freight Forwarder Selection,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+70,Logistics & Freight Forwarder Selection,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+70,Logistics & Freight Forwarder Selection,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+71,Group Medical Insurance Coverage,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+71,Group Medical Insurance Coverage,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+71,Group Medical Insurance Coverage,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+71,Group Medical Insurance Coverage,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+71,Group Medical Insurance Coverage,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+72,Outpatient Department (OPD) Allowance,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+72,Outpatient Department (OPD) Allowance,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+72,Outpatient Department (OPD) Allowance,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+72,Outpatient Department (OPD) Allowance,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+72,Outpatient Department (OPD) Allowance,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+73,Parental Health Insurance Scheme,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+73,Parental Health Insurance Scheme,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+73,Parental Health Insurance Scheme,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+73,Parental Health Insurance Scheme,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+73,Parental Health Insurance Scheme,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+74,Mental Health & Wellness Subsidy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+74,Mental Health & Wellness Subsidy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+74,Mental Health & Wellness Subsidy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+74,Mental Health & Wellness Subsidy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+74,Mental Health & Wellness Subsidy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+75,Executive Health Checkup Entitlement,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+75,Executive Health Checkup Entitlement,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+75,Executive Health Checkup Entitlement,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+75,Executive Health Checkup Entitlement,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+75,Executive Health Checkup Entitlement,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+76,Gym & Fitness Reimbursement Program,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+76,Gym & Fitness Reimbursement Program,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+76,Gym & Fitness Reimbursement Program,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+76,Gym & Fitness Reimbursement Program,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+76,Gym & Fitness Reimbursement Program,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+77,Critical Illness Accelerated Benefit,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+77,Critical Illness Accelerated Benefit,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+77,Critical Illness Accelerated Benefit,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+77,Critical Illness Accelerated Benefit,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+77,Critical Illness Accelerated Benefit,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+78,Group Term Life Insurance (GTLI),1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+78,Group Term Life Insurance (GTLI),2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+78,Group Term Life Insurance (GTLI),3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+78,Group Term Life Insurance (GTLI),4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+78,Group Term Life Insurance (GTLI),5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+79,Creche & Childcare Assistance Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+79,Creche & Childcare Assistance Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+79,Creche & Childcare Assistance Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+79,Creche & Childcare Assistance Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+79,Creche & Childcare Assistance Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+80,Ergonomic Assessment & Home Aid Grant,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+80,Ergonomic Assessment & Home Aid Grant,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+80,Ergonomic Assessment & Home Aid Grant,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+80,Ergonomic Assessment & Home Aid Grant,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+80,Ergonomic Assessment & Home Aid Grant,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+81,Hybrid & Remote Work Framework,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+81,Hybrid & Remote Work Framework,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+81,Hybrid & Remote Work Framework,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+81,Hybrid & Remote Work Framework,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+81,Hybrid & Remote Work Framework,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+82,Home Internet & Broadband Subsidy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+82,Home Internet & Broadband Subsidy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+82,Home Internet & Broadband Subsidy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+82,Home Internet & Broadband Subsidy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+82,Home Internet & Broadband Subsidy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+83,Core Working Hours & Availability,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+83,Core Working Hours & Availability,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+83,Core Working Hours & Availability,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+83,Core Working Hours & Availability,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+83,Core Working Hours & Availability,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+84,Work From Anywhere (WFA) Annual Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+84,Work From Anywhere (WFA) Annual Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+84,Work From Anywhere (WFA) Annual Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+84,Work From Anywhere (WFA) Annual Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+84,Work From Anywhere (WFA) Annual Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+85,Home Office Ergonomic Furniture Grant,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+85,Home Office Ergonomic Furniture Grant,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+85,Home Office Ergonomic Furniture Grant,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+85,Home Office Ergonomic Furniture Grant,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+85,Home Office Ergonomic Furniture Grant,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+86,Co-Working Space Day Pass Allowance,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+86,Co-Working Space Day Pass Allowance,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+86,Co-Working Space Day Pass Allowance,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+86,Co-Working Space Day Pass Allowance,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+86,Co-Working Space Day Pass Allowance,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+87,Virtual Team Social & Lunch Fund,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+87,Virtual Team Social & Lunch Fund,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+87,Virtual Team Social & Lunch Fund,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+87,Virtual Team Social & Lunch Fund,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+87,Virtual Team Social & Lunch Fund,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+88,Digital Nomad Tax & Cross-Border Work,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+88,Digital Nomad Tax & Cross-Border Work,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+88,Digital Nomad Tax & Cross-Border Work,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+88,Digital Nomad Tax & Cross-Border Work,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+88,Digital Nomad Tax & Cross-Border Work,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+89,Overtime & Remote Time Tracking,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+89,Overtime & Remote Time Tracking,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+89,Overtime & Remote Time Tracking,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+89,Overtime & Remote Time Tracking,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+89,Overtime & Remote Time Tracking,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+90,Right to Disconnect & Off-Hours Comm,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+90,Right to Disconnect & Off-Hours Comm,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+90,Right to Disconnect & Off-Hours Comm,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+90,Right to Disconnect & Off-Hours Comm,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+90,Right to Disconnect & Off-Hours Comm,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+91,Office Badge & Physical Access Control,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+91,Office Badge & Physical Access Control,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+91,Office Badge & Physical Access Control,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+91,Office Badge & Physical Access Control,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+91,Office Badge & Physical Access Control,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+92,Visitor Management & NDA Escort Rules,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+92,Visitor Management & NDA Escort Rules,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+92,Visitor Management & NDA Escort Rules,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+92,Visitor Management & NDA Escort Rules,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+92,Visitor Management & NDA Escort Rules,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+93,Corporate Fleet & Commuter Cab Service,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+93,Corporate Fleet & Commuter Cab Service,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+93,Corporate Fleet & Commuter Cab Service,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+93,Corporate Fleet & Commuter Cab Service,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+93,Corporate Fleet & Commuter Cab Service,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+94,Cafeteria & Meal Subsidy Program,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+94,Cafeteria & Meal Subsidy Program,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+94,Cafeteria & Meal Subsidy Program,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+94,Cafeteria & Meal Subsidy Program,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+94,Cafeteria & Meal Subsidy Program,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+95,Meeting Room Booking & No-Show Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+95,Meeting Room Booking & No-Show Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+95,Meeting Room Booking & No-Show Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+95,Meeting Room Booking & No-Show Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+95,Meeting Room Booking & No-Show Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+96,Personal Mail & Package Receiving Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+96,Personal Mail & Package Receiving Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+96,Personal Mail & Package Receiving Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+96,Personal Mail & Package Receiving Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+96,Personal Mail & Package Receiving Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+97,Parking Space Allocation & EV Charging,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+97,Parking Space Allocation & EV Charging,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+97,Parking Space Allocation & EV Charging,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+97,Parking Space Allocation & EV Charging,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+97,Parking Space Allocation & EV Charging,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+98,Lost & Found Property Retention,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+98,Lost & Found Property Retention,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+98,Lost & Found Property Retention,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+98,Lost & Found Property Retention,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+98,Lost & Found Property Retention,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+99,Emergency Evacuation & Fire Safety Warden,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+99,Emergency Evacuation & Fire Safety Warden,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+99,Emergency Evacuation & Fire Safety Warden,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+99,Emergency Evacuation & Fire Safety Warden,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+99,Emergency Evacuation & Fire Safety Warden,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+100,Clean Desk & Physical Confidentiality,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+100,Clean Desk & Physical Confidentiality,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+100,Clean Desk & Physical Confidentiality,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+100,Clean Desk & Physical Confidentiality,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+100,Clean Desk & Physical Confidentiality,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+101,Sales Incentive & Commission Plan,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+101,Sales Incentive & Commission Plan,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+101,Sales Incentive & Commission Plan,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+101,Sales Incentive & Commission Plan,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+101,Sales Incentive & Commission Plan,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+102,Deal Discounting & Approval Matrix,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+102,Deal Discounting & Approval Matrix,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+102,Deal Discounting & Approval Matrix,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+102,Deal Discounting & Approval Matrix,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+102,Deal Discounting & Approval Matrix,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+103,Sales Kickoff (SKO) Travel & Attendance,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+103,Sales Kickoff (SKO) Travel & Attendance,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+103,Sales Kickoff (SKO) Travel & Attendance,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+103,Sales Kickoff (SKO) Travel & Attendance,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+103,Sales Kickoff (SKO) Travel & Attendance,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+104,Marketing Sponsorship & Booth Budget,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+104,Marketing Sponsorship & Booth Budget,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+104,Marketing Sponsorship & Booth Budget,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+104,Marketing Sponsorship & Booth Budget,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+104,Marketing Sponsorship & Booth Budget,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+105,Customer Gift & Loyalty Token Limit,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+105,Customer Gift & Loyalty Token Limit,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+105,Customer Gift & Loyalty Token Limit,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+105,Customer Gift & Loyalty Token Limit,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+105,Customer Gift & Loyalty Token Limit,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+106,Proof of Concept (POC) Hardware Loan,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+106,Proof of Concept (POC) Hardware Loan,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+106,Proof of Concept (POC) Hardware Loan,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+106,Proof of Concept (POC) Hardware Loan,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+106,Proof of Concept (POC) Hardware Loan,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+107,Case Study & Customer Reference Bounty,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+107,Case Study & Customer Reference Bounty,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+107,Case Study & Customer Reference Bounty,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+107,Case Study & Customer Reference Bounty,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+107,Case Study & Customer Reference Bounty,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+108,Lead Routing & Account Territory Rule,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+108,Lead Routing & Account Territory Rule,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+108,Lead Routing & Account Territory Rule,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+108,Lead Routing & Account Territory Rule,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+108,Lead Routing & Account Territory Rule,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+109,Product Beta Access & NDA Requirements,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+109,Product Beta Access & NDA Requirements,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+109,Product Beta Access & NDA Requirements,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+109,Product Beta Access & NDA Requirements,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+109,Product Beta Access & NDA Requirements,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+110,Channel Partner Tier & Margin Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+110,Channel Partner Tier & Margin Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+110,Channel Partner Tier & Margin Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+110,Channel Partner Tier & Margin Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+110,Channel Partner Tier & Margin Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+111,Board of Directors Remuneration & Travel,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+111,Board of Directors Remuneration & Travel,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+111,Board of Directors Remuneration & Travel,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+111,Board of Directors Remuneration & Travel,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+111,Board of Directors Remuneration & Travel,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+112,Executive Severance & Golden Parachute,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+112,Executive Severance & Golden Parachute,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+112,Executive Severance & Golden Parachute,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+112,Executive Severance & Golden Parachute,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+112,Executive Severance & Golden Parachute,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+113,Management Stock Option (ESOP) Vesting,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+113,Management Stock Option (ESOP) Vesting,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+113,Management Stock Option (ESOP) Vesting,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+113,Management Stock Option (ESOP) Vesting,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+113,Management Stock Option (ESOP) Vesting,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+114,Mergers & Acquisitions (M&A) Clean Team,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+114,Mergers & Acquisitions (M&A) Clean Team,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+114,Mergers & Acquisitions (M&A) Clean Team,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+114,Mergers & Acquisitions (M&A) Clean Team,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+114,Mergers & Acquisitions (M&A) Clean Team,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+115,Crisis Management & Emergency Succession,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+115,Crisis Management & Emergency Succession,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+115,Crisis Management & Emergency Succession,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+115,Crisis Management & Emergency Succession,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+115,Crisis Management & Emergency Succession,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+116,Executive Health & Personal Security,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+116,Executive Health & Personal Security,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+116,Executive Health & Personal Security,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+116,Executive Health & Personal Security,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+116,Executive Health & Personal Security,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+117,Director & Officer (D&O) Liability Cover,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+117,Director & Officer (D&O) Liability Cover,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+117,Director & Officer (D&O) Liability Cover,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+117,Director & Officer (D&O) Liability Cover,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+117,Director & Officer (D&O) Liability Cover,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+118,ESG & Sustainability Reporting Standard,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+118,ESG & Sustainability Reporting Standard,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+118,ESG & Sustainability Reporting Standard,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+118,ESG & Sustainability Reporting Standard,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+118,ESG & Sustainability Reporting Standard,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+119,Related Party Transactions (RPT) Policy,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+119,Related Party Transactions (RPT) Policy,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+119,Related Party Transactions (RPT) Policy,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+119,Related Party Transactions (RPT) Policy,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+119,Related Party Transactions (RPT) Policy,5.0,v5.0,2025-07-01,,True,True,True,True,True,True
+120,Shareholder Dividend & Capital Allocation,1.0,v1.0,2020-01-01,2021-06-30,True,True,True,True,True,False
+120,Shareholder Dividend & Capital Allocation,2.0,v2.0,2021-07-01,2022-12-31,True,True,True,True,True,False
+120,Shareholder Dividend & Capital Allocation,3.0,v3.0,2023-01-01,2024-03-31,True,True,True,True,True,False
+120,Shareholder Dividend & Capital Allocation,4.0,v4.0,2024-04-01,2025-06-30,True,True,True,True,True,False
+120,Shareholder Dividend & Capital Allocation,5.0,v5.0,2025-07-01,,True,True,True,True,True,True

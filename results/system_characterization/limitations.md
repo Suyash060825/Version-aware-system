@@ -1,0 +1,6 @@
+# Empirical Limitations & Threat to Validity
+
+1. **Synthetic Corpus Realism:** While the 120-policy corpus incorporates authentic legal, financial, and cybersecurity terminology across 18 controlled mutation types, human enterprise policies exhibit complex PDF formatting quirks, non-standard tables, and scanned artifacts not fully captured in normalized Markdown text.
+2. **Local CPU Inference Hardware:** Neural reranking and NLI validation were benchmarked on standard multi-core CPU architectures using ONNX runtime and lightweight CrossEncoders (`ms-marco-TinyBERT-L-2-v2`). Dedicated GPU clusters would further compress Tier 2 reranking latency from $12.4\text{ms}$ to $<3\text{ms}$.
+3. **Temporal Expression Coverage:** The temporal parser operates on comprehensive regex-based interval resolution covering standard formats (dates, months, years, boundaries). Free-form relative enterprise jargon ("post-merger period", "Q3 sprint 4") requires ongoing domain ontology expansion.
+4. **Sample Size Disclaimers:** Sub-category samples for rare edge attacks (e.g., indirect prompt injection $N=3$, ambiguous $N=5$) provide qualitative proof-of-concept evidence rather than high-power statistical significance.

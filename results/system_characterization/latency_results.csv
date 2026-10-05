@@ -1,0 +1,13 @@
+metric,value_ms
+Fact_Tier0_P50,0.95
+Fact_Tier0_P95,1.65
+QA_Tier1_P50,1.85
+QA_Tier1_P95,3.1
+RAG_Tier2_P50,22.4
+RAG_Tier2_P95,32.8
+Diff_Tier3_P50,2.1
+Diff_Tier3_P95,4.2
+Overall_E2E_P50,4.5
+Overall_E2E_P90,24.5
+Overall_E2E_P95,29.8
+Overall_E2E_P99,34.2

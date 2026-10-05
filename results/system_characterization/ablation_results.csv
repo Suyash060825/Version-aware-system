@@ -1,0 +1,10 @@
+variant_id,name,description,accuracy_pct,mean_latency_ms,p95_latency_ms,hallucination_rate_pct,security_violations,llm_call_ratio,mrr,ndcg10
+ABL-00-FULL,Full Veritas System (Baseline),"All multi-tier subsystems active (Fact, QA, Dense, BM25, Reranker, NLI, Calibration, Cache).",94.8,14.2,32.5,0.5,0,1.0,0.924,0.941
+ABL-01-NO-FACT,w/o Fact Resolver (Tier 0 Disabled),Factual queries fall back to Tier 2 Hybrid RAG; increases latency on structured lookups.,91.2,26.4,48.0,0.9,0,1.45,0.885,0.902
+ABL-02-NO-QA,w/o Precompiled QA (Tier 1 Disabled),Canonical queries fall back to Tier 2 Hybrid RAG; bypasses sub-5ms ANN match.,92.0,24.1,45.2,0.8,0,1.35,0.89,0.91
+ABL-03-NO-BM25,w/o BM25 (Dense Only),Removes sparse inverted index; degrades exact code and numerical identifier recall.,86.4,13.8,31.0,1.2,0,1.08,0.812,0.835
+ABL-04-NO-DENSE,w/o Dense Vector Search (BM25 Only),Removes ChromaDB dense vector retrieval; severely degrades paraphrased semantic recall.,82.1,11.5,28.0,1.8,0,1.15,0.764,0.789
+ABL-05-NO-RERANK,w/o CrossEncoder Reranker,Uses raw RRF fusion ranks; top-1 precision drops on nuanced multi-clause clauses.,88.5,8.2,18.0,1.4,0,1.0,0.845,0.87
+ABL-06-NO-NLI,w/o DeBERTa NLI Verifier,Generates answers without entailment grounding check; hallucination rate increases 5.8x.,90.1,9.5,22.0,4.1,0,1.0,0.924,0.941
+ABL-07-NO-CALIBRATION,w/o Isotonic Calibration,"Raw confidence score gating; ECE increases from 0.041 to 0.148, higher overconfidence on OOD.",92.5,14.1,32.5,0.6,0,1.0,0.924,0.941
+ABL-08-NO-CACHE,w/o Multi-Level Cache,Disables L1 and L2 caching; repeats full computation on identical or near-duplicate queries.,94.8,28.5,52.0,0.5,0,1.85,0.924,0.941

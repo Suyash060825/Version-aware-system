@@ -165,6 +165,9 @@ def test_canonical_qa_matcher_and_rejection_on_deleted_chunk(app):
 
     # Index into QA Index
     qa_index = CanonicalQAIndex()
+    qa_index._init_empty_base()
+    qa_index._init_empty_delta()
+    qa_index._tombstones = set()
     emb = [0.1] * 384
     qa_index.add([q], [a], [emb])
 
