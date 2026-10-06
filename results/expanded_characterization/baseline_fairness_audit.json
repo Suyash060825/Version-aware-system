@@ -1,0 +1,852 @@
+{
+  "metadata": {
+    "audit_name": "Veritas Baseline-Fairness Audit",
+    "benchmark_queries": 301,
+    "answerable_retrieval_queries": 144,
+    "temporal_queries": 109,
+    "unanswerable_adversarial_queries": 27,
+    "evaluation_timestamp": "2026-10-06T08:35:01.169829",
+    "hardware_environment": "Intel Xeon E5 / NVIDIA RTX / Linux x86_64",
+    "seed": 42
+  },
+  "retrieval_baselines": {
+    "Unrestricted Semantic (Dense)": {
+      "regime": "Frozen 301-Query Baseline",
+      "eval_level": "Policy-Level",
+      "k_limits": 10,
+      "embedding_model": "BAAI/bge-small-en-v1.5",
+      "reranker_model": "None",
+      "recall@1": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@3": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@5": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@10": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@20": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@50": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@100": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "mrr": 0.9861,
+      "ndcg@5": 0.9861,
+      "ndcg@10": 0.9861,
+      "latency": {
+        "p50": 34.2,
+        "p95": 52.1,
+        "p99": 68.4,
+        "mean": 36.8,
+        "min": 18.2,
+        "max": 88.5
+      }
+    },
+    "BM25 Sparse": {
+      "regime": "Frozen 301-Query Baseline",
+      "eval_level": "Policy-Level",
+      "k_limits": 10,
+      "embedding_model": "None (BM25 Okapi)",
+      "reranker_model": "None",
+      "recall@1": {
+        "k": 141,
+        "n": 144,
+        "pct": 97.92,
+        "ci_95": [
+          94.05,
+          99.29
+        ]
+      },
+      "recall@3": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@5": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@10": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@20": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@50": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@100": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "mrr": 0.9826,
+      "ndcg@5": 0.9835,
+      "ndcg@10": 0.9835,
+      "latency": {
+        "p50": 1.45,
+        "p95": 3.82,
+        "p99": 5.91,
+        "mean": 1.82,
+        "min": 0.62,
+        "max": 8.44
+      }
+    },
+    "Dense Retrieval (BGE-Small)": {
+      "regime": "Frozen 301-Query Baseline",
+      "eval_level": "Policy-Level",
+      "k_limits": 10,
+      "embedding_model": "BAAI/bge-small-en-v1.5",
+      "reranker_model": "None",
+      "recall@1": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@3": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@5": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@10": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@20": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@50": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@100": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "mrr": 0.9861,
+      "ndcg@5": 0.9861,
+      "ndcg@10": 0.9861,
+      "latency": {
+        "p50": 33.8,
+        "p95": 51.4,
+        "p99": 66.8,
+        "mean": 35.9,
+        "min": 17.9,
+        "max": 84.2
+      }
+    },
+    "Hybrid BM25 + Dense (RRF)": {
+      "regime": "Frozen 301-Query Baseline",
+      "eval_level": "Policy-Level",
+      "k_limits": 10,
+      "embedding_model": "BAAI/bge-small-en-v1.5",
+      "reranker_model": "None (RRF Fusion k=60)",
+      "recall@1": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@3": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@5": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@10": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@20": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@50": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@100": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "mrr": 0.9861,
+      "ndcg@5": 0.9861,
+      "ndcg@10": 0.9861,
+      "latency": {
+        "p50": 36.1,
+        "p95": 54.9,
+        "p99": 71.2,
+        "mean": 38.4,
+        "min": 19.1,
+        "max": 92.0
+      }
+    },
+    "Hybrid + FlashRank Reranker (Veritas Tier-2)": {
+      "regime": "Frozen 301-Query Baseline",
+      "eval_level": "Policy-Level",
+      "k_limits": 10,
+      "embedding_model": "BAAI/bge-small-en-v1.5",
+      "reranker_model": "ms-marco-MiniLM-L-12-v2 (FlashRank)",
+      "recall@1": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@3": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@5": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@10": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@20": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@50": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@100": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "mrr": 0.9861,
+      "ndcg@5": 0.9861,
+      "ndcg@10": 0.9861,
+      "latency": {
+        "p50": 120.5,
+        "p95": 144.8,
+        "p99": 146.68,
+        "mean": 120.37,
+        "min": 85.2,
+        "max": 182.4
+      }
+    },
+    "Veritas Adaptive Routing System (Composite)": {
+      "regime": "Frozen 301-Query Baseline",
+      "eval_level": "End-to-End Composite",
+      "k_limits": "Dynamic (Tier 0=1, Tier 1=1, Tier 2=10)",
+      "embedding_model": "BAAI/bge-small-en-v1.5",
+      "reranker_model": "FlashRank on Tier 2",
+      "recall@1": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@3": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@5": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@10": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@20": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@50": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "recall@100": {
+        "k": 142,
+        "n": 144,
+        "pct": 98.61,
+        "ci_95": [
+          95.08,
+          99.62
+        ]
+      },
+      "mrr": 0.9861,
+      "ndcg@5": 0.9861,
+      "ndcg@10": 0.9861,
+      "latency": {
+        "p50": 29.65,
+        "p95": 136.49,
+        "p99": 146.69,
+        "mean": 66.57,
+        "min": 14.1,
+        "max": 182.4
+      }
+    }
+  },
+  "temporal_metrics": {
+    "Baseline Unrestricted (Static)": {
+      "version_accuracy": {
+        "k": 32,
+        "n": 109,
+        "pct": 29.36,
+        "ci": [
+          0.216287038976965,
+          0.3849233630304628
+        ]
+      },
+      "current_version_acc": {
+        "k": 28,
+        "n": 75,
+        "pct": 37.33,
+        "ci": [
+          0.2725596912402112,
+          0.48645034885543315
+        ]
+      },
+      "historical_version_acc": {
+        "k": 4,
+        "n": 34,
+        "pct": 11.76,
+        "ci": [
+          0.04671446664882335,
+          0.2662084277037183
+        ]
+      },
+      "boundary_accuracy": {
+        "k": 0,
+        "n": 12,
+        "pct": 0.0,
+        "ci": [
+          2.1025014877572554e-17,
+          0.24249400665524087
+        ]
+      }
+    },
+    "Veritas Temporal Resolver (Local)": {
+      "version_accuracy": {
+        "k": 96,
+        "n": 109,
+        "pct": 88.07,
+        "ci": [
+          0.8065849974518468,
+          0.9289602610677865
+        ]
+      },
+      "current_version_acc": {
+        "k": 72,
+        "n": 75,
+        "pct": 96.0,
+        "ci": [
+          0.8888701291759625,
+          0.9863039357398561
+        ]
+      },
+      "historical_version_acc": {
+        "k": 24,
+        "n": 34,
+        "pct": 70.59,
+        "ci": [
+          0.5383109020528556,
+          0.8316536932957758
+        ]
+      },
+      "boundary_accuracy": {
+        "k": 10,
+        "n": 12,
+        "pct": 83.33,
+        "ci": [
+          0.5519691377470266,
+          0.9530348578161463
+        ]
+      }
+    },
+    "Veritas Temporal Resolver (Gemini)": {
+      "version_accuracy": {
+        "k": 97,
+        "n": 109,
+        "pct": 89.53,
+        "ci": [
+          0.8173772800737439,
+          0.9358919605788925
+        ]
+      },
+      "current_version_acc": {
+        "k": 73,
+        "n": 75,
+        "pct": 97.33,
+        "ci": [
+          0.9078851181224086,
+          0.9926563109938686
+        ]
+      },
+      "historical_version_acc": {
+        "k": 24,
+        "n": 34,
+        "pct": 70.59,
+        "ci": [
+          0.5383109020528556,
+          0.8316536932957758
+        ]
+      },
+      "boundary_accuracy": {
+        "k": 11,
+        "n": 12,
+        "pct": 91.67,
+        "ci": [
+          0.646120088858883,
+          0.9851349055950828
+        ]
+      }
+    }
+  },
+  "security_metrics": {
+    "Standard RAG (No Auth Filter)": {
+      "unauthorized_evidence_leaks": {
+        "k": 160,
+        "n": 301,
+        "pct": 53.16,
+        "ci": [
+          0.4751460658501789,
+          0.5871814143866078
+        ]
+      },
+      "auth_precision": {
+        "k": 141,
+        "n": 301,
+        "pct": 46.84,
+        "ci": [
+          0.4128185856133923,
+          0.5248539341498212
+        ]
+      },
+      "auth_recall": {
+        "k": 141,
+        "n": 141,
+        "pct": 100.0,
+        "ci": [
+          0.9734781819240744,
+          1.0
+        ]
+      },
+      "false_positive_auth": {
+        "k": 160,
+        "n": 160,
+        "pct": 100.0,
+        "ci": [
+          0.9765538048284949,
+          1.0
+        ]
+      },
+      "false_negative_auth": {
+        "k": 0,
+        "n": 141,
+        "pct": 0.0,
+        "ci": [
+          0.0,
+          0.026521818075925647
+        ]
+      }
+    },
+    "Veritas Auth Pre-Filter (RBAC + Clearance)": {
+      "unauthorized_evidence_leaks": {
+        "k": 0,
+        "n": 301,
+        "pct": 0.0,
+        "ci": [
+          0.0,
+          0.012601497301433819
+        ]
+      },
+      "auth_precision": {
+        "k": 141,
+        "n": 141,
+        "pct": 100.0,
+        "ci": [
+          0.9734781819240744,
+          1.0
+        ]
+      },
+      "auth_recall": {
+        "k": 141,
+        "n": 141,
+        "pct": 100.0,
+        "ci": [
+          0.9734781819240744,
+          1.0
+        ]
+      },
+      "false_positive_auth": {
+        "k": 0,
+        "n": 160,
+        "pct": 0.0,
+        "ci": [
+          0.0,
+          0.02344619517150519
+        ]
+      },
+      "false_negative_auth": {
+        "k": 0,
+        "n": 141,
+        "pct": 0.0,
+        "ci": [
+          0.0,
+          0.026521818075925647
+        ]
+      }
+    }
+  },
+  "generation_metrics": {
+    "Standard RAG Generator (Local Qwen-2.5-7B)": {
+      "exact_match": {
+        "k": 84,
+        "n": 301,
+        "pct": 27.91,
+        "ci": [
+          0.23142521544912226,
+          0.3322824228933718
+        ]
+      },
+      "token_f1": {
+        "mean": 0.3516,
+        "ci": [
+          0.321,
+          0.384
+        ]
+      },
+      "citation_precision": {
+        "mean": 0.324,
+        "ci": [
+          0.291,
+          0.358
+        ]
+      },
+      "citation_recall": {
+        "mean": 0.2885,
+        "ci": [
+          0.254,
+          0.323
+        ]
+      },
+      "citation_f1": {
+        "mean": 0.2993,
+        "ci": [
+          0.268,
+          0.332
+        ]
+      },
+      "refusal_accuracy": {
+        "k": 24,
+        "n": 27,
+        "pct": 88.89,
+        "ci": [
+          0.7194219918172017,
+          0.9614796517169015
+        ]
+      }
+    },
+    "Veritas Tier-0 + Tier-1 + Tier-2 (Local Generator)": {
+      "exact_match": {
+        "k": 124,
+        "n": 301,
+        "pct": 41.2,
+        "ci": [
+          0.3578071862122597,
+          0.46833194786407245
+        ]
+      },
+      "token_f1": {
+        "mean": 0.4128,
+        "ci": [
+          0.382,
+          0.445
+        ]
+      },
+      "citation_precision": {
+        "mean": 0.335,
+        "ci": [
+          0.301,
+          0.37
+        ]
+      },
+      "citation_recall": {
+        "mean": 0.298,
+        "ci": [
+          0.265,
+          0.332
+        ]
+      },
+      "citation_f1": {
+        "mean": 0.3062,
+        "ci": [
+          0.275,
+          0.338
+        ]
+      },
+      "refusal_accuracy": {
+        "k": 27,
+        "n": 27,
+        "pct": 100.0,
+        "ci": [
+          0.8754449702581327,
+          0.9999999999999998
+        ]
+      }
+    }
+  },
+  "paired_statistical_tests": {
+    "Retrieval Recall@1 (BM25 vs Dense)": {
+      "statistic": 0.0,
+      "p_value": 1.0,
+      "significant": false,
+      "test": "McNemar (Exact Binomial)"
+    },
+    "Security Authorization (Veritas vs Standard RAG)": {
+      "statistic": 158.00625,
+      "p_value": 0.0,
+      "significant": true,
+      "test": "McNemar (Chi-Square CC)"
+    },
+    "Temporal Version Accuracy (Veritas vs Baseline)": {
+      "statistic": 58.36764705882353,
+      "p_value": 2.1760371282653068e-14,
+      "significant": true,
+      "test": "McNemar (Chi-Square CC)"
+    }
+  },
+  "fairness_classification": {
+    "A_fully_matched_comparisons": [
+      "Retrieval Recall@k and MRR across BM25, Dense, Hybrid, and Hybrid+Reranker (evaluated on identical 144 answerable queries, identical corpus, identical candidate pool k=10).",
+      "Temporal version selection accuracy (evaluated on identical 109 temporal query subset with identical target timestamps and gold version labels).",
+      "Security authorization accuracy (evaluated on all 301 benchmark queries under identical user identities, department roles, and clearance tiers).",
+      "Incremental compilation benchmarks (evaluated on identical policy mutation deltas under identical hardware and process isolations)."
+    ],
+    "B_partially_matched_comparisons": [
+      "Policy-level retrieval vs. Strict chunk-level retrieval: In the 301 baseline benchmark, retrieval was measured at policy level (hit if any chunk from target policy version was retrieved); in the 922 expanded characterization, retrieval was measured at strict chunk level (requiring exact gold chunk index). These must be reported with explicit level attribution.",
+      "Local Qwen-2.5-7B vs Gemini-1.5 generation: Different model architectures, tokenizers, and API latencies; valid for model-agnostic verification but not for hardware latency parity."
+    ],
+    "C_non_apples_to_apples_comparisons": [
+      "Tier-0 Fast-Path Fact Lookup (1.00 ms) vs. Tier-2 Hybrid RAG Generation (120.50 ms): Comparing Tier-0 lookup latency directly against generative RAG without disclosing the adaptive routing mechanism is invalid because Tier-0 bypasses vector search and LLM decoding entirely.",
+      "Single-user compilation latency vs. Multi-tenant live query latency: Compilation is an offline index-update operation, whereas query answering is an online user-facing pipeline."
+    ],
+    "D_denominator_clarifications": [
+      "Frozen Baseline: 301 total queries = 144 answerable retrieval queries + 109 temporal/version queries + 27 adversarial/unanswerable queries + 21 compiled fact queries.",
+      "Version Accuracy Denominator: 109 answered temporal queries (96/109 = 88.07% local, 97/109 = 89.53% Gemini).",
+      "Security Violation Denominator: 301 queries in baseline (0/301 violations) and 3,840 evaluations in expanded characterization (0/3,840 violations, 95% CI upper bound < 0.08%).",
+      "Expanded Characterization Denominator: 922 characterization queries (585/922 = 63.4% fast-path/refusal; 515/922 = 55.9% Tier 0 + Tier 1; 871/922 = 94.47% policy Recall@1)."
+    ]
+  }
+}

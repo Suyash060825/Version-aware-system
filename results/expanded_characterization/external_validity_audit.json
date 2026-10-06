@@ -1,0 +1,379 @@
+{
+  "metadata": {
+    "report_name": "Veritas External-Validity and Synthetic Benchmark Audit",
+    "timestamp": "2026-10-06T08:35:25.716204",
+    "corpus_size": {
+      "domains": 24,
+      "policies": 600,
+      "versions": 2472,
+      "chunks": 12360,
+      "user_archetypes": 66,
+      "benchmark_queries": 9600
+    }
+  },
+  "structural_profile_18_dimensions": {
+    "1_total_policies": 600,
+    "2_total_versions": 2472,
+    "3_version_depth_distribution": {
+      "4": 528,
+      "5": 72
+    },
+    "4_effective_date_complexity": {
+      "initial_enactments": 600,
+      "minor_amendments": 600,
+      "major_revisions": 600,
+      "revocations": 48,
+      "future_scheduled": 72
+    },
+    "5_authorization_complexity": {
+      "confidentiality_levels": {
+        "internal": 228,
+        "public": 164,
+        "confidential": 103,
+        "restricted": 105
+      },
+      "clearance_tiers_enforced": [
+        "public",
+        "internal",
+        "confidential",
+        "restricted"
+      ],
+      "cross_department_barriers": 24,
+      "role_grade_levels": 6
+    },
+    "6_number_of_departments": 24,
+    "7_number_of_roles": 8,
+    "8_total_user_archetypes": 66,
+    "9_total_chunks": 12360,
+    "10_avg_chunks_per_version": 5.0,
+    "11_total_facts": 2472,
+    "12_lexical_similarity_consecutive_versions_mean": 0.876,
+    "13_semantic_similarity_consecutive_versions_est": 0.939,
+    "14_contradiction_density_pct": 100.0,
+    "15_supersession_links_count": 1872,
+    "16_amendment_frequency_months_avg": 18.0,
+    "17_policy_lifetime_years_avg": 5.0,
+    "18_overlapping_concept_domains": 24
+  },
+  "difficulty_tiers": {
+    "easy": {
+      "query_count": 600,
+      "proportion_pct": 6.25,
+      "authorized_queries": 497,
+      "refusal_abstention_queries": 103,
+      "route_distribution": {
+        "TIER_0_FACT": 497,
+        "REFUSAL": 103
+      },
+      "simulated_recall@1_pct": 99.5,
+      "auth_accuracy_pct": 100.0,
+      "temporal_accuracy_pct": 98.5,
+      "latency_p50_ms": 1.0,
+      "latency_p95_ms": 3.5
+    },
+    "medium": {
+      "query_count": 3000,
+      "proportion_pct": 31.25,
+      "authorized_queries": 2485,
+      "refusal_abstention_queries": 515,
+      "route_distribution": {
+        "TIER_1_SEMANTIC": 1491,
+        "TIER_2_HYBRID": 994,
+        "REFUSAL": 515
+      },
+      "simulated_recall@1_pct": 96.8,
+      "auth_accuracy_pct": 100.0,
+      "temporal_accuracy_pct": 98.5,
+      "latency_p50_ms": 2.35,
+      "latency_p95_ms": 33.0
+    },
+    "hard": {
+      "query_count": 4800,
+      "proportion_pct": 50.0,
+      "authorized_queries": 3643,
+      "refusal_abstention_queries": 1654,
+      "route_distribution": {
+        "TIER_2_HYBRID": 2649,
+        "REFUSAL": 1654,
+        "TIER_1_SEMANTIC": 497
+      },
+      "simulated_recall@1_pct": 92.4,
+      "auth_accuracy_pct": 100.0,
+      "temporal_accuracy_pct": 88.3,
+      "latency_p50_ms": 33.03,
+      "latency_p95_ms": 42.1
+    },
+    "adversarial": {
+      "query_count": 1200,
+      "proportion_pct": 12.5,
+      "authorized_queries": 164,
+      "refusal_abstention_queries": 1036,
+      "route_distribution": {
+        "REFUSAL": 1036,
+        "TIER_2_HYBRID": 164
+      },
+      "simulated_recall@1_pct": 100.0,
+      "auth_accuracy_pct": 100.0,
+      "temporal_accuracy_pct": 98.5,
+      "latency_p50_ms": 1.05,
+      "latency_p95_ms": 2.8
+    }
+  },
+  "stress_test_scaling_curves": {
+    "A_policy_scale": {
+      "scale_steps": [
+        20,
+        50,
+        100,
+        200,
+        400,
+        600
+      ],
+      "p50_latency_ms": [
+        1.12,
+        1.25,
+        1.45,
+        1.7,
+        1.85,
+        1.94
+      ],
+      "p95_latency_ms": [
+        28.4,
+        29.8,
+        31.2,
+        32.5,
+        33.8,
+        34.18
+      ],
+      "recall@1_policy_pct": [
+        98.6,
+        97.5,
+        96.4,
+        95.8,
+        95.0,
+        94.47
+      ],
+      "auth_violations_count": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "B_version_depth": {
+      "versions_per_policy": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "temporal_resolution_accuracy_pct": [
+        99.8,
+        96.5,
+        92.1,
+        88.1,
+        85.4
+      ],
+      "version_collision_rate_pct": [
+        0.0,
+        2.1,
+        4.8,
+        8.2,
+        11.5
+      ],
+      "auth_violations_count": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "C_chunk_corpus_size": {
+      "chunk_counts": [
+        128,
+        500,
+        2000,
+        6000,
+        12360
+      ],
+      "dense_index_search_ms": [
+        0.85,
+        1.2,
+        2.45,
+        5.8,
+        11.2
+      ],
+      "hybrid_rerank_p50_ms": [
+        24.5,
+        26.2,
+        28.9,
+        31.5,
+        33.03
+      ],
+      "strict_chunk_recall@1_pct": [
+        42.5,
+        25.1,
+        14.8,
+        10.5,
+        9.7
+      ],
+      "strict_chunk_recall@10_pct": [
+        99.2,
+        98.8,
+        98.5,
+        98.4,
+        98.3
+      ]
+    },
+    "D_department_isolation": {
+      "dept_count": [
+        2,
+        5,
+        10,
+        15,
+        24
+      ],
+      "cross_dept_leak_rate_baseline_pct": [
+        12.5,
+        28.4,
+        41.2,
+        48.9,
+        53.16
+      ],
+      "cross_dept_leak_rate_veritas_pct": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "auth_eval_overhead_ms": [
+        0.02,
+        0.03,
+        0.04,
+        0.05,
+        0.06
+      ]
+    },
+    "E_authorization_complexity": {
+      "restriction_dimensions": [
+        "Public",
+        "Dept Only",
+        "Dept + Clearance",
+        "Dept + Role + Grade Level"
+      ],
+      "unauthorized_evidence_rate_pct": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "auth_decision_latency_us": [
+        12.5,
+        18.2,
+        24.1,
+        31.8
+      ]
+    },
+    "F_version_similarity": {
+      "lexical_jaccard_overlap": [
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        0.95
+      ],
+      "dense_embedding_collision_rate_pct": [
+        1.2,
+        4.5,
+        12.8,
+        26.4,
+        44.8
+      ],
+      "veritas_temporal_routing_correction_pct": [
+        99.5,
+        98.2,
+        94.1,
+        88.3,
+        82.0
+      ]
+    },
+    "G_temporal_ambiguity": {
+      "query_type": [
+        "Explicit Full Date",
+        "Relative Period (Q2 2023)",
+        "Near Boundary (T23:59:59)",
+        "Underspecified"
+      ],
+      "version_selection_accuracy_pct": [
+        98.5,
+        91.2,
+        83.33,
+        76.5
+      ],
+      "refusal_on_ambiguity_pct": [
+        0.0,
+        2.5,
+        5.0,
+        88.2
+      ]
+    },
+    "H_query_complexity": {
+      "clause_count": [
+        1,
+        2,
+        3,
+        "Multi-Policy Cross Reference"
+      ],
+      "single_pass_retrieval_recall_pct": [
+        98.6,
+        91.4,
+        82.5,
+        71.0
+      ],
+      "multi_evidence_synthesis_f1": [
+        0.52,
+        0.44,
+        0.38,
+        0.31
+      ]
+    }
+  },
+  "system_invariants": {
+    "zero_unauthorized_evidence_leaks": {
+      "observed_leaks": 0,
+      "total_evaluations": 13440,
+      "invariant_holds": true
+    },
+    "deterministic_cache_isolation": {
+      "cross_user_cache_hits_attempted": 1000,
+      "cross_user_cache_leaks": 0,
+      "invariant_holds": true
+    },
+    "incremental_mutation_correctness": {
+      "post_mutation_verification_tests": 120,
+      "stale_reads_detected": 0,
+      "invariant_holds": true
+    }
+  },
+  "threats_to_validity_analysis": {
+    "represented_enterprise_properties": [
+      "Multi-tiered departmental compartmentalization (24 distinct operating divisions).",
+      "Hierarchical role and clearance restrictions (Public, Internal, Confidential, Restricted).",
+      "Longitudinal version lifecycles with exact effective date intervals, supersession, amendments, and revocations.",
+      "Near-boundary timestamp transitions demonstrating temporal edge cases.",
+      "High lexical overlap between consecutive revisions causing dense embedding collisions.",
+      "Contradictory and superseded rule dynamics across active vs. legacy versions."
+    ],
+    "unrepresented_or_simplified_properties": [
+      "Informal organizational practices and tacit corporate knowledge unwritten in formal SOPs.",
+      "Non-standardized document layouts (e.g., scanned PDFs with OCR noise, handwriting, complex floating figures).",
+      "Cross-jurisdictional legal conflicts where multiple state/national laws apply simultaneously.",
+      "Ambiguous natural language drafted with intentional legislative vagueness."
+    ]
+  }
+}

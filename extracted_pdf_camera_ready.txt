@@ -1,0 +1,1055 @@
+IEEE TRANSACTIONS / JOURNAL MANUSCRIPT
+
+1
+
+Veritas: Version-Aware Enterprise Policy Intelligence
+via Incremental Knowledge Compilation and
+Adaptive Multi-Tier Retrieval
+Suyash Pradhan
+
+Abstract—Enterprise policy repositories undergo continuous
+revision, requiring historical and active provisions to coexist under
+strict role-based access. Conventional retrieval-augmented generation (RAG) models rank evidence primarily by semantic similarity,
+risking temporal version inversion, full re-indexing overhead,
+generative latency on deterministic lookups, and authorization
+leakage. We present Veritas, an enterprise policy intelligence
+system that treats retrieval as a constrained systems problem:
+a composite eligibility predicate E(c, u, tq ) = V (c, tq ) · A(c, u)
+enforces date-bounded validity and role authorization prior
+to evidence admission and reranking. Veritas integrates a
+seven-stage SHA-256 incremental compiler, an adaptive fourtier query router, and a calibrated NLI verification layer. We
+evaluate Veritas across two clearly delineated regimes: (1) a
+frozen 301-query baseline benchmark (commit 61d64b71; 21
+policies, 128 chunks), achieving 100.0% authorization correctness
+(0/301 leaks), 88.07% answered-query version selection accuracy
+(96/109), and 54.15% deterministic fast-path routing with 29.65 ms
+median latency; and (2) an expanded 922-query characterization
+suite (commit 449e69b3; 120 policies, 3,000 chunks, 32 user
+archetypes), demonstrating zero observed unauthorized evidence
+leaks across 3,840 evaluations (95% upper bound < 0.08%), 63.4%
+deterministic/refusal paths, 24.95× compiler speedup on 5%
+amendment deltas across 3,000 chunks (95.0% compute avoided),
+strict chunk-level Recall@10 of 98.29%, and 1.94 ms end-to-end
+median latency at enterprise scale. Isotonic calibration achieves
+0.041 validation ECE (0.000 on fit set), rising to 0.2954 under
+runtime distribution shift. These results demonstrate that preretrieval constraint enforcement provides verifiable data isolation
+and latency reduction for enterprise policy QA.
+Index Terms—Retrieval-augmented generation, temporal information retrieval, version-aware retrieval, incremental indexing,
+enterprise knowledge management, adaptive query routing,
+confidence calibration, natural language inference.
+
+I. I NTRODUCTION
+
+E
+
+NTERPRISE governance, corporate administration, information security, and regulatory compliance depend on
+policy documents that undergo continuous revision. Corporate
+travel allowances, parental leave provisions, remote-work
+rules, and security controls each undergo periodic amendment,
+requiring retrieval mechanisms that distinguish historical validity from current applicability while respecting authorization
+boundaries.
+Conventional retrieval-augmented generation (RAG) architectures rank semantic similarity over document collections [1],
+[2]. Within enterprise policy repositories, four operational risks
+are prominent: (1) Temporal version inversion: superseded
+
+S. Pradhan is with the Department of Computer Science and Engineering
+(e-mail: suyashpradhan06@gmail.com).
+
+clauses are retrieved for current queries, or obsolete provisions
+are returned for historical inquiries [9], [11], [12]; (2) Reindexing overhead: document amendments trigger corpuswide re-embedding; (3) Generative latency: deterministic
+policy facts incur unnecessary autoregressive inference; (4)
+Scope leakage: unpartitioned retrieval exposes confidential
+information across roles [21], [24].
+This paper investigates: Can an enterprise policy retrieval
+architecture simultaneously enforce date-bounded temporal
+validity and role-based authorization constraints while reducing
+unnecessary generation latency and incremental compilation
+overhead, without degrading retrieval accuracy on legitimate
+requests?
+To answer this question, Veritas treats policy retrieval as
+a constrained systems problem. While individual components
+such as dense embeddings, lexical indexes, cross-encoders, and
+NLI classifiers exist in isolation, Veritas formulates temporal validity intervals, role authorization, cryptographic delta
+compilation, and tiered routing as an integrated architecture
+where constraints are evaluated before candidate evidence enters
+reranking or generative prompt assembly.
+The technical contributions of this work comprise:
+1) Composite eligibility predicate: closed date-bounded
+validity intervals and role-derived authorization enforced
+at every pipeline tier before evidence admission and
+reranking.
+2) Seven-stage incremental compiler: SHA-256 chunk
+hashing, delta partitioning, targeted embedding, and
+dynamic vector overlays, reducing dominant embedding
+complexity from O(N · d) to O(|∆| · d).
+3) Adaptive four-tier router: fact resolution (Tier 0),
+canonical QA matching (Tier 1), hybrid dense-sparse
+retrieval (Tier 2), and structural version diffing (Tier 3),
+resolving deterministic traffic without generative LLM
+overhead.
+4) Security and evidence controls: pre-reranking scope
+gating, NLI entailment verification, post-hoc calibrated
+confidence, safe abstention, and tamper-evident audit
+traceability.
+5) Dual-regime empirical characterization: systematic
+evaluation across a 301-query baseline and an expanded
+922-query characterization suite, demonstrating zero
+observed leakage across 3,840 authorization decisions,
+strict chunk and policy retrieval characterization, 24.95×
+compilation speedup on 5% amendment deltas, 0.962
+
+IEEE TRANSACTIONS / JOURNAL MANUSCRIPT
+
+Token F1 under fixed gold evidence, and multi-user
+concurrency and calibration distribution shift analysis.
+The architecture is depicted in Fig. 1.
+II. R ELATED W ORK AND L ITERATURE P OSITIONING
+A. RAG and Retrieval Quality
+RAG grounds language generation in retrieved evidence
+[1]. Dense representations demonstrated high efficacy [3],
+advanced by contrastive text embeddings such as BAAI/bgesmall-en-v1.5 [4]. Lexical retrieval is grounded in the BM25
+probabilistic framework [5], while Reciprocal Rank Fusion
+(RRF) combines ranked lists without score calibration [6].
+Cross-encoders distill token-level interactions for reranking [7],
+deployed via the lightweight FlashRank library [8]. Evaluation
+frameworks emphasize separate measurement of retrieval
+quality, faithfulness, and answer relevance [18]–[20]. Veritas
+applies temporal and authorization filtering before reranking,
+invoking autoregressive generation only when deterministic
+fast paths are insufficient.
+
+B. Temporal Retrieval and Evolving Documents
+Temporal information retrieval models time expressions and
+temporal relevance [9], extended by time-aware language models [10]. VersionRAG explores RAG over evolving documents
+via version lineage graphs [11]. TimelyRAG [12] incorporates
+temporal distance directly into retrieval ranking for overlappingevolving documents. Veritas differs by formulating temporal
+validity as closed calendar interval invariants [τs , τe ] enforced
+prior to candidate admission and reranking rather than probabilistic attention, while integrating role-based authorization
+scoping, SHA-256 incremental compilation, and adaptive multitier routing.
+
+2
+
+III. P ROBLEM F ORMULATION
+Let P = {P1 , . . . , PM } denote the enterprise policy repository. Each policy consists of an ordered set of versions
+V(Pi ) = {vi,1 , . . . , vi,Ki }. Each version is represented as a
+5-tuple v = ⟨τs (v), τe (v), C(v), D(Pi ), κ(Pi )⟩, where [τs , τe ]
+is the validity interval, C the policy chunks, D(Pi ) the organizational scope, and κ(Pi ) the confidentiality classification. For
+currently active policy versions, τe (v) = ∞ (implemented as
+9999-12-31).
+For query date tq ∈ D, the Temporal Validity function is:
+V (c, tq ) = 1[τs (v) ≤ tq ≤ τe (v)].
+(1)
+When superseding version vk+1 is published, the boundary
+mutation rule τe (vk ) ← τs (vk+1 ) − 1 day enforces disjoint,
+non-overlapping validity intervals within any single policy.
+For user u, the Scope Authorization function is:
+A(c, u) = 1[D(Pi ) ∈ {D(u), General}] · 1[κ(Pi ) ∈ K(u)],
+(2)
+where K(u) is the set of clearance levels granted to u.
+The Composite Eligibility Predicate is:
+E(c, u, tq ) = V (c, tq ) · A(c, u).
+(3)
+In deterministic routes (Tiers 0 and 1), E(c, u, tq ) filters
+candidate generation directly within relational and FAISS
+indexes. In hybrid retrieval (Tier 2), E(c, u, tq ) = 1 is
+enforced immediately on initial candidates prior to crossencoder reranking and prior to neural context assembly,
+ensuring that superseded or unauthorized text never enters
+the LLM prompt. The system optimization objective is:
+min E[L(π(q))] subject to Accsafe (π) ≥ θacc ,
+(4)
+π
+where π is the routing policy, L is query latency, and Accsafe
+is the composite decision accuracy over served answers and
+valid abstentions. Failed validity or authorization checks result
+in deterministic safe abstention.
+
+IV. S YSTEM A RCHITECTURE AND I MPLEMENTATION
+A. Seven-Stage Incremental Knowledge Compiler
+The compiler executes seven stages: (1) document parsing
+and
+normalization; (2) SHA-256 fingerprinting per chunk; (3)
+C. Incremental Indexing and Grounded Verification
+structural chunking with section and page metadata; (4) relaHNSW provides scalable approximate nearest-neighbor tional fact extraction into PostgreSQL triples; (5) canonical QA
+search [13], and FAISS optimizes large-scale vector search generation with evidence validation; (6) contextual embedding
+[14]. Neural confidence estimates can be poorly calibrated via FastEmbed BGE-Small English ONNX (d = 384); and (7)
+[15], motivating grounded retrieval and verification mechanisms index mutation into ChromaDB dense store, FAISS HNSW
+[17]. To avoid graph reconnection overhead during incremental segment overlays (M = 32, ef
+constr. = 64), partitioned BM25,
+mutations, Veritas pairs segment overlays and tombstone and tombstone bitmasks.
+bitmasks for reusable chunk indices.
+For every normalized chunk c, a 256-bit content digest is
+computed as:
+H(c) = SHA256(norm(c.text) ∥ model id ∥ model ver).
+D. Authorization-Aware and Secure Retrieval
+(5)
+Authorization is increasingly recognized as a retrievalHash and identifier comparison partitions updated content
+layer requirement. Selective-disclosure RAG separates access into unchanged (hash match), modified (id match, hash misconstraints from generation [21]. Key-parametrized embeddings match), added (new id), and deleted (prior id not retained).
+encode permissions into representations [22], and privacy- Only added and modified chunks enter the embedding path;
+provisioned RAG enforces identity and trust controls [23]. deleted chunks receive tombstones. Inverted BM25 indexes
+Security surveys identify retrieval, context, and generation update document postings on a per-policy basis. Algorithm 1
+as distinct attack vectors [24], [25]. Veritas enforces access formalizes this procedure. The dominant embedding complexity
+invariants via frozen query scopes and pre-reranking eligibility for sparse mutations is reduced from O(N · d) to O(|∆| · d),
+filters before evidence enters the reranker or prompt context. where |∆| ≪ N .
+
+IEEE TRANSACTIONS / JOURNAL MANUSCRIPT
+
+3
+
+TABLE I
+A RCHITECTURAL C OMPARISON OF V ERITAS WITH R ELATED R ETRIEVAL PARADIGMS
+Architecture
+Standard Dense RAG [1],
+[3]
+Hybrid + RRF [2], [6]
+VersionRAG [11]
+Secure RAG [21], [23]
+Veritas
+
+Temporal Validity
+
+Scope Invariant
+
+Incr. Compilation
+
+Unconstrained
+
+Unconstrained
+
+Full rebuild
+
+Single path
+
+None
+
+None
+
+None
+
+Metadata filter
+Lineage graph
+Unconstrained
+Date intervals
+
+Optional
+Not central
+Role/IAM filter
+Role & clearance
+
+App-dep.
+Lineage delta
+Full rebuild
+7-stage delta
+
+Dense+sparse
+Version-aware
+Single path
+Fact+QA+Hyb+Diff
+
+None
+None
+Post-hoc
+Cont. radar
+
+Heuristic
+None
+Prompt check
+NLI+citation
+
+None
+None
+Partial
+Audit ledger
+
+Algorithm 1 Incremental Policy Knowledge Compilation
+Require: Prior chunks Cold , new chunks Cnew
+Ensure: Delta ∆ = (Cadd , Cmod , Cunch , Tdel )
+1: Build hash map H and id map I from Cold
+2: for each chunk c ∈ Cnew do
+3:
+if H(c) ∈ H then
+4:
+Mark c unchanged; retain prior embedding
+5:
+else if c.id ∈ I then
+6:
+Mark c modified; schedule re-embedding
+7:
+else
+8:
+Mark c added; schedule embedding
+9:
+end if
+10: end for
+11: Tombstone all ids in I not retained in Cnew
+12: Embed only Cadd ∪ Cmod
+13: Apply segment overlays and tombstones to HNSW index
+14: return ∆
+
+B. Adaptive Four-Tier Query Router
+
+Adaptive Routing Contradiction Mon.
+
+Grounded Verif.
+
+Audit Trace
+
+TABLE II
+AUDITED E VALUATION R EGIMES AND E XPERIMENTAL S COPE
+Evaluation
+
+Corpus
+
+Frozen Baseline
+
+21 policies / 128
+301 End-to-end baseline (commit
+chunks
+61d64b71)
+Repository
+462 Internal regression
+benchmark
+120 policies / 3,000
+922 System characterization (commit
+chunks
+449e69b3)
+120 policies × 32
+3,840 Authorization isolation [Char.]
+users
+100–3,000 chunks
+5 trials Incremental performance [Char.]
+Validation set
+20 Contradiction validation [Char.]
+Update cycles
+20 Consistency verification [Char.]
+Multi-worker
+1,000 Isolation & load limits [Char.]
+
+Internal Repository
+Expanded Char.
+Security Matrix
+Compiler Sweeps
+NLI Verification
+Mutation Cycles
+Concurrency Load
+
+N Purpose
+
+probability exceeding 0.50 are rejected. Multi-factor raw
+confidence Craw = 0.55 · Sret + 0.45 · Scov is calibrated via
+post-hoc isotonic regression on a validation split.
+
+The query processor normalizes natural-language date
+and version expressions and constructs an immutable
+V. E XPERIMENTAL M ETHODOLOGY
+QueryScope carrying department, clearance, permitted policy
+IDs, and target date. The router selects among four tiers:
+A. Hardware, Software, and Evaluation Regimes
+Tier 0 — Structured Fact Lookup: Detects entity-predicate
+Experiments used an isolated Linux host (kernel 7.1.8patterns and executes SQL lookup over relational triples
+100.fc43.x86 64, x86 64) with 12 logical CPU threads (6
+⟨Subject, Predicate, Value, unit, chunk id⟩. No vector scoring,
+physical cores), 31.06 GB RAM, and an NVIDIA GeForce
+no LLM invocation. Returns value and authoritative citation.
+RTX 3050 Laptop GPU (3.68 GB VRAM). The software stack
+Tier 1 — Canonical QA Matching: Computes cosine
+comprised Python 3.14.6, PyTorch 2.13.0, ChromaDB 1.5.9,
+similarity against the FAISS HNSW canonical-QA index.
+FAISS 1.15.0, FastEmbed 0.8.0, FlashRank 0.2.10, scikitAdmits a match if similarity exceeds threshold θQA = 0.80 after
+learn 1.9.0, PostgreSQL 16, and Redis 7.
+scope filtering. Returns pre-validated answer with citations.
+Production application logic was frozen at commit
+Tier 2 — Hybrid Dense-Sparse Retrieval: Combines BGE61d64b71; the expanded characterization test harness and
+Small dense retrieval with BM25 sparse retrieval via RRF(c) =
+benchmark suite were executed at commit 449e69b3 with
+1
+1
+k+rd (c) + k+rs (c) (k = 60), producing a top-50 candidate pool
+master seed SEED = 42.
+by default. Candidates are strictly filtered by E(c, u, tq ) = 1,
+We evaluate Veritas across two primary regimes and maintain
+then reranked by FlashRank ms-marco-TinyBERT-L-2-v2 to
+a separate internal regression benchmark (Table II):
+top-8. Grounded generation follows with qwen3:4b-q4 K M
+• Frozen Baseline Benchmark [Baseline, N = 301]: 21
+(local) or Gemini 2.0 Flash (cloud).
+policies, 128 chunks (23 versions, 33 facts, 373 canonical
+Tier 3 — Structural Version Diff: Applies sequence
+QA pairs, 10 simulated users) measuring end-to-end Local
+matching over line-normalized policy content to extract invs.
+Cloud generation fidelity (commit 61d64b71).
+sert/delete/replace opcodes. Authorization is verified before
+• Expanded Characterization Suite [Characterization,
+version loading, bypassing LLM synthesis.
+N = 922]: Synthetic corpus of 120 enterprise policies
+across 12 domains ( 600 versions, 3,000 structural chunks,
+C. Security and Evidence Controls
+32 user archetypes, 4,980 executions) stress-testing auThe query scope is frozen upon creation, pre-computing
+thorization isolation, candidate pool depth, multi-user
+authorized policy identifiers before retrieval begins. The
+concurrency, and compiler sweeps (commit 449e69b3).
+evidence filter applies policy authorization checks at every tier
+• Internal Repository Benchmark (N = 462): Reference
+independently, failing closed on unresolvable records. Scopedataset (benchmark_all.json) for regression testing;
+composite cache keys isolate responses across users and dates:
+kept distinct from published evaluation sets.
+Kcache = SHA256(D(u) ∥ K(u) ∥ tq ∥ norm(q)).
+The NLI verification layer employs DeBERTa-v3 (deployed as cross-encoder/nli-deberta-v3-base B. Metrics and Evaluation Protocol
+in lightweight local runtime and DeBERTa-v3-large
+Version-selection accuracy measures the fraction of queries
+ONNX in high-throughput characterization [16]) to verify for which the predicted policy version matches gold, reported
+P (Entailment|E, A) ≥ 0.35; answers with mean contradiction over all queries (Overall) and over answered queries. Generation
+
+IEEE TRANSACTIONS / JOURNAL MANUSCRIPT
+
+4
+
+User Query & Security Context Input
+Query q + Scope ⟨D(u), K(u)⟩ + Evaluation Date tq
+
+Stage 1: Pre-Processing & Scope Resolution
+
+Query Normalization
+
+[CACHE HIT]
+Instant Fast Return
+
+Citation Validation & Dispatch
+Evaluated Latency: < 5 ms
+Validated Cache Hit
+
+→
+
+Temporal Scope Invariant  = ⟨D(u), K(u), [τs , τe ], PIDs⟩
+
+Stage 2: Scope-Hashed Semantic Cache Lookup
+
+Hit
+
+Kcache = SHA256(D(u) ‖ K(u) ‖ tq ‖ norm(q))
+Fact Match
+QA Match
+
+Tier 0: Fact Resolution
+
+Relational SQL over Store F
+Median: 20.19 ms (48.50% Traffic)
+Bypass LLM
+Bypass LLM
+
+Complex / Ad-hoc
+
+Tier 1: Canonical QA Match
+FAISS HNSW (θQA ≥ 0.80)
+Median: 23.28 ms (5.65% Traffic)
+
+Tier 2: Hybrid RAG & Diff
+Dense + Sparse + FlashRank
+Median: 120.50 ms (35.55% Traffic)
+
+Multi-Factor Confidence & Evidence Gating
+Gate Passed
+
+Stage 3: Verified Dispatch
+
+Pass
+
+Citation Traceability Validator + Scope Seal
+Median System Latency: 29.65 ms
+
+Craw = 0.55 ⋅ Sret + 0.45 ⋅ Scov ≥ θgate
+Low Conf / Refusal
+
+Grounded Generation & NLI
+Ollama qwen3:4b + DeBERTa-v3
+100% Contradiction Detection
+
+Safe Abstention
+
+Deterministic refusal / out-of-scope
+88.89% Adversarial Refusal
+
+Fig. 1. Veritas system architecture. Query scope is resolved before retrieval; deterministic Tier-0 and Tier-1 routes bypass generation; Tier-2 hybrid retrieval
+applies eligibility filtering before confidence gating; verified dispatch provides citation-aware release or safe abstention.
+TABLE III
+S ECURITY AND G OVERNANCE H EAD - TO -H EAD : V ERITAS VS . BASELINE
+[BASELINE , N = 301]
+
+TABLE IV
+G ENERATION Q UALITY: L OCAL M ODEL VS . C LOUD M ODEL [BASELINE ,
+N = 301]
+
+System
+
+Metric
+
+Local (qwen3:4b)
+
+Gemini 2.0 Flash
+
+Version Resolution Rate
+(All Queries)
+Version Acc. (Answered
+Queries)
+Exact Correct
+Partially Correct
+Adversarial Refusal Acc.
+Token F1 (End-to-End
+RAG)
+Token F1 (Fixed Gold
+Evidence, N=100)
+Citation Precision
+Citation Recall
+Citation F1
+System P50 Latency
+System P95 Latency
+
+82.72% (249/301)
+
+82.72% (249/301)
+
+86.30% (233/270)
+
+89.53% (231/258)
+
+27.91% (84/301)
+20.27% (61/301)
+88.89% (16/18)
+0.3516
+
+27.57% (83/301)
+13.95% (42/301)
+100.0% (18/18)
+0.3369
+
+Auth-Scope
+Correctness
+
+Naive RAG Baseline
+Veritas
+
+46.84%
+(141/301)
+100.0%
+(301/301)
+
+Unsafe
+Authorized
+Leakage Rate Ans. Ver. Acc.
+53.16%
+(160/301)
+0.00% (0/301)
+
+88.28%
+(113/128)
+88.07%
+(96/109)
+
+Safe
+Abstention
+Precision
+0.00% (0/0)
+100.0%
+(192/192)
+
+quality uses exact match, token F1, and citation precision/recall.
+Retrieval quality is evaluated at policy-level in baseline and
+strict chunk-level in characterization. Calibration uses Brier
+score and Expected Calibration Error (ECE). Concurrency
+isolation evaluates cross-session cache bleed and throughput
+under multi-threaded load (1–100 workers).
+VI. E MPIRICAL R ESULTS AND A NALYSIS
+A. Security and Pre-Retrieval Authorization Scope Enforcement
+Table III reports security performance. In the baseline
+evaluation [Baseline, N = 301], 109 queries target authorized
+provisions while 192 represent out-of-scope departments,
+restricted confidentiality tiers, or adversarial jailbreaks. An
+unrestricted baseline evaluates retrieval without pre-reranking
+eligibility gating, resulting in 160 authorization violations
+(53.16% unsafe exposure rate). In contrast, Veritas achieves
+100.0% authorization/scope decision correctness (301/301)
+with zero unauthorized evidence leakage (TP = 109, TN =
+192, FP = 0, FN = 0).
+In the expanded characterization suite [Characterization, N = 3, 840 evaluations across 32 user archetypes
+× 120 policies], no unauthorized candidate evidence
+was observed entering the reranker or prompt context (1, 840 TP, 2, 000 TN, 0 FP, 0 FN; one-sided 95% upper
+bound < 0.08%). On authorized answerable baseline queries,
+Veritas achieved 88.07% version accuracy (96/109 in the
+frozen baseline benchmark), confirming access isolation without
+degrading legitimate retrieval.
+B. Temporal Validity, Generation Quality, and Decoupled
+Fidelity
+Table IV compares local (qwen3:4b-q4_K_M) and cloud
+(Gemini 2.0 Flash) models [Baseline, N = 301]. Overall
+version resolution across all 301 baseline queries is 82.72%
+(249/301). Among answered queries, local version selection reaches 86.30% (233/270) and Gemini reaches 89.53%
+(231/258). Citation precision remains high (0.7973 local,
+
+0.9620
+
+0.9650
+
+0.7973
+0.2487
+0.2993
+29.65 ms
+136.49 ms
+
+0.7791
+0.2704
+0.3183
+71.63 ms
+85.27 ms
+
+0.7791 Gemini), indicating that emitted citations correspond
+to authoritative evidence.
+While end-to-end exact-match accuracy is 27.91% (Token
+F1: 0.3516), feeding exact gold evidence chunks directly (Fixed
+Gold Evidence Evaluation, N = 100) yields a Mean Token
+F1 of 0.9620 (95% CI: [0.941, 0.983]) and 100.0% target
+concept accuracy. This separation indicates that a substantial
+portion of end-to-end answer degradation arises upstream of
+generation, particularly from retrieval candidate omissions,
+while also reflecting valid paraphrastic variation.
+C. Retrieval Pipeline Progression and Candidate Pool Sensitivity
+Table V details retrieval metrics across both evaluation
+regimes:
+Policy Granularity [Baseline, N = 301]: All retrievers achieve policy-level Recall@1 of 98.61% (0.9861),
+confirming coarse document boundary identification.
+• Strict Chunk Granularity [Characterization, N =
+877]: Evaluated against fine-grained paragraph chunks
+(retrieval_results.csv), BM25 achieves Recall@1 of 7.64% (Recall@10: 96.58%), Dense achieves
+6.61% (Recall@10: 100.0%), Reciprocal Rank Fusion (RRF) achieves 7.41% (Recall@10: 99.66%), and
+FlashRank Cross-Encoder reranking achieves Recall@1
+of 9.69% (Recall@5: 48.35%, Recall@10: 98.29%, MRR:
+0.2538, NDCG@10: 0.4269).
+
+•
+
+Sensitivity analysis on complex multi-clause queries (Category D, N = 50) reveals an important candidate depth
+dependency: expanding candidate beam depth from K = 50 to
+K = 100 increases top-1 retrieval recall from 84.0% (42/50)
+to 94.0% (47/50). Because cross-encoders only score admitted
+
+IEEE TRANSACTIONS / JOURNAL MANUSCRIPT
+
+5
+
+TABLE V
+R ETRIEVAL S UBSYSTEM M ETRICS ACROSS R EGIMES
+Subsystem
+
+R@1
+
+R@5
+
+TABLE VII
+I NCREMENTAL C OMPILER : M UTATION S WEEPS VS . C OLD R EBUILD
+
+R@10
+
+MRR
+
+NDCG@10
+
+Regime 1: Policy Granularity [Baseline, N = 301]
+BM25 (Sparse)
+97.92%
+98.61%
+98.61%
+Dense (BGE-Small)
+98.61%
+98.61%
+98.61%
+Hybrid (RRF)
+98.61%
+98.61%
+98.61%
+Hybrid + FlashRank
+98.61%
+98.61%
+98.61%
+
+0.9826
+0.9861
+0.9861
+0.9861
+
+0.9835
+0.9861
+0.9861
+0.9861
+
+Regime 2: Strict Chunk Granularity [Characterization, N = 877]
+BM25 Alone
+7.64%
+56.90%
+96.58%
+0.2476
+Dense Alone
+6.61%
+54.50%
+100.0%
+0.2440
+Hybrid (RRF)
+7.41%
+55.07%
+99.66%
+0.2485
+Reranked Hybrid
+9.69%
+48.35%
+98.29%
+0.2538
+
+0.3953
+0.3502
+0.3444
+0.4269
+
+TABLE VI
+S YSTEM L ATENCY S CALING ACROSS C ORPUS T IERS
+[C HARACTERIZATION ]
+Corpus Scale
+
+Tier 0 P50 Tier 1 P50 Tier 2 P50
+
+E2E P50
+
+E2E P95
+
+Baseline (21 pol.,
+128 chunks)
+Medium (50 pol.,
+1.25k chunks)
+Large (100 pol., 2.5k
+chunks)
+Enterprise (120 pol.,
+3k chunks)
+
+0.86 ms
+
+1.48 ms
+
+21.54 ms
+
+1.50 ms
+
+22.69 ms
+
+0.96 ms
+
+1.96 ms
+
+26.03 ms
+
+1.75 ms
+
+27.18 ms
+
+0.99 ms
+
+2.26 ms
+
+31.03 ms
+
+1.90 ms
+
+32.18 ms
+
+1.00 ms
+
+2.35 ms
+
+33.03 ms
+
+1.94 ms
+
+34.18 ms
+
+candidates, relevant chunks omitted from the initial candidate
+pool cannot be recovered downstream.
+
+D. Route-Level Latency and Multi-Scale Latency Progression
+In the baseline benchmark [Baseline, N = 301], deterministic fast paths resolve 54.15% of traffic (Tier 0 Fact:
+48.50%, P50 20.19 ms; Tier 1 QA: 5.65%, P50 23.28 ms),
+while HYBRID RAG accounts for 35.55% (P50 120.50 ms)
+and abstentions for 10.30% (P50 116.55 ms), yielding an endto-end median latency of 29.65 ms.
+In the expanded characterization suite [Characterization,
+N = 922], deterministic and refusal paths accounted for 63.4%
+of queries (585/922; Tier 0: 49.35%, Tier 1: 6.51%, Tier 3 Diff:
+6.51%, Refusal: 1.08%; Tier 0 and Tier 1 together accounted
+for 55.9%). Table VI reports latency progression across corpus
+scales (from 21 to 120 policies; 128 to 3,000 chunks). Across all
+scales, deterministic lookups maintain sub-2.5 ms P50 latencies
+(Tier 0: 0.86 ms → 1.00 ms; Tier 1: 1.48 ms → 2.35 ms; Tier 3:
+1.50 ms), driving end-to-end P50 latency to 1.94 ms (34.18 ms
+P95) at enterprise scale.
+
+Corpus & Mutation
+Delta
+
+Mutated
+
+128-Chunk: Hash
+0 chunks
+no-op
+128-Chunk: 1-chunk
+1 chunk
+delta
+128-Chunk: 3-chunk
+3 chunks
+delta
+3,000-Chunk: 1.0%
+30 chunks
+delta
+3,000-Chunk: 5.0%
+150 chunks
+delta
+3,000-Chunk: 10.0% 300 chunks
+delta
+3,000-Chunk: 25.0% 750 chunks
+delta
+3,000-Chunk: 50.0% 1,500 chunks
+delta
+3,000-Chunk: 100% 3,000 chunks
+Rebuild
+
+Incr. Time
+
+Cold Rebuild
+
+Speedup
+
+0.46 ms
+
+2, 307.7 ms
+
+5,059.72×
+
+4.72 ms
+
+2, 307.7 ms
+
+488.75×
+
+4.67 ms
+
+2, 307.7 ms
+
+494.19×
+
+0.650s
+
+52.40s
+
+80.62×
+
+2.100s
+
+52.40s
+
+24.95×
+
+4.800s
+
+52.40s
+
+10.92×
+
+12.50s
+
+52.40s
+
+4.19×
+
+25.80s
+
+52.40s
+
+2.03×
+
+52.40s
+
+52.40s
+
+1.00×
+
+F. Concurrency Load and Post-Mutation Consistency
+Load testing across 1, 10, 25, 50, and 100 concurrent workers
+(1, 000 multi-threaded queries) confirmed 100.0% session and
+cache isolation (0 scope leaks, 0 cache contaminations, 0
+race conditions). Throughput reached 234.7 QPS at 1 worker
+and saturated near 137 QPS at 50–100 workers, with median
+latency rising from 4.35 ms to 317.82 ms due to threadlock synchronization contention. Post-mutation testing across
+20 update cycles confirmed 100% active version retrieval,
+preserved historical access, 100% tombstone purging from
+BM25/vector indexes, and instant cache invalidation (20/20
+passed across all categories).
+G. Confidence Calibration Generalization and NLI Verification
+On the calibration fitting split, ECE dropped from 0.584
+to 0.000, reflecting optimization on the fit set rather than
+open generalization. On the held-out validation split, isotonic
+regression reduced ECE to 0.041 (95% CI: [0.028, 0.056],
+Brier score: 0.1839). Under live runtime query traffic, runtime
+ECE rose to 0.2954 (Brier score: 0.6401), revealing empirical
+distribution shift. The DeBERTa-v3 verifier achieved 100.0%
+contradiction recall on a dedicated validation suite (20/20, 95%
+CI: [83.9%, 100%]).
+VII. D ISCUSSION
+
+E. Incremental Knowledge Compilation Performance
+Table VII reports incremental compilation performance
+across mutation sweeps. On the 128-chunk baseline fixture (127
+mutable chunks, 1 fixed system chunk), hash no-ops (|∆| = 0)
+achieve 5,059.72× speedup (0.46 ms vs. 2, 307.71 ms), while
+1- and 3-chunk mutations achieve 488.75× and 494.19×
+speedups (4.72 ms vs. 2, 307.71 ms).
+Across the expanded characterization sweeps (100 to 3,000
+chunks), a 5.0% mutation delta on the 3,000-chunk corpus
+avoided re-embedding for 95.0% of chunks (2,850/3,000) and
+reduced compile time from 52.40s to 2.10s, corresponding to
+a 24.95× speedup (95% CI: [23.8×, 26.1×]). A 1.0% delta
+avoided 99.0% of re-embeddings (0.65s, 80.62× speedup),
+confirming dominant O(|∆| · d) scaling.
+
+The experimental evaluation yields four key takeaways for
+enterprise policy intelligence:
+1) Access invariant preservation: Enforcing role and
+temporal eligibility prior to reranking achieves zero
+observed leakage across 3,840 evaluations without degrading version accuracy on authorized queries (88.07%
+vs. 88.28%).
+2) Deterministic routing offload: Deterministic and refusal
+paths accounted for 63.4% of characterization queries;
+Tier 0, Tier 1, and Tier 3 achieved sub-2.5 ms median
+latencies without neural text generation.
+3) Cryptographic compilation efficiency: SHA-256 chunk
+hashing avoids 95.0% of re-embedding on 5% amendment deltas, achieving a 24.95× speedup on a 3,000chunk corpus with O(|∆| · d) embedding complexity.
+
+IEEE TRANSACTIONS / JOURNAL MANUSCRIPT
+
+6
+
+4) Calibration distribution sensitivity: Post-hoc isotonic
+regression resolves in-distribution calibration error (ECE:
+0.041) but requires continuous adaptation under runtime
+query distribution shifts (runtime ECE: 0.2954).
+
+queries, while Tier 0, Tier 1, and Tier 3 achieved sub-2.5ms
+median latencies. These findings demonstrate the feasibility
+of constrained, version-aware policy intelligence for highcompliance enterprise environments.
+
+VIII. L IMITATIONS AND T HREATS TO VALIDITY
+
+R EPRODUCIBILITY S TATEMENT
+
+1) Tier-0 routing fallthrough. The Tier-0 fact router
+requires explicit entity-predicate syntax; natural language
+structured fact queries lacking exact keywords frequently
+fall through to Tier-2 HYBRID RAG, incurring neural
+retrieval latency.
+2) Strict chunk vs. policy recall. Strict passage-level
+Recall@1 reaches 9.69% (N = 877), while Recall@10
+reaches 98.29%, indicating that single-chunk precision
+remains challenging in dense corpora.
+3) Candidate pool depth sensitivity. Highly constrained
+multi-clause queries experience candidate starvation at
+K = 50 (84.0% recall), requiring expanded candidate
+beams (K = 100) with associated latency tradeoffs.
+4) Synthetic corpus scale. The 120-policy, 3,000-chunk
+corpus models enterprise structures synthetically; evaluation on proprietary production corporate repositories
+remains future work.
+5) Natural language temporal ambiguity. Unanchored
+temporal expressions (e.g., “prior to recent changes”)
+occasionally cause version ambiguity, whereas explicit
+dates achieve 100% version resolution.
+6) Concurrency lock contention. Multi-user throughput
+saturates near 137 QPS under 50–100 concurrent workers
+due to thread-lock synchronization overhead.
+7) Citation granularity gap. Citation recall (0.2487) reflects broad section-level chunk retrieval evaluated against
+sentence-level gold annotations.
+8) Calibration distribution shift. Calibration-split ECE
+(0.041) versus runtime ECE (0.2954) demonstrates empirical sensitivity to open-domain query distributions.
+9) NLI sample size. Pilot NLI validation used n = 14 pairs
+and contradiction evaluation used n = 20 cases; broader
+validation across thousands of clause pairs is ongoing.
+10) Model quantization. Local LLM exact answer match
+(27.91%) is partly constrained by 4-bit quantization of
+the qwen3:4b backend.
+
+All reported results are reproducible. Production application
+logic was frozen at commit 61d64b71; the characterization
+benchmark suite was executed at commit 449e69b3 with
+master seed SEED = 42. Data artifacts and execution scripts
+are available in the repository.
+
+IX. C ONCLUSION
+Veritas formulates enterprise policy retrieval as an invariantenforced systems architecture combining date-bounded temporal validity, role-based authorization, seven-stage incremental SHA-256 compilation, adaptive multi-tier routing, and
+calibrated evidence verification. Across an audited evaluation framework comprising a 301-query baseline (commit
+61d64b71) and an expanded 922-query characterization suite
+(commit 449e69b3), Veritas demonstrated zero observed
+authorization leakage across 3,840 evaluations, 98.29% chunk
+Recall@10 (98.61% policy Recall@1), and a 24.95× compilation speedup on 5% amendment deltas. Deterministic
+and refusal paths accounted for 63.4% of characterization
+
+ACKNOWLEDGMENT
+The author thanks the open-source communities behind
+ChromaDB, FAISS, FastEmbed, FlashRank, and Hugging Face
+for making this research infrastructure available.
+R EFERENCES
+[1] P. Lewis et al., “Retrieval-Augmented Generation for Knowledge-Intensive NLP
+Tasks,” in Proc. NeurIPS, vol. 33, pp. 9459–9474, 2020.
+[2] Y. Gao et al., “Retrieval-Augmented Generation for Large Language Models: A
+Survey,” arXiv:2312.10997, 2023.
+[3] V. Karpukhin et al., “Dense Passage Retrieval for Open-Domain Question
+Answering,” in Proc. EMNLP, pp. 6769–6781, 2020.
+[4] S. Xiao et al., “C-Pack: Packed Resources for General Chinese Embeddings,” in
+Proc. SIGIR, pp. 641–649, 2024.
+[5] S. Robertson and H. Zaragoza, “The Probabilistic Relevance Framework: BM25
+and Beyond,” Found. Trends Inf. Retr., vol. 4, no. 1–2, pp. 1–174, 2009.
+[6] G. V. Cormack, C. L. A. Clarke, and S. Büttcher, “Reciprocal Rank Fusion
+Outperforms Condorcet and Individual Rank Learning Methods,” in Proc. SIGIR,
+pp. 758–759, 2009.
+[7] X. Jiao et al., “TinyBERT: Distilling BERT for Natural Language Understanding,”
+in Proc. EMNLP Findings, pp. 4163–4174, 2020.
+[8] P. Damodaran, “FlashRank: Lite & Super-fast re-ranking for search pipelines,”
+GitHub repository, 2023.
+[9] R. Campos et al., “Survey of Temporal Information Retrieval and Related
+Applications,” ACM Comput. Surv., vol. 47, no. 2, Art. 15, 2014.
+[10] B. Dhingra et al., “Time-Aware Language Models as Temporal Knowledge Bases,”
+Trans. Assoc. Comput. Linguist., vol. 10, pp. 257–273, 2022.
+[11] D. Huwiler, K. Stockinger, and J. Fürst, “VersionRAG: Version-Aware RetrievalAugmented Generation for Evolving Documents,” arXiv:2510.08109, 2025.
+[12] Y. Zhao et al., “TimelyRAG: Semantic-Temporal Hybrid Retrieval for Time-Critical
+Question Answering,” arXiv:2609.13524, 2026.
+[13] Y. A. Malkov and D. A. Yashunin, “Efficient and Robust Approximate Nearest
+Neighbor Search Using HNSW Graphs,” IEEE TPAMI, vol. 42, no. 4, pp. 824–836,
+2020.
+[14] J. Johnson, M. Douze, and H. Jégou, “Billion-Scale Similarity Search with GPUs,”
+IEEE Trans. Big Data, vol. 7, no. 3, pp. 535–547, 2021.
+[15] C. Guo et al., “On Calibration of Modern Neural Networks,” in Proc. ICML, PMLR,
+vol. 70, pp. 1321–1330, 2017.
+[16] P. He, X. Liu, J. Gao, and W. Chen, “DeBERTa: Decoding-Enhanced BERT with
+Disentangled Attention,” in Proc. ICLR, 2021.
+[17] A. Asai et al., “Self-RAG: Learning to Retrieve, Generate, and Critique through
+Self-Reflection,” in Proc. ICLR, 2024.
+[18] S. Es et al., “RAGAs: Automated Evaluation of Retrieval Augmented Generation,”
+in Proc. EACL Demos, pp. 150–158, 2024.
+[19] J. Saad-Falcon et al., “ARES: Automated Evaluation Framework for RAG Systems,”
+in Proc. NAACL-HLT, pp. 338–354, 2024.
+[20] C. Niu et al., “RAGTruth: A Hallucination Corpus for Developing Trustworthy
+RAG Models,” in Proc. ACL, pp. 10862–10878, 2024.
+[21] A. Al Masoud, M. Arazzi, and A. Nocera, “SD-RAG: Prompt-Injection-Resilient
+Selective Disclosure in RAG,” arXiv:2601.11199, 2026.
+[22] T. Thuillier et al., “Key-Parametrized Embeddings for Access Control in RAG,” in
+Proc. IEEE COMPSAC, pp. 2581–2586, 2026.
+[23] U. R. Saxena et al., “Privacy-provisioned-permission-aware RAG in cloud using
+IAM and trust,” Sci. Rep., vol. 16, Art. 71936, 2026.
+[24] Y. Mu et al., “Towards Secure Retrieval-Augmented Generation: Threats, Defenses
+and Benchmarks,” arXiv:2603.21654, 2026.
+[25] B. Palanisamy et al., “Security and Privacy in Retrieval-Augmented Generation:
+Architectures, Threats, and Defenses,” arXiv:2606.25533, 2026.
+
+Suyash Pradhan is with the Department of Computer Science and Engineering.
+His research interests include retrieval-augmented generation, enterprise
+knowledge management, temporal information retrieval, and trustworthy AI.
+
+

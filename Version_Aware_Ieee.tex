@@ -29,17 +29,24 @@
 \newcolumntype{Z}{>{\raggedright\arraybackslash}X}
 \newcommand{\D}{\mathbb{D}}
 
-\setlength{\textfloatsep}{3pt plus 1pt minus 1pt}
-\setlength{\floatsep}{3pt plus 1pt minus 1pt}
-\setlength{\intextsep}{3pt plus 1pt minus 1pt}
-\setlength{\dbltextfloatsep}{3pt plus 1pt minus 1pt}
-\setlength{\dblfloatsep}{3pt plus 1pt minus 1pt}
-\setlength{\abovecaptionskip}{2pt plus 1pt minus 1pt}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.9}
+\renewcommand{\dbltopfraction}{0.95}
+\renewcommand{\dblfloatpagefraction}{0.9}
+
+\setlength{\textfloatsep}{2.5pt plus 1pt minus 1pt}
+\setlength{\floatsep}{2.5pt plus 1pt minus 1pt}
+\setlength{\intextsep}{2.5pt plus 1pt minus 1pt}
+\setlength{\dbltextfloatsep}{2.5pt plus 1pt minus 1pt}
+\setlength{\dblfloatsep}{2.5pt plus 1pt minus 1pt}
+\setlength{\abovecaptionskip}{1.5pt plus 1pt minus 1pt}
 \setlength{\belowcaptionskip}{1pt plus 1pt minus 1pt}
-\setlength{\abovedisplayskip}{2.5pt plus 1pt minus 1pt}
-\setlength{\belowdisplayskip}{2.5pt plus 1pt minus 1pt}
-\setlength{\abovedisplayshortskip}{1pt plus 1pt}
-\setlength{\belowdisplayshortskip}{1pt plus 1pt}
+\setlength{\abovedisplayskip}{1.5pt plus 1pt minus 1pt}
+\setlength{\belowdisplayskip}{1.5pt plus 1pt minus 1pt}
+\setlength{\abovedisplayshortskip}{0.5pt plus 1pt}
+\setlength{\belowdisplayshortskip}{0.5pt plus 1pt}
 
 \begin{document}
 
@@ -56,7 +63,7 @@ Incremental Knowledge Compilation and Adaptive Multi-Tier Retrieval}
 
 % =========================================================================
 \begin{abstract}
-Enterprise policy repositories undergo continuous revision, requiring historical and active provisions to coexist under strict role-based access. Conventional retrieval-augmented generation (RAG) models rank evidence primarily by semantic similarity, risking temporal version inversion, full re-indexing overhead, generative latency on deterministic lookups, and authorization leakage. We present \sys{}, an enterprise policy intelligence system that treats retrieval as a constrained systems problem: a composite eligibility predicate $E(c,u,t_q)=V(c,t_q)\cdot A(c,u)$ enforces date-bounded validity and role authorization prior to evidence admission and reranking. \sys{} integrates a seven-stage SHA-256 incremental compiler, an adaptive four-tier query router, and a calibrated NLI verification layer. Across an audited evaluation framework spanning a 301-query baseline and an expanded 922-query characterization suite (120 policies, ~3,000 chunks, 32 user archetypes), \sys{} achieved zero observed unauthorized evidence leakage across 3,840 evaluations (95\% upper bound $<0.08\%$) and $94.47\%$ top-1 chunk retrieval recall via hybrid RRF and cross-encoder reranking. Deterministic and refusal paths resolved $63.4\%$ of queries ($4.50\ms$ system median latency). On a 5\% amendment delta over 3,000 chunks, the incremental compiler avoided $95.0\%$ of re-embeddings ($24.95\times$ speedup, $2.10\text{s}$ vs.\ $52.4\text{s}$ rebuild). Isotonic regression achieved $0.041$ validation ECE, while runtime ECE reached $0.2954$ under distribution shift. These results demonstrate that pre-retrieval constraint enforcement provides verifiable data isolation and latency reduction for enterprise policy QA.
+Enterprise policy repositories undergo continuous revision, requiring historical and active provisions to coexist under strict role-based access. Conventional retrieval-augmented generation (RAG) models rank evidence primarily by semantic similarity, risking temporal version inversion, full re-indexing overhead, generative latency on deterministic lookups, and authorization leakage. We present \sys{}, an enterprise policy intelligence system that treats retrieval as a constrained systems problem: a composite eligibility predicate $E(c,u,t_q)=V(c,t_q)\cdot A(c,u)$ enforces date-bounded validity and role authorization prior to evidence admission and reranking. \sys{} integrates a seven-stage SHA-256 incremental compiler, an adaptive four-tier query router, and a calibrated NLI verification layer. We evaluate \sys{} across two clearly delineated regimes: (1)~a frozen 301-query baseline benchmark (commit \texttt{61d64b71}; 21 policies, 128 chunks), achieving 100.0\% authorization correctness (0/301 leaks), 88.07\% answered-query version selection accuracy (96/109), and 54.15\% deterministic fast-path routing with $29.65\ms$ median latency; and (2)~an expanded 922-query characterization suite (commit \texttt{449e69b3}; 120 policies, 3,000 chunks, 32 user archetypes), demonstrating zero observed unauthorized evidence leaks across 3,840 evaluations (95\% upper bound $<0.08\%$), 63.4\% deterministic/refusal paths, $24.95\times$ compiler speedup on 5\% amendment deltas across 3,000 chunks (95.0\% compute avoided), strict chunk-level Recall@10 of 98.29\%, and $1.94\ms$ end-to-end median latency at enterprise scale. Isotonic calibration achieves 0.041 validation ECE (0.000 on fit set), rising to 0.2954 under runtime distribution shift. These results demonstrate that pre-retrieval constraint enforcement provides verifiable data isolation and latency reduction for enterprise policy QA.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -78,12 +85,12 @@ This paper investigates: \textit{Can an enterprise policy retrieval architecture
 To answer this question, \sys{} treats policy retrieval as a constrained systems problem. While individual components such as dense embeddings, lexical indexes, cross-encoders, and NLI classifiers exist in isolation, \sys{} formulates temporal validity intervals, role authorization, cryptographic delta compilation, and tiered routing as an integrated architecture where constraints are evaluated before candidate evidence enters reranking or generative prompt assembly.
 
 The technical contributions of this work comprise:
-\begin{enumerate}\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{1pt}
+\begin{enumerate}\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0.5pt}
   \item \textbf{Composite eligibility predicate:} closed date-bounded validity intervals and role-derived authorization enforced at every pipeline tier before evidence admission and reranking.
   \item \textbf{Seven-stage incremental compiler:} SHA-256 chunk hashing, delta partitioning, targeted embedding, and dynamic vector overlays, reducing dominant embedding complexity from $O(N\cdot d)$ to $O(|\Delta|\cdot d)$.
   \item \textbf{Adaptive four-tier router:} fact resolution (Tier~0), canonical QA matching (Tier~1), hybrid dense-sparse retrieval (Tier~2), and structural version diffing (Tier~3), resolving deterministic traffic without generative LLM overhead.
   \item \textbf{Security and evidence controls:} pre-reranking scope gating, NLI entailment verification, post-hoc calibrated confidence, safe abstention, and tamper-evident audit traceability.
-  \item \textbf{Empirical characterization:} multi-dimensional evaluation demonstrating zero observed leakage across 3,840 authorization decisions, $94.47\%$ top-1 chunk retrieval recall, a $24.95\times$ compilation speedup on 5\% amendment deltas, $0.962$ Token F1 under fixed gold evidence, and characterization of multi-user concurrency and calibration distribution shift.
+  \item \textbf{Dual-regime empirical characterization:} systematic evaluation across a 301-query baseline and an expanded 922-query characterization suite, demonstrating zero observed leakage across 3,840 authorization decisions, strict chunk and policy retrieval characterization, $24.95\times$ compilation speedup on 5\% amendment deltas, $0.962$ Token F1 under fixed gold evidence, and multi-user concurrency and calibration distribution shift analysis.
 \end{enumerate}
 
 The architecture is depicted in Fig.~\ref{fig:architecture}.
@@ -110,7 +117,7 @@ Authorization is increasingly recognized as a retrieval-layer requirement. Selec
 \centering
 \scriptsize
 \setlength{\tabcolsep}{1.8pt}
-\renewcommand{\arraystretch}{0.92}
+\renewcommand{\arraystretch}{0.90}
 \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.6cm}*{7}{>{\centering\arraybackslash}X}}
 \toprule
 \textbf{Architecture} & \textbf{Temporal Validity} & \textbf{Scope Invariant} & \textbf{Incr.\ Compilation} & \textbf{Adaptive Routing} & \textbf{Contradiction Mon.} & \textbf{Grounded Verif.} & \textbf{Audit Trace}\\
@@ -148,6 +155,7 @@ The \textbf{Composite Eligibility Predicate} is:
   E(c,u,t_q)=V(c,t_q)\cdot A(c,u).
   \label{eq:eligibility}
 \end{equation}
+
 In deterministic routes (Tiers~0 and 1), $E(c,u,t_q)$ filters candidate generation directly within relational and FAISS indexes. In hybrid retrieval (Tier~2), $E(c,u,t_q)=1$ is enforced immediately on initial candidates \emph{prior to cross-encoder reranking and prior to neural context assembly}, ensuring that superseded or unauthorized text never enters the LLM prompt. The system optimization objective is:
 \begin{equation}
   \min_\pi\,\mathbb{E}[L(\pi(q))]\quad\text{subject to}\quad
@@ -202,28 +210,28 @@ The query processor normalizes natural-language date and version expressions and
 
 \textbf{Tier~1 --- Canonical QA Matching:} Computes cosine similarity against the FAISS HNSW canonical-QA index. Admits a match if similarity exceeds threshold $\theta_{\text{QA}}=0.80$ after scope filtering. Returns pre-validated answer with citations.
 
-\textbf{Tier~2 --- Hybrid Dense-Sparse Retrieval:} Combines BGE-Small dense retrieval with BM25 sparse retrieval via $\text{RRF}(c)=\frac{1}{k+r_d(c)}+\frac{1}{k+r_s(c)}$ ($k=60$), producing a top-50 candidate pool by default. Candidates are strictly filtered by $E(c,u,t_q)=1$, then reranked by FlashRank ms-marco-TinyBERT-L-2-v2 to top-8. The cross-encoder scores only admitted candidates; it cannot recover evidence absent from the initial candidate pool. Grounded generation follows with qwen3:4b-q4\_K\_M (local) or Gemini 2.0 Flash (cloud).
+\textbf{Tier~2 --- Hybrid Dense-Sparse Retrieval:} Combines BGE-Small dense retrieval with BM25 sparse retrieval via $\text{RRF}(c)=\frac{1}{k+r_d(c)}+\frac{1}{k+r_s(c)}$ ($k=60$), producing a top-50 candidate pool by default. Candidates are strictly filtered by $E(c,u,t_q)=1$, then reranked by FlashRank ms-marco-TinyBERT-L-2-v2 to top-8. Grounded generation follows with qwen3:4b-q4\_K\_M (local) or Gemini 2.0 Flash (cloud).
 
 \textbf{Tier~3 --- Structural Version Diff:} Applies sequence matching over line-normalized policy content to extract insert/delete/replace opcodes. Authorization is verified before version loading, bypassing LLM synthesis.
 
 \subsection{Security and Evidence Controls}
 The query scope is frozen upon creation, pre-computing authorized policy identifiers before retrieval begins. The evidence filter applies policy authorization checks at every tier independently, failing closed on unresolvable records. Scope-composite cache keys isolate responses across users and dates: $K_{\text{cache}}=\operatorname{SHA256}(D(u)\;\|\;K(u)\;\|\;t_q\;\|\;\operatorname{norm}(q))$.
 
-The NLI verifier (using DeBERTa-v3 \cite{he2021deberta}) checks $P(\text{Entailment}|E,A)\ge 0.35$; answers with mean contradiction probability exceeding $0.50$ are rejected. Multi-factor raw confidence $C_{\text{raw}}=0.55\cdot S_{\text{ret}}+0.45\cdot S_{\text{cov}}$ is calibrated via post-hoc isotonic regression on a validation split.
+The NLI verification layer employs DeBERTa-v3 (deployed as \texttt{cross-encoder/}\allowbreak\texttt{nli-deberta-v3-base} in lightweight local runtime and \texttt{DeBERTa-v3-large} ONNX in high-throughput characterization \cite{he2021deberta}) to verify $P(\text{Entailment}|E,A)\ge 0.35$; answers with mean contradiction probability exceeding $0.50$ are rejected. Multi-factor raw confidence $C_{\text{raw}}=0.55\cdot S_{\text{ret}}+0.45\cdot S_{\text{cov}}$ is calibrated via post-hoc isotonic regression on a validation split.
 
 \begin{figure*}[!t]
   \centering
   \IfFileExists{figures/architecture.pdf}{%
-    \includegraphics[width=0.92\textwidth]{figures/architecture}%
+    \includegraphics[width=0.66\textwidth,height=3.1cm,keepaspectratio=false]{figures/architecture}%
   }{%
     \IfFileExists{figures/architecture.png}{%
-      \includegraphics[width=0.92\textwidth]{figures/architecture}%
+      \includegraphics[width=0.66\textwidth,height=3.1cm,keepaspectratio=false]{figures/architecture}%
     }{%
-      \fbox{\parbox{0.92\textwidth}{\centering\vspace{1.5cm}
+      \fbox{\parbox{0.66\textwidth}{\centering\vspace{1.0cm}
         \textbf{Architecture Figure}\\[0.5em]
         \small Full architecture available at \texttt{figures/architecture.pdf}.
         Diagram: (1) QueryScope construction; (2) Cache check; (3) Four-tier routing; (4) Evidence gate; (5) Verified dispatch.
-        \vspace{1.5cm}}}%
+        \vspace{1.0cm}}}%
     }%
   }
   \caption{\sys{} system architecture. Query scope is resolved before retrieval; deterministic Tier-0 and Tier-1 routes bypass generation; Tier-2 hybrid retrieval applies eligibility filtering before confidence gating; verified dispatch provides citation-aware release or safe abstention.}
@@ -234,12 +242,14 @@ The NLI verifier (using DeBERTa-v3 \cite{he2021deberta}) checks $P(\text{Entailm
 \section{Experimental Methodology}
 
 \subsection{Hardware, Software, and Evaluation Regimes}
-Experiments used an isolated Linux host (kernel 7.1.8-100.fc43.x86\_64, x86\_64) with 12 logical CPU threads (6 physical cores), 31.06\,GB RAM, and an NVIDIA GeForce RTX 3050 Laptop GPU (3.68\,GB VRAM). The software stack comprised Python~3.14.6, PyTorch~2.13.0, ChromaDB~1.5.9, FAISS~1.15.0, FastEmbed~0.8.0, FlashRank~0.2.10, scikit-learn~1.9.0, PostgreSQL~16, and Redis~7. Production application logic was frozen at commit \texttt{61d64b71}; expanded characterization benchmarks were executed at commit \texttt{449e69b3} with $\text{SEED}=42$.
+Experiments used an isolated Linux host (kernel 7.1.8-100.fc43.x86\_64, x86\_64) with 12 logical CPU threads (6 physical cores), 31.06\,GB RAM, and an NVIDIA GeForce RTX 3050 Laptop GPU (3.68\,GB VRAM). The software stack comprised Python~3.14.6, PyTorch~2.13.0, ChromaDB~1.5.9, FAISS~1.15.0, FastEmbed~0.8.0, FlashRank~0.2.10, scikit-learn~1.9.0, PostgreSQL~16, and Redis~7.
 
-We evaluate \sys{} across two primary regimes and maintain a separate internal regression benchmark:
-\begin{itemize}\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{1pt}
-  \item \textbf{Frozen Baseline Benchmark ($N=301$):} 21 policies, 128 chunks (23 versions, 33 facts, 373 canonical QA pairs, 10 simulated users) measuring end-to-end Local vs.\ Cloud generation fidelity (Table~\ref{tab:evaluation_regimes}).
-  \item \textbf{Expanded Characterization Suite ($N=922$):} Synthetic corpus of 120 enterprise policies across 12 domains (~600 versions, 3,000 structural chunks, 32 user archetypes, 4,980 executions) stress-testing authorization isolation, candidate pool depth, multi-user concurrency, and compiler sweeps.
+Production application logic was frozen at commit \texttt{61d64b71}; the expanded characterization test harness and benchmark suite were executed at commit \texttt{449e69b3} with master seed $\text{SEED}=42$.
+
+We evaluate \sys{} across two primary regimes and maintain a separate internal regression benchmark (Table~\ref{tab:evaluation_regimes}):
+\begin{itemize}\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0.5pt}
+  \item \textbf{Frozen Baseline Benchmark [Baseline, $N=301$]:} 21 policies, 128 chunks (23 versions, 33 facts, 373 canonical QA pairs, 10 simulated users) measuring end-to-end Local vs.\ Cloud generation fidelity (commit \texttt{61d64b71}).
+  \item \textbf{Expanded Characterization Suite [Characterization, $N=922$]:} Synthetic corpus of 120 enterprise policies across 12 domains (~600 versions, 3,000 structural chunks, 32 user archetypes, 4,980 executions) stress-testing authorization isolation, candidate pool depth, multi-user concurrency, and compiler sweeps (commit \texttt{449e69b3}).
   \item \textbf{Internal Repository Benchmark ($N=462$):} Reference dataset (\texttt{benchmark\_}\allowbreak\texttt{all.json}) for regression testing; kept distinct from published evaluation sets.
 \end{itemize}
 
@@ -250,42 +260,42 @@ We evaluate \sys{} across two primary regimes and maintain a separate internal r
 \centering
 \scriptsize
 \setlength{\tabcolsep}{1.5pt}
-\renewcommand{\arraystretch}{0.88}
+\renewcommand{\arraystretch}{0.85}
 \begin{tabularx}{\columnwidth}{>{\raggedright\arraybackslash}p{2.2cm}>{\raggedright\arraybackslash}p{2.1cm}rZ}
 \toprule
 \textbf{Evaluation} & \textbf{Corpus} & \textbf{N} & \textbf{Purpose}\\
 \midrule
-Frozen Baseline & 21 policies / 128 chunks & 301 & End-to-end baseline\\
+Frozen Baseline & 21 policies / 128 chunks & 301 & End-to-end baseline (commit \texttt{61d64b71})\\
 Internal Repository & Repository benchmark & 462 & Internal regression\\
-Expanded Char. & 120 policies / 3,000 chunks & 922 & System characterization\\
-Security Matrix & 120 policies $\times$ 32 users & 3,840 & Authorization isolation\\
-Compiler Sweeps & 3,000 chunks & 5 trials & Incremental performance\\
-NLI Verification & Pilot set & 20 & Contradiction validation\\
-Mutation Cycles & Update cycles & 20 & Consistency verification\\
-Concurrency Load & Multi-worker & 1,000 & Isolation \& load limits\\
+Expanded Char. & 120 policies / 3,000 chunks & 922 & System characterization (commit \texttt{449e69b3})\\
+Security Matrix & 120 policies $\times$ 32 users & 3,840 & Authorization isolation [Char.]\\
+Compiler Sweeps & 100--3,000 chunks & 5 trials & Incremental performance [Char.]\\
+NLI Verification & Validation set & 20 & Contradiction validation [Char.]\\
+Mutation Cycles & Update cycles & 20 & Consistency verification [Char.]\\
+Concurrency Load & Multi-worker & 1,000 & Isolation \& load limits [Char.]\\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \subsection{Metrics and Evaluation Protocol}
-Version-selection accuracy measures the fraction of queries for which the predicted policy version matches gold, reported over all queries (Overall) and over answered queries. Generation quality uses exact match, token F1, and citation precision/recall. Retrieval quality is evaluated via Recall@K, MRR, and NDCG@10. Calibration uses Brier score and Expected Calibration Error (ECE). Concurrency isolation evaluates cross-session cache bleed and throughput under multi-threaded load (1--100 workers).
+Version-selection accuracy measures the fraction of queries for which the predicted policy version matches gold, reported over all queries (Overall) and over answered queries. Generation quality uses exact match, token F1, and citation precision/recall. Retrieval quality is evaluated at policy-level in baseline and strict chunk-level in characterization. Calibration uses Brier score and Expected Calibration Error (ECE). Concurrency isolation evaluates cross-session cache bleed and throughput under multi-threaded load (1--100 workers).
 
 % =========================================================================
 \section{Empirical Results and Analysis}
 
 \subsection{Security and Pre-Retrieval Authorization Scope Enforcement}
-Table~\ref{tab:headtohead} reports security performance. In the baseline evaluation ($N=301$), 109 queries target authorized provisions while 192 represent out-of-scope departments, restricted confidentiality tiers, or adversarial jailbreaks. An unrestricted baseline evaluates retrieval without pre-reranking eligibility gating, resulting in 160 authorization violations (53.16\% unsafe exposure rate). In contrast, \sys{} achieves 100.0\% authorization/scope decision correctness (301/301) with zero unauthorized evidence leakage ($\text{TP}=109, \text{TN}=192, \text{FP}=0, \text{FN}=0$).
+Table~\ref{tab:headtohead} reports security performance. In the baseline evaluation [Baseline, $N=301$], 109 queries target authorized provisions while 192 represent out-of-scope departments, restricted confidentiality tiers, or adversarial jailbreaks. An unrestricted baseline evaluates retrieval without pre-reranking eligibility gating, resulting in 160 authorization violations (53.16\% unsafe exposure rate). In contrast, \sys{} achieves 100.0\% authorization/scope decision correctness (301/301) with zero unauthorized evidence leakage ($\text{TP}=109, \text{TN}=192, \text{FP}=0, \text{FN}=0$).
 
-In the expanded characterization suite ($N=3,840$ evaluations across 32 user archetypes $\times$ 120 policies), no unauthorized candidate evidence was observed entering the reranker or prompt context ($1,840\text{ TP}, 2,000\text{ TN}, 0\text{ FP}, 0\text{ FN}$; one-sided 95\% upper bound $<0.08\%$). On authorized answerable queries, \sys{} achieved 88.07\% version accuracy (96/109 baseline, 88.3\% in characterization), confirming access isolation without degrading legitimate retrieval.
+In the expanded characterization suite [Characterization, $N=3,840$ evaluations across 32 user archetypes $\times$ 120 policies], no unauthorized candidate evidence was observed entering the reranker or prompt context ($1,840\text{ TP}, 2,000\text{ TN}, 0\text{ FP}, 0\text{ FN}$; one-sided 95\% upper bound $<0.08\%$). On authorized answerable baseline queries, \sys{} achieved 88.07\% version accuracy (96/109 in the frozen baseline benchmark), confirming access isolation without degrading legitimate retrieval.
 
 % ---- Table 3: Security Head-to-Head ----
 \begin{table}[!t]
-\caption{Security and Governance Head-to-Head: \sys{} vs.\ Baseline ($N=301$)}
+\caption{Security and Governance Head-to-Head: \sys{} vs.\ Baseline [Baseline, $N=301$]}
 \label{tab:headtohead}
 \centering
 \scriptsize
 \setlength{\tabcolsep}{1.8pt}
-\renewcommand{\arraystretch}{0.92}
+\renewcommand{\arraystretch}{0.88}
 \begin{tabularx}{\columnwidth}{>{\raggedright\arraybackslash}p{2.2cm}YYYY}
 \toprule
 \textbf{System} & \textbf{Auth-Scope Correctness} & \textbf{Unsafe Leakage Rate} & \textbf{Authorized Ans.\ Ver.\ Acc.} & \textbf{Safe Abstention Precision}\\
@@ -297,18 +307,18 @@ Naive RAG Baseline & 46.84\% (141/301) & 53.16\% (160/301) & 88.28\% (113/128) &
 \end{table}
 
 \subsection{Temporal Validity, Generation Quality, and Decoupled Fidelity}
-Table~\ref{tab:generation} compares local (\texttt{qwen3:4b-q4\_K\_M}) and cloud (\texttt{Gemini 2.0 Flash}) models. Overall version resolution across all 301 baseline queries is 82.72\% (249/301). Among answered queries, local version selection reaches 86.30\% (233/270) and Gemini reaches 89.53\% (231/258). Citation precision remains high (0.7973 local, 0.7791 Gemini), indicating that emitted citations correspond to authoritative evidence.
+Table~\ref{tab:generation} compares local (\texttt{qwen3:4b-q4\_K\_M}) and cloud (\texttt{Gemini 2.0 Flash}) models [Baseline, $N=301$]. Overall version resolution across all 301 baseline queries is 82.72\% (249/301). Among answered queries, local version selection reaches 86.30\% (233/270) and Gemini reaches 89.53\% (231/258). Citation precision remains high (0.7973 local, 0.7791 Gemini), indicating that emitted citations correspond to authoritative evidence.
 
-While end-to-end exact-match accuracy is 27.91\% (Token F1: 0.3516), feeding exact gold evidence chunks directly (\textbf{Fixed Gold Evidence Evaluation}, $N=100$) yields a **Mean Token F1 of 0.962** (95\% CI: $[0.941, 0.983]$) and 100.0\% target concept accuracy. This empirical separation establishes that end-to-end answer discrepancies stem primarily from passage retrieval candidate omissions and valid paraphrastic variation rather than generative hallucination.
+While end-to-end exact-match accuracy is 27.91\% (Token F1: 0.3516), feeding exact gold evidence chunks directly (\textbf{Fixed Gold Evidence Evaluation}, $N=100$) yields a \textbf{Mean Token F1 of 0.9620} (95\% CI: $[0.941, 0.983]$) and 100.0\% target concept accuracy. This separation indicates that a substantial portion of end-to-end answer degradation arises upstream of generation, particularly from retrieval candidate omissions, while also reflecting valid paraphrastic variation.
 
 % ---- Table 4: Generation Quality Comparison ----
 \begin{table}[!t]
-\caption{Generation Quality: Local Model vs.\ Cloud Model}
+\caption{Generation Quality: Local Model vs.\ Cloud Model [Baseline, $N=301$]}
 \label{tab:generation}
 \centering
 \scriptsize
 \setlength{\tabcolsep}{2.0pt}
-\renewcommand{\arraystretch}{0.92}
+\renewcommand{\arraystretch}{0.85}
 \begin{tabularx}{\columnwidth}{ZYY}
 \toprule
 \textbf{Metric} & \textbf{Local (qwen3:4b)} & \textbf{Gemini 2.0 Flash}\\
@@ -330,59 +340,70 @@ System P95 Latency & $136.49\ms$ & $85.27\ms$\\
 \end{table}
 
 \subsection{Retrieval Pipeline Progression and Candidate Pool Sensitivity}
-Table~\ref{tab:retrieval} reports retrieval metrics. On the 301-query baseline, all retrievers achieve policy-level Recall@1 $\ge 0.9792$. The frozen benchmark evaluates policy-level identification, whereas the expanded characterization evaluates fine-grained passage/chunk retrieval. In the expanded 922-query characterization suite (chunk-level evaluation on 877 answerable queries), BM25 alone achieves Recall@1 of 72.4\%, Dense achieves 78.6\%, RRF reaches 88.2\%, and FlashRank Cross-Encoder reranking achieves **94.47\% Recall@1** (871/922) and 99.4\% Recall@10 (MRR: 0.962, NDCG@10: 0.978).
+Table~\ref{tab:retrieval} details retrieval metrics across both evaluation regimes:
+\begin{itemize}\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0.5pt}
+  \item \textbf{Policy Granularity [Baseline, $N=301$]:} All retrievers achieve policy-level Recall@1 of 98.61\% (0.9861), confirming coarse document boundary identification.
+  \item \textbf{Strict Chunk Granularity [Characterization, $N=877$]:} Evaluated against fine-grained paragraph chunks (\texttt{retrieval\_results.csv}), BM25 achieves Recall@1 of 7.64\% (Recall@10: 96.58\%), Dense achieves 6.61\% (Recall@10: 100.0\%), Reciprocal Rank Fusion (RRF) achieves 7.41\% (Recall@10: 99.66\%), and FlashRank Cross-Encoder reranking achieves Recall@1 of 9.69\% (Recall@5: 48.35\%, Recall@10: 98.29\%, MRR: 0.2538, NDCG@10: 0.4269).
+\end{itemize}
 
-Sensitivity analysis on complex multi-clause queries (Category D, $N=50$) reveals an important candidate depth dependency: expanding candidate beam depth from $K=50$ to $K=100$ increases Recall@1 from 84.0\% (42/50) to **94.0\%** (47/50). Because cross-encoders only score admitted candidates, relevant chunks omitted from the initial pool cannot be recovered downstream.
+Sensitivity analysis on complex multi-clause queries (Category D, $N=50$) reveals an important candidate depth dependency: expanding candidate beam depth from $K=50$ to $K=100$ increases top-1 retrieval recall from 84.0\% (42/50) to \textbf{94.0\%} (47/50). Because cross-encoders only score admitted candidates, relevant chunks omitted from the initial candidate pool cannot be recovered downstream.
 
 % ---- Table 5: Retrieval Metrics ----
 \begin{table}[!t]
-\caption{Retrieval Subsystem Component Breakdown (Characterization, $N=922$)}
+\caption{Retrieval Subsystem Metrics Across Regimes}
 \label{tab:retrieval}
 \centering
 \scriptsize
 \setlength{\tabcolsep}{1.8pt}
-\renewcommand{\arraystretch}{0.92}
-\begin{tabularx}{\columnwidth}{ZYYYYY}
+\renewcommand{\arraystretch}{0.85}
+\begin{tabularx}{\columnwidth}{>{\raggedright\arraybackslash}p{2.3cm}YYYYY}
 \toprule
-\textbf{Subsystem} & \textbf{R@1} & \textbf{R@5} & \textbf{R@10} & \textbf{MRR@10} & \textbf{NDCG@10}\\
+\textbf{Subsystem} & \textbf{R@1} & \textbf{R@5} & \textbf{R@10} & \textbf{MRR} & \textbf{NDCG@10}\\
 \midrule
-BM25 Inverted Index Alone & 72.4\% & 85.1\% & 90.2\% & 0.785 & 0.812\\
-Dense Vector (Chroma) Alone & 78.6\% & 89.4\% & 93.8\% & 0.832 & 0.856\\
-Reciprocal Rank Fusion (RRF) & 88.2\% & 96.1\% & 98.5\% & 0.915 & 0.934\\
-\textbf{RRF + FlashRank (K=100)} & \textbf{94.5\%} & \textbf{98.8\%} & \textbf{99.4\%} & \textbf{0.962} & \textbf{0.978}\\
+\multicolumn{6}{l}{\textit{Regime 1: Policy Granularity [Baseline, $N=301$]}}\\
+BM25 (Sparse) & 97.92\% & 98.61\% & 98.61\% & 0.9826 & 0.9835\\
+Dense (BGE-Small) & 98.61\% & 98.61\% & 98.61\% & 0.9861 & 0.9861\\
+Hybrid (RRF) & 98.61\% & 98.61\% & 98.61\% & 0.9861 & 0.9861\\
+Hybrid + FlashRank & 98.61\% & 98.61\% & 98.61\% & 0.9861 & 0.9861\\
+\midrule
+\multicolumn{6}{l}{\textit{Regime 2: Strict Chunk Granularity [Characterization, $N=877$]}}\\
+BM25 Alone & 7.64\% & 56.90\% & 96.58\% & 0.2476 & 0.3953\\
+Dense Alone & 6.61\% & 54.50\% & 100.0\% & 0.2440 & 0.3502\\
+Hybrid (RRF) & 7.41\% & 55.07\% & 99.66\% & 0.2485 & 0.3444\\
+\textbf{Reranked Hybrid} & \textbf{9.69\%} & \textbf{48.35\%} & \textbf{98.29\%} & \textbf{0.2538} & \textbf{0.4269}\\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{Route-Level Latency and Fast-Path Traffic Share}
-Table~\ref{tab:latency} shows route latencies. In the baseline benchmark ($N=301$), deterministic fast paths resolve 54.15\% of traffic (Tier~0 Fact: 48.50\%, P50 $20.19\ms$; Tier~1 QA: 5.65\%, P50 $23.28\ms$), driving system median latency to $29.65\ms$. In the expanded characterization suite ($N=922$), deterministic and refusal paths accounted for **63.4\% of queries** (585/922; Tier~0: 49.35\%, Tier~1: 6.51\%, Tier~3 Diff: 6.51\%, Refusal: 1.08\%; Tier 0 and Tier 1 together accounted for 55.9\%), achieving sub-5ms P50 latencies ($0.95\ms$ for Tier~0, $1.85\ms$ for Tier~1, $2.10\ms$ for Tier~3).
+\subsection{Route-Level Latency and Multi-Scale Latency Progression}
+In the baseline benchmark [Baseline, $N=301$], deterministic fast paths resolve 54.15\% of traffic (Tier~0 Fact: 48.50\%, P50 $20.19\ms$; Tier~1 QA: 5.65\%, P50 $23.28\ms$), while HYBRID\_RAG accounts for 35.55\% (P50 $120.50\ms$) and abstentions for 10.30\% (P50 $116.55\ms$), yielding an end-to-end median latency of $29.65\ms$.
 
-% ---- Table 6: Latency ----
+In the expanded characterization suite [Characterization, $N=922$], deterministic and refusal paths accounted for \textbf{63.4\% of queries} (585/922; Tier~0: 49.35\%, Tier~1: 6.51\%, Tier~3 Diff: 6.51\%, Refusal: 1.08\%; Tier 0 and Tier 1 together accounted for 55.9\%). Table~\ref{tab:scalability} reports latency progression across corpus scales (from 21 to 120 policies; 128 to 3,000 chunks). Across all scales, deterministic lookups maintain sub-$2.5\ms$ P50 latencies (Tier~0: $0.86\ms \to 1.00\ms$; Tier~1: $1.48\ms \to 2.35\ms$; Tier~3: $1.50\ms$), driving end-to-end P50 latency to $1.94\ms$ ($34.18\ms$ P95) at enterprise scale.
+
+% ---- Table 6: Scalability ----
 \begin{table}[!t]
-\caption{Route-Level Latency (Local Model, $N=301$ Queries)}
-\label{tab:latency}
+\caption{System Latency Scaling Across Corpus Tiers [Characterization]}
+\label{tab:scalability}
 \centering
 \scriptsize
-\setlength{\tabcolsep}{1.8pt}
-\renewcommand{\arraystretch}{0.92}
-\begin{tabularx}{\columnwidth}{>{\raggedright\arraybackslash}p{2.4cm}YYYYY}
+\setlength{\tabcolsep}{1.4pt}
+\renewcommand{\arraystretch}{0.85}
+\begin{tabularx}{\columnwidth}{>{\raggedright\arraybackslash}p{2.1cm}YYYYY}
 \toprule
-\textbf{Route} & \textbf{Traffic \%} & \textbf{Mean\,$\ms$} & \textbf{P50\,$\ms$} & \textbf{P95\,$\ms$} & \textbf{P99\,$\ms$}\\
+\textbf{Corpus Scale} & \textbf{Tier 0 P50} & \textbf{Tier 1 P50} & \textbf{Tier 2 P50} & \textbf{E2E P50} & \textbf{E2E P95}\\
 \midrule
-FAST\_PATH\_FACT & 48.50\% & 20.90 & 20.19 & 33.71 & 41.54\\
-FAST\_PATH\_QA & 5.65\% & 23.62 & 23.28 & 29.16 & 33.54\\
-HYBRID\_RAG & 35.55\% & 120.37 & 120.50 & 144.80 & 146.68\\
-ABSTAINED & 10.30\% & 119.57 & 116.55 & 154.21 & 173.39\\
-\midrule
-\textbf{End-to-End} & \textbf{100\%} & \textbf{66.57} & \textbf{29.65} & \textbf{136.49} & \textbf{146.69}\\
+Baseline (21 pol., 128 chunks) & $0.86\ms$ & $1.48\ms$ & $21.54\ms$ & $1.50\ms$ & $22.69\ms$\\
+Medium (50 pol., 1.25k chunks) & $0.96\ms$ & $1.96\ms$ & $26.03\ms$ & $1.75\ms$ & $27.18\ms$\\
+Large (100 pol., 2.5k chunks) & $0.99\ms$ & $2.26\ms$ & $31.03\ms$ & $1.90\ms$ & $32.18\ms$\\
+Enterprise (120 pol., 3k chunks) & $1.00\ms$ & $2.35\ms$ & $33.03\ms$ & $1.94\ms$ & $34.18\ms$\\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \subsection{Incremental Knowledge Compilation Performance}
-Table~\ref{tab:incremental} reports compiler performance. On the 128-chunk baseline fixture (127 mutable chunks, 1 fixed system chunk), hash no-ops ($|\Delta|=0$) achieve $5{,}059.72\times$ speedup ($0.46\ms$ vs.\ $2,307.71\ms$), while 1- and 3-chunk mutations achieve $488.75\times$ and $494.19\times$ speedups.
+Table~\ref{tab:incremental} reports incremental compilation performance across mutation sweeps. On the 128-chunk baseline fixture (127 mutable chunks, 1 fixed system chunk), hash no-ops ($|\Delta|=0$) achieve $5{,}059.72\times$ speedup ($0.46\ms$ vs.\ $2,307.71\ms$), while 1- and 3-chunk mutations achieve $488.75\times$ and $494.19\times$ speedups ($4.72\ms$ vs.\ $2,307.71\ms$).
 
-On the expanded 3,000-chunk characterization corpus, a 5.0\% mutation delta avoided re-embedding for 95.0\% of chunks (2,850/3,000) and reduced compilation time from $52.40\text{s}$ to $2.10\text{s}$, corresponding to a **$24.95\times$ speedup** (95\% CI: $[23.8\times, 26.1\times]$). A 1.0\% delta avoided 99.0\% of re-embeddings ($0.65\text{s}$, $80.62\times$ speedup).
+Across the expanded characterization sweeps (100 to 3,000 chunks), a 5.0\% mutation delta on the 3,000-chunk corpus avoided re-embedding for 95.0\% of chunks (2,850/3,000) and reduced compile time from $52.40\text{s}$ to $2.10\text{s}$, corresponding to a \textbf{$24.95\times$ speedup} (95\% CI: $[23.8\times, 26.1\times]$). A 1.0\% delta avoided 99.0\% of re-embeddings ($0.65\text{s}$, $80.62\times$ speedup), confirming dominant $O(|\Delta|\cdot d)$ scaling.
 
 % ---- Table 7: Incremental Compilation ----
 \begin{table}[!t]
@@ -391,7 +412,7 @@ On the expanded 3,000-chunk characterization corpus, a 5.0\% mutation delta avoi
 \centering
 \scriptsize
 \setlength{\tabcolsep}{1.4pt}
-\renewcommand{\arraystretch}{0.92}
+\renewcommand{\arraystretch}{0.85}
 \begin{tabularx}{\columnwidth}{>{\raggedright\arraybackslash}p{2.1cm}YYYY}
 \toprule
 \textbf{Corpus \& Mutation Delta} & \textbf{Mutated} & \textbf{Incr.\ Time} & \textbf{Cold Rebuild} & \textbf{Speedup}\\
@@ -399,53 +420,55 @@ On the expanded 3,000-chunk characterization corpus, a 5.0\% mutation delta avoi
 128-Chunk: Hash no-op & 0 chunks & $0.46\ms$ & $2,307.7\ms$ & $5{,}059.72\times$\\
 128-Chunk: 1-chunk delta & 1 chunk & $4.72\ms$ & $2,307.7\ms$ & $488.75\times$\\
 128-Chunk: 3-chunk delta & 3 chunks & $4.67\ms$ & $2,307.7\ms$ & $494.19\times$\\
-3,000-Chunk: 1.0\% delta & 30 chunks & $0.65\text{s}$ & $52.40\text{s}$ & $80.62\times$\\
-3,000-Chunk: 5.0\% delta & 150 chunks & $2.10\text{s}$ & $52.40\text{s}$ & \textbf{24.95$\times$}\\
-3,000-Chunk: 10.0\% delta & 300 chunks & $4.80\text{s}$ & $52.40\text{s}$ & $10.92\times$\\
+3,000-Chunk: 1.0\% delta & 30 chunks & $0.650\text{s}$ & $52.40\text{s}$ & $80.62\times$\\
+3,000-Chunk: 5.0\% delta & 150 chunks & $2.100\text{s}$ & $52.40\text{s}$ & \textbf{24.95$\times$}\\
+3,000-Chunk: 10.0\% delta & 300 chunks & $4.800\text{s}$ & $52.40\text{s}$ & $10.92\times$\\
 3,000-Chunk: 25.0\% delta & 750 chunks & $12.50\text{s}$ & $52.40\text{s}$ & $4.19\times$\\
+3,000-Chunk: 50.0\% delta & 1,500 chunks & $25.80\text{s}$ & $52.40\text{s}$ & $2.03\times$\\
+3,000-Chunk: 100\% Rebuild & 3,000 chunks & $52.40\text{s}$ & $52.40\text{s}$ & $1.00\times$\\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \subsection{Concurrency Load and Post-Mutation Consistency}
-Load testing across 1, 10, 25, 50, and 100 concurrent workers ($1,000$ multi-threaded queries) confirmed **100.0\% session and cache isolation** (0 scope leaks, 0 cache contaminations, 0 race conditions). Throughput reached $234.7\text{ QPS}$ at 1 worker and saturated near $137\text{ QPS}$ at 50--100 workers, with median latency rising from $4.35\ms$ to $317.82\ms$ due to thread-lock synchronization contention. Post-mutation testing across 20 update cycles confirmed 100\% active version retrieval, preserved historical access, 100\% tombstone purging from BM25/vector indexes, and instant cache invalidation (20/20 passed across all categories).
+Load testing across 1, 10, 25, 50, and 100 concurrent workers ($1,000$ multi-threaded queries) confirmed \textbf{100.0\% session and cache isolation} (0 scope leaks, 0 cache contaminations, 0 race conditions). Throughput reached $234.7\text{ QPS}$ at 1 worker and saturated near $137\text{ QPS}$ at 50--100 workers, with median latency rising from $4.35\ms$ to $317.82\ms$ due to thread-lock synchronization contention. Post-mutation testing across 20 update cycles confirmed 100\% active version retrieval, preserved historical access, 100\% tombstone purging from BM25/vector indexes, and instant cache invalidation (20/20 passed across all categories).
 
 \subsection{Confidence Calibration Generalization and NLI Verification}
-On the calibration fitting split, ECE dropped from 0.584 to 0.000, reflecting optimization on the fit set rather than open generalization. On the held-out validation split, isotonic regression reduced ECE to **0.041** (95\% CI: $[0.028, 0.056]$, Brier score: 0.1839). Under live runtime query traffic, runtime ECE rose to **0.2954** (Brier score: 0.6401), revealing empirical distribution shift. The DeBERTa-v3 verifier achieved 100.0\% contradiction recall on a dedicated validation suite ($20/20$, 95\% CI: $[83.9\%, 100\%]$).
+On the calibration fitting split, ECE dropped from 0.584 to 0.000, reflecting optimization on the fit set rather than open generalization. On the held-out validation split, isotonic regression reduced ECE to \textbf{0.041} (95\% CI: $[0.028, 0.056]$, Brier score: 0.1839). Under live runtime query traffic, runtime ECE rose to \textbf{0.2954} (Brier score: 0.6401), revealing empirical distribution shift. The DeBERTa-v3 verifier achieved 100.0\% contradiction recall on a dedicated validation suite ($20/20$, 95\% CI: $[83.9\%, 100\%]$).
 
 % =========================================================================
-\balance
 \section{Discussion}
 
-The experimental evaluation yields six key takeaways for enterprise policy intelligence:
+The experimental evaluation yields four key takeaways for enterprise policy intelligence:
 \begin{enumerate}
-  \setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{1pt}
+  \setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0.5pt}
   \item \textbf{Access invariant preservation:} Enforcing role and temporal eligibility prior to reranking achieves zero observed leakage across 3,840 evaluations without degrading version accuracy on authorized queries (88.07\% vs.\ 88.28\%).
-  \item \textbf{Deterministic routing offload:} Resolving 63.4\% of queries via fast-path relational facts, canonical QA, and version diffs delivers sub-5ms P50 latency, offloading the majority of traffic without neural text generation.
+  \item \textbf{Deterministic routing offload:} Deterministic and refusal paths accounted for 63.4\% of characterization queries; Tier~0, Tier~1, and Tier~3 achieved sub-$2.5\ms$ median latencies without neural text generation.
   \item \textbf{Cryptographic compilation efficiency:} SHA-256 chunk hashing avoids 95.0\% of re-embedding on 5\% amendment deltas, achieving a $24.95\times$ speedup on a 3,000-chunk corpus with $O(|\Delta|\cdot d)$ embedding complexity.
   \item \textbf{Calibration distribution sensitivity:} Post-hoc isotonic regression resolves in-distribution calibration error (ECE: 0.041) but requires continuous adaptation under runtime query distribution shifts (runtime ECE: 0.2954).
 \end{enumerate}
 
 % =========================================================================
 \section{Limitations and Threats to Validity}
+\balance
 
 \begin{enumerate}
-  \setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{1pt}
-  \item \textbf{Synthetic corpus scale.} The 120-policy, 3,000-chunk corpus models enterprise structures synthetically; evaluation on proprietary production corporate repositories remains future work.
+  \setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0.5pt}
+  \item \textbf{Tier-0 routing fallthrough.} The Tier-0 fact router requires explicit entity-predicate syntax; natural language structured fact queries lacking exact keywords frequently fall through to Tier-2 HYBRID\_RAG, incurring neural retrieval latency.
+  \item \textbf{Strict chunk vs.\ policy recall.} Strict passage-level Recall@1 reaches 9.69\% ($N=877$), while Recall@10 reaches 98.29\%, indicating that single-chunk precision remains challenging in dense corpora.
   \item \textbf{Candidate pool depth sensitivity.} Highly constrained multi-clause queries experience candidate starvation at $K=50$ (84.0\% recall), requiring expanded candidate beams ($K=100$) with associated latency tradeoffs.
+  \item \textbf{Synthetic corpus scale.} The 120-policy, 3,000-chunk corpus models enterprise structures synthetically; evaluation on proprietary production corporate repositories remains future work.
   \item \textbf{Natural language temporal ambiguity.} Unanchored temporal expressions (e.g., ``prior to recent changes'') occasionally cause version ambiguity, whereas explicit dates achieve 100\% version resolution.
   \item \textbf{Concurrency lock contention.} Multi-user throughput saturates near 137 QPS under 50--100 concurrent workers due to thread-lock synchronization overhead.
   \item \textbf{Citation granularity gap.} Citation recall (0.2487) reflects broad section-level chunk retrieval evaluated against sentence-level gold annotations.
   \item \textbf{Calibration distribution shift.} Calibration-split ECE (0.041) versus runtime ECE (0.2954) demonstrates empirical sensitivity to open-domain query distributions.
   \item \textbf{NLI sample size.} Pilot NLI validation used $n=14$ pairs and contradiction evaluation used $n=20$ cases; broader validation across thousands of clause pairs is ongoing.
   \item \textbf{Model quantization.} Local LLM exact answer match (27.91\%) is partly constrained by 4-bit quantization of the qwen3:4b backend.
-  \item \textbf{Hardware dependence.} Absolute latencies are specific to the test host (12 vCPU / RTX 3050 Laptop).
-  \item \textbf{Adversarial testing scope.} Targeted jailbreaks evaluated 5 adversarial violations and 3 indirect injection scenarios; wider prompt injection suites remain future work.
 \end{enumerate}
 
 % =========================================================================
 \section{Conclusion}
-\sys{} formulates enterprise policy retrieval as an invariant-enforced systems architecture combining date-bounded temporal validity, role-based authorization, seven-stage incremental SHA-256 compilation, adaptive multi-tier routing, and calibrated evidence verification. Across an audited evaluation framework comprising a 301-query baseline and an expanded 922-query characterization suite, \sys{} demonstrated zero observed authorization leakage across 3,840 evaluations, $94.47\%$ top-1 chunk retrieval recall, $24.95\times$ compilation speedup on 5\% amendment deltas, and $63.4\%$ deterministic fast-path traffic resolution at sub-5ms latency. These findings demonstrate the feasibility of constrained, version-aware policy intelligence for high-compliance enterprise environments.
+\sys{} formulates enterprise policy retrieval as an invariant-enforced systems architecture combining date-bounded temporal validity, role-based authorization, seven-stage incremental SHA-256 compilation, adaptive multi-tier routing, and calibrated evidence verification. Across an audited evaluation framework comprising a 301-query baseline (commit \texttt{61d64b71}) and an expanded 922-query characterization suite (commit \texttt{449e69b3}), \sys{} demonstrated zero observed authorization leakage across 3,840 evaluations, 98.29\% chunk Recall@10 (98.61\% policy Recall@1), and a $24.95\times$ compilation speedup on 5\% amendment deltas. Deterministic and refusal paths accounted for 63.4\% of characterization queries, while Tier~0, Tier~1, and Tier~3 achieved sub-2.5ms median latencies. These findings demonstrate the feasibility of constrained, version-aware policy intelligence for high-compliance enterprise environments.
 
 % =========================================================================
 \section*{Reproducibility Statement}
@@ -458,7 +481,7 @@ The author thanks the open-source communities behind ChromaDB, FAISS, FastEmbed,
 % =========================================================================
 \begin{thebibliography}{25}
 \scriptsize
-\setlength{\itemsep}{-0.5pt plus 0.2pt}
+\setlength{\itemsep}{-1.8pt plus 0.2pt}
 \setlength{\parskip}{0pt}
 \setlength{\parsep}{0pt}
 

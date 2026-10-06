@@ -1,0 +1,1193 @@
+[
+  {
+    "user_id": "U-EXE-001",
+    "name": "Eleanor Vance",
+    "email": "ceo@enterprise.internal",
+    "department_id": 23,
+    "department_name": "Executive Governance",
+    "department_code": "EXE",
+    "role": "executive",
+    "clearance": "restricted",
+    "grade_level": 6,
+    "special_permissions": [
+      "board_signoff",
+      "m_and_a_access"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-EXE-002",
+    "name": "Charles Montgomery",
+    "email": "cfo@enterprise.internal",
+    "department_id": 2,
+    "department_name": "Finance",
+    "department_code": "FIN",
+    "role": "executive",
+    "clearance": "restricted",
+    "grade_level": 6,
+    "special_permissions": [
+      "treasury_wire_override",
+      "board_signoff"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-EXE-003",
+    "name": "Dr. Aris Thorne",
+    "email": "cto@enterprise.internal",
+    "department_id": 11,
+    "department_name": "Engineering",
+    "department_code": "ENG",
+    "role": "executive",
+    "clearance": "restricted",
+    "grade_level": 6,
+    "special_permissions": [
+      "prod_infra_override"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-ADM-001",
+    "name": "Alex Administrator",
+    "email": "sysadmin@enterprise.internal",
+    "department_id": 5,
+    "department_name": "IT",
+    "department_code": "IT",
+    "role": "admin",
+    "clearance": "restricted",
+    "grade_level": 5,
+    "special_permissions": [
+      "global_admin_override"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-ADM-002",
+    "name": "Samantha Vance",
+    "email": "secadmin@enterprise.internal",
+    "department_id": 16,
+    "department_name": "Information Security",
+    "department_code": "INF",
+    "role": "admin",
+    "clearance": "restricted",
+    "grade_level": 5,
+    "special_permissions": [
+      "soc_master_override"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-LEG-001",
+    "name": "Laura Croft",
+    "email": "general.counsel@enterprise.internal",
+    "department_id": 6,
+    "department_name": "Legal",
+    "department_code": "LEG",
+    "role": "director",
+    "clearance": "restricted",
+    "grade_level": 5,
+    "special_permissions": [
+      "court_subpoena_lead"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-LEG-002",
+    "name": "Lucas Grey",
+    "email": "litigation.mgr@enterprise.internal",
+    "department_id": 6,
+    "department_name": "Legal",
+    "department_code": "LEG",
+    "role": "manager",
+    "clearance": "confidential",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-LEG-003",
+    "name": "Maya Lin",
+    "email": "contracts.assoc@enterprise.internal",
+    "department_id": 6,
+    "department_name": "Legal",
+    "department_code": "LEG",
+    "role": "senior_staff",
+    "clearance": "internal",
+    "grade_level": 3,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-CMP-001",
+    "name": "Marcus Aurelius",
+    "email": "chief.compliance@enterprise.internal",
+    "department_id": 7,
+    "department_name": "Compliance",
+    "department_code": "CMP",
+    "role": "director",
+    "clearance": "restricted",
+    "grade_level": 5,
+    "special_permissions": [
+      "aml_officer"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-CMP-002",
+    "name": "Chloe Decker",
+    "email": "compliance.auditor@enterprise.internal",
+    "department_id": 7,
+    "department_name": "Compliance",
+    "department_code": "CMP",
+    "role": "auditor",
+    "clearance": "confidential",
+    "grade_level": 4,
+    "special_permissions": [
+      "cross_dept_audit"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-CMP-003",
+    "name": "Daniel Faraday",
+    "email": "privacy.officer@enterprise.internal",
+    "department_id": 7,
+    "department_name": "Compliance",
+    "department_code": "CMP",
+    "role": "manager",
+    "clearance": "confidential",
+    "grade_level": 4,
+    "special_permissions": [
+      "gdpr_dpo"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-HR-001",
+    "name": "Hannah Rogers",
+    "email": "hr.vp@enterprise.internal",
+    "department_id": 1,
+    "department_name": "Human Resources",
+    "department_code": "HR",
+    "role": "director",
+    "clearance": "confidential",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-HR-002",
+    "name": "Harry Potter",
+    "email": "hr.manager@enterprise.internal",
+    "department_id": 1,
+    "department_name": "Human Resources",
+    "department_code": "HR",
+    "role": "manager",
+    "clearance": "confidential",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-HR-003",
+    "name": "Helen Keller",
+    "email": "hr.specialist@enterprise.internal",
+    "department_id": 1,
+    "department_name": "Human Resources",
+    "department_code": "HR",
+    "role": "employee",
+    "clearance": "internal",
+    "grade_level": 2,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-HR-004",
+    "name": "Hector Salamanca",
+    "email": "recruiter.staff@enterprise.internal",
+    "department_id": 1,
+    "department_name": "Human Resources",
+    "department_code": "HR",
+    "role": "employee",
+    "clearance": "internal",
+    "grade_level": 2,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-HCB-001",
+    "name": "Dr. Beverly Crusher",
+    "email": "benefits.lead@enterprise.internal",
+    "department_id": 8,
+    "department_name": "Healthcare & Benefits",
+    "department_code": "HCB",
+    "role": "manager",
+    "clearance": "confidential",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-HCB-002",
+    "name": "Ben Cartwright",
+    "email": "wellness.coord@enterprise.internal",
+    "department_id": 8,
+    "department_name": "Healthcare & Benefits",
+    "department_code": "HCB",
+    "role": "employee",
+    "clearance": "internal",
+    "grade_level": 2,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-FIN-001",
+    "name": "Fiona Gallagher",
+    "email": "controller@enterprise.internal",
+    "department_id": 2,
+    "department_name": "Finance",
+    "department_code": "FIN",
+    "role": "director",
+    "clearance": "confidential",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-FIN-002",
+    "name": "Frank Castle",
+    "email": "accounting.mgr@enterprise.internal",
+    "department_id": 2,
+    "department_name": "Finance",
+    "department_code": "FIN",
+    "role": "manager",
+    "clearance": "confidential",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-FIN-003",
+    "name": "Felicity Smoak",
+    "email": "tax.specialist@enterprise.internal",
+    "department_id": 2,
+    "department_name": "Finance",
+    "department_code": "FIN",
+    "role": "senior_staff",
+    "clearance": "confidential",
+    "grade_level": 3,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-FIN-004",
+    "name": "Farhan Akhtar",
+    "email": "payroll.lead@enterprise.internal",
+    "department_id": 2,
+    "department_name": "Finance",
+    "department_code": "FIN",
+    "role": "senior_staff",
+    "clearance": "confidential",
+    "grade_level": 3,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-EXP-001",
+    "name": "Edward Nygma",
+    "email": "expense.auditor@enterprise.internal",
+    "department_id": 19,
+    "department_name": "Expense Management",
+    "department_code": "EXP",
+    "role": "manager",
+    "clearance": "confidential",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-EXP-002",
+    "name": "Emma Watson",
+    "email": "expense.analyst@enterprise.internal",
+    "department_id": 19,
+    "department_name": "Expense Management",
+    "department_code": "EXP",
+    "role": "employee",
+    "clearance": "internal",
+    "grade_level": 2,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-PRC-001",
+    "name": "Peter Parker",
+    "email": "procurement.head@enterprise.internal",
+    "department_id": 3,
+    "department_name": "Procurement",
+    "department_code": "PRC",
+    "role": "director",
+    "clearance": "confidential",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-PRC-002",
+    "name": "Penny Lane",
+    "email": "sourcing.mgr@enterprise.internal",
+    "department_id": 3,
+    "department_name": "Procurement",
+    "department_code": "PRC",
+    "role": "manager",
+    "clearance": "internal",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-PRC-003",
+    "name": "Pavel Chekov",
+    "email": "buyer.staff@enterprise.internal",
+    "department_id": 3,
+    "department_name": "Procurement",
+    "department_code": "PRC",
+    "role": "employee",
+    "clearance": "internal",
+    "grade_level": 2,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-VND-001",
+    "name": "Victor Stone",
+    "email": "vendor.governance@enterprise.internal",
+    "department_id": 15,
+    "department_name": "Vendor Management",
+    "department_code": "VND",
+    "role": "manager",
+    "clearance": "confidential",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-VND-002",
+    "name": "Vanessa Ives",
+    "email": "vendor.auditor@enterprise.internal",
+    "department_id": 15,
+    "department_name": "Vendor Management",
+    "department_code": "VND",
+    "role": "senior_staff",
+    "clearance": "confidential",
+    "grade_level": 3,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-SEC-001",
+    "name": "Steve Rogers",
+    "email": "cso@enterprise.internal",
+    "department_id": 4,
+    "department_name": "Security",
+    "department_code": "SEC",
+    "role": "director",
+    "clearance": "restricted",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-SEC-002",
+    "name": "Sarah Connor",
+    "email": "soc.manager@enterprise.internal",
+    "department_id": 4,
+    "department_name": "Security",
+    "department_code": "SEC",
+    "role": "manager",
+    "clearance": "restricted",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-SEC-003",
+    "name": "Scott Lang",
+    "email": "soc.analyst@enterprise.internal",
+    "department_id": 4,
+    "department_name": "Security",
+    "department_code": "SEC",
+    "role": "senior_staff",
+    "clearance": "confidential",
+    "grade_level": 3,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-PHY-001",
+    "name": "Phil Coulson",
+    "email": "facility.security@enterprise.internal",
+    "department_id": 17,
+    "department_name": "Physical Access",
+    "department_code": "PHY",
+    "role": "manager",
+    "clearance": "internal",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-PHY-002",
+    "name": "Pam Beesly",
+    "email": "badge.office@enterprise.internal",
+    "department_id": 17,
+    "department_name": "Physical Access",
+    "department_code": "PHY",
+    "role": "employee",
+    "clearance": "internal",
+    "grade_level": 2,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-IT-001",
+    "name": "Isaac Newton",
+    "email": "it.operations.vp@enterprise.internal",
+    "department_id": 5,
+    "department_name": "IT",
+    "department_code": "IT",
+    "role": "director",
+    "clearance": "confidential",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-IT-002",
+    "name": "Ian Malcolm",
+    "email": "helpdesk.manager@enterprise.internal",
+    "department_id": 5,
+    "department_name": "IT",
+    "department_code": "IT",
+    "role": "manager",
+    "clearance": "internal",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-IT-003",
+    "name": "Iris West",
+    "email": "endpoint.admin@enterprise.internal",
+    "department_id": 5,
+    "department_name": "IT",
+    "department_code": "IT",
+    "role": "senior_staff",
+    "clearance": "internal",
+    "grade_level": 3,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-INF-001",
+    "name": "Irene Adler",
+    "email": "ciso@enterprise.internal",
+    "department_id": 16,
+    "department_name": "Information Security",
+    "department_code": "INF",
+    "role": "director",
+    "clearance": "restricted",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-INF-002",
+    "name": "Inigo Montoya",
+    "email": "appsec.lead@enterprise.internal",
+    "department_id": 16,
+    "department_name": "Information Security",
+    "department_code": "INF",
+    "role": "manager",
+    "clearance": "restricted",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-INF-003",
+    "name": "Ivy Valentine",
+    "email": "threat.hunter@enterprise.internal",
+    "department_id": 16,
+    "department_name": "Information Security",
+    "department_code": "INF",
+    "role": "senior_staff",
+    "clearance": "restricted",
+    "grade_level": 3,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-ENG-001",
+    "name": "Grace Hopper",
+    "email": "vp.engineering@enterprise.internal",
+    "department_id": 11,
+    "department_name": "Engineering",
+    "department_code": "ENG",
+    "role": "director",
+    "clearance": "confidential",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-ENG-002",
+    "name": "Gordon Freeman",
+    "email": "principal.architect@enterprise.internal",
+    "department_id": 11,
+    "department_name": "Engineering",
+    "department_code": "ENG",
+    "role": "senior_staff",
+    "clearance": "internal",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-ENG-003",
+    "name": "Gillian Anderson",
+    "email": "devops.lead@enterprise.internal",
+    "department_id": 11,
+    "department_name": "Engineering",
+    "department_code": "ENG",
+    "role": "manager",
+    "clearance": "internal",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-ENG-004",
+    "name": "Geordi La Forge",
+    "email": "software.engineer@enterprise.internal",
+    "department_id": 11,
+    "department_name": "Engineering",
+    "department_code": "ENG",
+    "role": "employee",
+    "clearance": "internal",
+    "grade_level": 2,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-ENG-005",
+    "name": "Gwen Stacy",
+    "email": "junior.dev@enterprise.internal",
+    "department_id": 11,
+    "department_name": "Engineering",
+    "department_code": "ENG",
+    "role": "employee",
+    "clearance": "internal",
+    "grade_level": 1,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-SLS-001",
+    "name": "Sterling Cooper",
+    "email": "sales.vp@enterprise.internal",
+    "department_id": 12,
+    "department_name": "Sales",
+    "department_code": "SLS",
+    "role": "director",
+    "clearance": "confidential",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-SLS-002",
+    "name": "Saul Goodman",
+    "email": "enterprise.sales.mgr@enterprise.internal",
+    "department_id": 12,
+    "department_name": "Sales",
+    "department_code": "SLS",
+    "role": "manager",
+    "clearance": "confidential",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-SLS-003",
+    "name": "Sam Winchester",
+    "email": "account.exec@enterprise.internal",
+    "department_id": 12,
+    "department_name": "Sales",
+    "department_code": "SLS",
+    "role": "employee",
+    "clearance": "internal",
+    "grade_level": 2,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-MKT-001",
+    "name": "Madeline Albright",
+    "email": "cmo@enterprise.internal",
+    "department_id": 13,
+    "department_name": "Marketing",
+    "department_code": "MKT",
+    "role": "director",
+    "clearance": "internal",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-MKT-002",
+    "name": "Michael Scott",
+    "email": "brand.manager@enterprise.internal",
+    "department_id": 13,
+    "department_name": "Marketing",
+    "department_code": "MKT",
+    "role": "manager",
+    "clearance": "public",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public"
+    ]
+  },
+  {
+    "user_id": "U-MKT-003",
+    "name": "Mia Wallace",
+    "email": "content.specialist@enterprise.internal",
+    "department_id": 13,
+    "department_name": "Marketing",
+    "department_code": "MKT",
+    "role": "employee",
+    "clearance": "public",
+    "grade_level": 2,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public"
+    ]
+  },
+  {
+    "user_id": "U-DGV-001",
+    "name": "Dana Scully",
+    "email": "chief.data.officer@enterprise.internal",
+    "department_id": 14,
+    "department_name": "Data Governance",
+    "department_code": "DGV",
+    "role": "director",
+    "clearance": "restricted",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-DGV-002",
+    "name": "Dean Winchester",
+    "email": "data.steward@enterprise.internal",
+    "department_id": 14,
+    "department_name": "Data Governance",
+    "department_code": "DGV",
+    "role": "manager",
+    "clearance": "confidential",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-OPS-001",
+    "name": "Oliver Queen",
+    "email": "facilities.director@enterprise.internal",
+    "department_id": 10,
+    "department_name": "Operations",
+    "department_code": "OPS",
+    "role": "director",
+    "clearance": "internal",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-OPS-002",
+    "name": "Oscar Martinez",
+    "email": "real.estate.mgr@enterprise.internal",
+    "department_id": 10,
+    "department_name": "Operations",
+    "department_code": "OPS",
+    "role": "manager",
+    "clearance": "internal",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-RMT-001",
+    "name": "Rachel Green",
+    "email": "workplace.lead@enterprise.internal",
+    "department_id": 18,
+    "department_name": "Remote Work",
+    "department_code": "RMT",
+    "role": "manager",
+    "clearance": "public",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public"
+    ]
+  },
+  {
+    "user_id": "U-TRV-001",
+    "name": "Tom Paris",
+    "email": "travel.desk.mgr@enterprise.internal",
+    "department_id": 9,
+    "department_name": "Travel",
+    "department_code": "TRV",
+    "role": "manager",
+    "clearance": "public",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public"
+    ]
+  },
+  {
+    "user_id": "U-LVE-001",
+    "name": "Leonard Hofstadter",
+    "email": "attendance.officer@enterprise.internal",
+    "department_id": 20,
+    "department_name": "Leave & Attendance",
+    "department_code": "LVE",
+    "role": "manager",
+    "clearance": "public",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public"
+    ]
+  },
+  {
+    "user_id": "U-QAD-001",
+    "name": "Quentin Coldwater",
+    "email": "quality.vp@enterprise.internal",
+    "department_id": 21,
+    "department_name": "Quality & Audit",
+    "department_code": "QAD",
+    "role": "director",
+    "clearance": "confidential",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-QAD-002",
+    "name": "Quinn Fabray",
+    "email": "iso.auditor@enterprise.internal",
+    "department_id": 21,
+    "department_name": "Quality & Audit",
+    "department_code": "QAD",
+    "role": "auditor",
+    "clearance": "confidential",
+    "grade_level": 3,
+    "special_permissions": [
+      "cross_dept_audit"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential"
+    ]
+  },
+  {
+    "user_id": "U-SUP-001",
+    "name": "Spock",
+    "email": "support.director@enterprise.internal",
+    "department_id": 22,
+    "department_name": "Customer Support",
+    "department_code": "SUP",
+    "role": "director",
+    "clearance": "internal",
+    "grade_level": 5,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-SUP-002",
+    "name": "Sulu Hikaru",
+    "email": "tier3.support.lead@enterprise.internal",
+    "department_id": 22,
+    "department_name": "Customer Support",
+    "department_code": "SUP",
+    "role": "senior_staff",
+    "clearance": "internal",
+    "grade_level": 3,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-RND-001",
+    "name": "Dr. Walter Bishop",
+    "email": "head.research@enterprise.internal",
+    "department_id": 24,
+    "department_name": "Research & Development",
+    "department_code": "RND",
+    "role": "director",
+    "clearance": "restricted",
+    "grade_level": 6,
+    "special_permissions": [
+      "patent_fast_track"
+    ],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-RND-002",
+    "name": "Dr. Emmett Brown",
+    "email": "senior.scientist@enterprise.internal",
+    "department_id": 24,
+    "department_name": "Research & Development",
+    "department_code": "RND",
+    "role": "senior_staff",
+    "clearance": "restricted",
+    "grade_level": 4,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal",
+      "confidential",
+      "restricted"
+    ]
+  },
+  {
+    "user_id": "U-CTR-001",
+    "name": "Carl Grimes (Vendor QA)",
+    "email": "contractor.qa@external.partner",
+    "department_id": 11,
+    "department_name": "Engineering",
+    "department_code": "ENG",
+    "role": "contractor",
+    "clearance": "internal",
+    "grade_level": 2,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public",
+      "internal"
+    ]
+  },
+  {
+    "user_id": "U-CTR-002",
+    "name": "Casey Jones (Field Tech)",
+    "email": "field.tech@vendor.partner",
+    "department_id": 5,
+    "department_name": "IT",
+    "department_code": "IT",
+    "role": "contractor",
+    "clearance": "public_only",
+    "grade_level": 1,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public"
+    ]
+  },
+  {
+    "user_id": "U-GST-001",
+    "name": "Gary King (External Guest)",
+    "email": "guest.auditor@outside.org",
+    "department_id": 0,
+    "department_name": "External",
+    "department_code": "EXT",
+    "role": "contractor",
+    "clearance": "public_only",
+    "grade_level": 1,
+    "special_permissions": [],
+    "is_active": true,
+    "allowed_confidentiality": [
+      "public"
+    ]
+  }
+]

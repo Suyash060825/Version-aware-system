@@ -1,0 +1,73 @@
+{
+  "manifest_version": "2.0.0",
+  "generated_at": "2026-10-06T08:31:35.529693",
+  "integrity_status": "PASS",
+  "corpus_summary": {
+    "total_domains": 24,
+    "total_policies": 600,
+    "total_versions": 2472,
+    "total_chunks": 12360,
+    "total_facts": 2472,
+    "total_canonical_qas": 2472,
+    "total_user_archetypes": 66,
+    "total_queries": 9600,
+    "query_categories": {
+      "A": 600,
+      "B": 600,
+      "C": 600,
+      "D": 600,
+      "E": 600,
+      "F": 600,
+      "G": 600,
+      "H": 600,
+      "I": 600,
+      "J": 600,
+      "K": 600,
+      "L": 600,
+      "M": 600,
+      "N": 600,
+      "O": 600,
+      "P": 600
+    },
+    "splits": {
+      "train": 6737,
+      "dev": 1426,
+      "test": 1437
+    },
+    "expected_routes": {
+      "TIER_1_SEMANTIC": 1988,
+      "TIER_2_HYBRID": 3807,
+      "REFUSAL": 3308,
+      "TIER_0_FACT": 497
+    },
+    "authorization_distribution": {
+      "true": 6789,
+      "false": 2811
+    },
+    "abstention_distribution": {
+      "false": 6292,
+      "true": 3308
+    },
+    "policy_confidentiality_distribution": {
+      "internal": 228,
+      "public": 164,
+      "confidential": 103,
+      "restricted": 105
+    },
+    "average_versions_per_policy": 4.12,
+    "average_chunks_per_version": 5.0
+  },
+  "files": [
+    "expanded_ground_truth_ledger.json",
+    "expanded_policies.json",
+    "expanded_versions.json",
+    "expanded_chunks.json",
+    "expanded_facts.json",
+    "expanded_canonical_qas.json",
+    "expanded_user_archetypes.json",
+    "expanded_benchmark_queries.json",
+    "expanded_integrity_report.json",
+    "expanded_summary_statistics.json",
+    "eval_config.json"
+  ]
+}

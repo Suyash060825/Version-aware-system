@@ -1,0 +1,38 @@
+{
+  "benchmark_version": "2.0.0",
+  "evaluation_regime": "EXPANDED_CHARACTERIZATION",
+  "dataset_paths": {
+    "ledger": "data/expanded_characterization/expanded_ground_truth_ledger.json",
+    "policies": "data/expanded_characterization/expanded_policies.json",
+    "versions": "data/expanded_characterization/expanded_versions.json",
+    "chunks": "data/expanded_characterization/expanded_chunks.json",
+    "facts": "data/expanded_characterization/expanded_facts.json",
+    "canonical_qas": "data/expanded_characterization/expanded_canonical_qas.json",
+    "users": "data/expanded_characterization/expanded_user_archetypes.json",
+    "queries": "data/expanded_characterization/expanded_benchmark_queries.json"
+  },
+  "evaluation_parameters": {
+    "random_seed": 42,
+    "metrics": [
+      "precision@1",
+      "recall@1",
+      "recall@5",
+      "recall@10",
+      "mrr",
+      "map",
+      "authorization_accuracy",
+      "temporal_accuracy",
+      "routing_accuracy",
+      "abstention_accuracy",
+      "latency_p50",
+      "latency_p95",
+      "latency_p99"
+    ],
+    "retrieval_tiers": [
+      "TIER_0_FACT",
+      "TIER_1_SEMANTIC",
+      "TIER_2_HYBRID",
+      "REFUSAL"
+    ]
+  }
+}
