@@ -22,6 +22,8 @@ class Config:
 
     # --- Database ---
     _raw_db = os.environ.get("DATABASE_URL")
+    if _raw_db and _raw_db.startswith("postgres://"):
+        _raw_db = _raw_db.replace("postgres://", "postgresql://", 1)
     if _raw_db and "@postgres:" in _raw_db:
         import socket
         try:

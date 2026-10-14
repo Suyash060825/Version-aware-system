@@ -2,15 +2,15 @@ policy_id,policy_title,department,confidentiality,compilation_time_ms,cache_inva
 1,Annual & Paid Time Off Policy,1,public,0.06,True,True,True,True,True,True
 2,Sick & Medical Leave Policy,1,internal,0.01,True,True,True,True,True,True
 3,Parental & Maternity Leave Policy,1,internal,0.01,True,True,True,True,True,True
-4,Bereavement & Compassionate Leave,1,internal,0.01,True,True,True,True,True,True
+4,Bereavement & Compassionate Leave,1,internal,0.02,True,True,True,True,True,True
 5,Sabbatical & Extended Study Leave,1,internal,0.01,True,True,True,True,True,True
 6,Probation & Confirmation Guidelines,1,internal,0.01,True,True,True,True,True,True
 7,Employee Notice Period Standards,1,internal,0.01,True,True,True,True,True,True
 8,Performance Improvement Plan (PIP),1,internal,0.01,True,True,True,True,True,True
 9,Employee Referral Reward Program,1,internal,0.01,True,True,True,True,True,True
 10,Workplace Anti-Harassment & POSH,1,public,0.01,True,True,True,True,True,True
-11,Domestic Travel & Hotel Expense Policy,3,internal,0.00,True,True,True,True,True,True
-12,Metro City Per Diem Policy,3,internal,0.00,True,True,True,True,True,True
+11,Domestic Travel & Hotel Expense Policy,3,internal,0.01,True,True,True,True,True,True
+12,Metro City Per Diem Policy,3,internal,0.01,True,True,True,True,True,True
 13,Non-Metro Travel Allowance,3,internal,0.01,True,True,True,True,True,True
 14,International Travel Expense Rules,3,internal,0.01,True,True,True,True,True,True
 15,Corporate Credit Card & Expense Filing,3,internal,0.01,True,True,True,True,True,True

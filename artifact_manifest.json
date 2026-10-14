@@ -1,0 +1,118 @@
+{
+  "audit_metadata": {
+    "title": "Veritas Strict Experimental Audit and Abstract Claim Verification Manifest",
+    "timestamp": "2026-10-14T09:55:00+05:30",
+    "git_branch": "pres",
+    "git_commit": "c4788553ca953175dfe9c170584a92d0871178d5",
+    "working_directory": "/home/suyashpradhan/Desktop/Version aware _ Vision-chatgpt",
+    "host_environment": {
+      "os": "Linux 6.8.0-52-generic x86_64",
+      "python_version": "3.14.6"
+    },
+    "container_environment": {
+      "stack": "Docker Compose v2",
+      "containers": [
+        "veritas_nginx (nginx:1.27-alpine)",
+        "veritas_web (Python 3.11-slim, PyTorch 2.14.1+cpu, Gunicorn)",
+        "veritas_postgres (pgvector/pgvector:pg16)",
+        "veritas_redis (redis:7-alpine)",
+        "veritas_celery (Celery 5.4.0)",
+        "veritas_ollama (ollama/ollama:latest)"
+      ]
+    }
+  },
+  "deliverables": {
+    "audit_summary": {
+      "path": "AUDIT_SUMMARY.md",
+      "description": "Comprehensive senior research engineer audit report covering all 8 phases, executive summary, findings, and recommendations."
+    },
+    "claim_evidence_matrix": {
+      "path": "CLAIM_EVIDENCE_MATRIX.csv",
+      "description": "Structured matrix mapping claims C1 through C11 to exact files, tests, commands, dataset sizes, expected vs actual results, and audit verdicts."
+    },
+    "benchmark_reproducibility": {
+      "path": "BENCHMARK_REPRODUCIBILITY.md",
+      "description": "Detailed recalculation and reproducibility verification for the 301-query baseline and expanded 922-query characterization benchmark."
+    },
+    "temporal_security_test_report": {
+      "path": "TEMPORAL_SECURITY_TEST_REPORT.md",
+      "description": "Adversarial audit report evaluating temporal intervals, superseded policies, cross-role RBAC leaks, cache pollution, and audit trail fidelity."
+    },
+    "grounding_abstention_report": {
+      "path": "GROUNDING_ABSTENTION_REPORT.md",
+      "description": "Formal NLI verification report covering supported, contradictory, insufficient, and cross-version policy evidence cases."
+    },
+    "abstract_review": {
+      "path": "ABSTRACT_REVIEW.md",
+      "description": "Line-by-line editorial audit of the research paper abstract with recommended redlines, qualified claims, and camera-ready revisions."
+    },
+    "artifact_manifest": {
+      "path": "artifact_manifest.json",
+      "description": "Machine-readable provenance index linking audit outputs to source files, benchmark artifacts, and execution commands."
+    }
+  },
+  "benchmark_datasets": {
+    "frozen_301_baseline": {
+      "test_suite": "benchmark/benchmark_test.json",
+      "master_results": "benchmark/results_master.csv",
+      "query_count": 301,
+      "policy_count": 21,
+      "chunk_count": 139,
+      "answered_queries": 109,
+      "abstentions": 192,
+      "correct_version_selections": 96,
+      "reported_accuracy": "88.07%",
+      "recalculated_accuracy": "88.0734%"
+    },
+    "expanded_922_benchmark": {
+      "ground_truth_ledger": "tests/system_characterization/corpus/ground_truth_ledger.json",
+      "corpus_policies": 120,
+      "corpus_versions": 422,
+      "corpus_chunks": 2110,
+      "user_archetypes": 32,
+      "retrieval_results": "results/system_characterization/retrieval_results.csv",
+      "total_queries": 922,
+      "evaluated_queries": 877,
+      "policy_recall_at_1": "871/922 (94.47% -> 94.5%)",
+      "chunk_recall_at_1": "85/877 (9.69%)",
+      "chunk_recall_at_10": "862/877 (98.29%)"
+    },
+    "security_benchmark": {
+      "raw_results": "results/system_characterization/security_results.csv",
+      "evaluated_pairs": 3840,
+      "authorized_allowed": 2552,
+      "unauthorized_blocked": 1126,
+      "unauthorized_leaks": 18,
+      "false_rejections": 144,
+      "empirical_leak_rate": "0.469%",
+      "95_percent_upper_bound": "0.741%"
+    }
+  },
+  "execution_commands": {
+    "docker_stack_up": "docker compose up -d",
+    "health_checks": [
+      "curl -fsS http://localhost:8080/health/live",
+      "curl -fsS http://localhost:8080/health/ready"
+    ],
+    "database_seeding": "docker compose exec -T web python scripts/seed_enterprise_policies.py",
+    "route_audit": "docker compose exec -T web python scripts/audit_all_views.py",
+    "policy_lifecycle_test": "docker compose exec -T web python scripts/test_policy_creation_lifecycle.py",
+    "core_regression_tests": "docker compose exec -T web pytest tests/test_rag_pipeline.py tests/test_rbac.py tests/test_whatif_ai.py tests/test_whatif_branches.py tests/test_hardening_regression.py -q",
+    "adversarial_audit_tests": "docker compose exec -T web pytest tests/test_audit_adversarial.py -v",
+    "grounding_eval_script": "docker compose exec -T web python scripts/audit_grounding_eval.py",
+    "incremental_compiler_benchmark": "docker compose exec -T web pytest tests/system_characterization/test_incremental_compiler.py -v"
+  },
+  "claim_verdicts": {
+    "C1": "PASS_WITH_RESERVATION",
+    "C2": "FAIL",
+    "C3": "PASS",
+    "C4": "PASS",
+    "C5": "PASS",
+    "C6": "PASS",
+    "C7": "PASS_WITH_RESERVATION",
+    "C8": "PASS_WITH_RESERVATION",
+    "C9": "FAIL",
+    "C10": "PASS",
+    "C11": "PASS"
+  }
+}
