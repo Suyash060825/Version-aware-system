@@ -5,6 +5,7 @@ Rejects unresolvable citations, never fabricates IDs, and ensures strict traceab
 """
 from typing import List, Dict, Any, Optional
 from models import db, Policy, PolicyVersion, PolicyChunkV2
+from rag.authorization.evidence_filter import get_evidence_filter
 
 class CitationValidator:
     def __init__(self):
@@ -20,8 +21,7 @@ class CitationValidator:
         if not raw_citations:
             return []
 
-        from rag.authorization.evidence_filter import EvidenceFilter
-        evidence_filter = EvidenceFilter()
+        evidence_filter = get_evidence_filter()
 
         validated = []
         seen = set()
@@ -58,7 +58,10 @@ class CitationValidator:
 
             # 3. Resolve via policy_name search if still not found
             if not policy and cit.get("policy_name") and cit.get("policy_name") not in ("Policy", "N/A", "Unknown"):
-                policy = Policy.query.filter(Policy.title.ilike(cit["policy_name"].strip())).first()
+                p_name = cit["policy_name"].strip()
+                policy = Policy.query.filter(Policy.title == p_name).first()
+                if not policy:
+                    policy = Policy.query.filter(Policy.title.ilike(p_name)).first()
 
             # 4. Resolve version
             if policy and not version:

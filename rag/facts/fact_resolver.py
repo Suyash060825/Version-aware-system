@@ -174,11 +174,13 @@ class FactResolver:
             if semantic_divergence and (best_score - second_score) < 10:
                 return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
-        return self._format_fact_result(best_fact)
+        return self._format_fact_result(best_fact, policy=policies_map.get(best_fact.policy_id), version=versions_map.get(best_fact.version_id))
 
-    def _format_fact_result(self, fact: PolicyFact) -> FactResolutionResult:
-        policy = db.session.get(Policy, fact.policy_id)
-        version = db.session.get(PolicyVersion, fact.version_id)
+    def _format_fact_result(self, fact: PolicyFact, policy: Optional[Policy] = None, version: Optional[PolicyVersion] = None) -> FactResolutionResult:
+        if policy is None and fact.policy_id:
+            policy = db.session.get(Policy, fact.policy_id)
+        if version is None and fact.version_id:
+            version = db.session.get(PolicyVersion, fact.version_id)
         
         policy_title = policy.title if policy else "Policy"
         version_num = version.version_number if version else "1.0"

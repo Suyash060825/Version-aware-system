@@ -154,6 +154,21 @@ class VectorStore(VectorStoreBase):
                 meta["chunk_id"] = doc_id
                 meta["text"] = results["documents"][0][i]
                 meta["score"] = max(0.0, 1.0 - float(results["distances"][0][i]))
+                if "policy_id" in meta and meta["policy_id"] is not None:
+                    try:
+                        meta["policy_id"] = int(meta["policy_id"])
+                    except (ValueError, TypeError):
+                        pass
+                if "version_id" in meta and meta["version_id"] is not None:
+                    try:
+                        meta["version_id"] = int(meta["version_id"])
+                    except (ValueError, TypeError):
+                        pass
+                if "page" in meta and meta["page"] is not None:
+                    try:
+                        meta["page"] = int(meta["page"])
+                    except (ValueError, TypeError):
+                        pass
                 hits.append(meta)
         return hits
 

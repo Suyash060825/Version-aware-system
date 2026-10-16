@@ -24,7 +24,7 @@ from rag.facts.fact_resolver import FactResolver
 from rag.qa.qa_matcher import QAMatcher
 from rag.retrieval.hybrid import HybridRetriever
 from rag.retrieval.reranker import get_reranker
-from rag.authorization.evidence_filter import EvidenceFilter
+from rag.authorization.evidence_filter import EvidenceFilter, get_evidence_filter
 from rag.verification.confidence import ConfidenceEngine
 from rag.verification.entailment import EntailmentVerifier, get_entailment_verifier
 from rag.verification.citation_validator import CitationValidator
@@ -42,7 +42,7 @@ class QueryEngine:
         self.qa_matcher = QAMatcher()
         self.hybrid_retriever = HybridRetriever()
         self.reranker = get_reranker()
-        self.evidence_filter = EvidenceFilter()
+        self.evidence_filter = get_evidence_filter()
         self.confidence_engine = ConfidenceEngine()
         self.entailment_verifier = get_entailment_verifier()
         self.citation_validator = CitationValidator()
@@ -67,13 +67,13 @@ class QueryEngine:
 
         cached = self.cache.get(q_emb, scope=scope, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
         if cached:
-            cits = self.citation_validator.validate_and_enrich(cached.get("citations", []), scope=scope)
+            cits = cached.get("citations", [])
             return QueryResult(
                 answer=cached["answer"],
                 route="CACHE_HIT",
                 confidence=cached.get("confidence", 0.95),
                 citations=cits,
-                policy_versions=[str(cits[0]["version"])] if cits else [],
+                policy_versions=[str(cits[0]["version"])] if cits and "version" in cits[0] else [],
                 latency_ms=(time.time() - t_start) * 1000,
                 llm_used=False,
                 retrieval_count=cached.get("chunks_used", 0),
@@ -188,7 +188,7 @@ class QueryEngine:
         if temporal_context.policy_id:
             filters["policy_id"] = str(temporal_context.policy_id)
 
-        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=25)
+        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=25, query_embedding=q_emb)
         
         # 6. Authorization Filtering using unified QueryScope
         authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
@@ -303,7 +303,7 @@ class QueryEngine:
         q_emb = self.embedder.embed_query(normalized_query)
         cached = self.cache.get(q_emb, scope=scope, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
         if cached:
-            cits = self.citation_validator.validate_and_enrich(cached.get("citations", []), scope=scope)
+            cits = cached.get("citations", [])
             words = cached["answer"].split(" ")
             for i, word in enumerate(words):
                 chunk = word if i == len(words) - 1 else word + " "
@@ -449,7 +449,7 @@ class QueryEngine:
         if temporal_context.policy_id:
             filters["policy_id"] = str(temporal_context.policy_id)
 
-        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=25)
+        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=25, query_embedding=q_emb)
         
         # 6. Authorization Filtering using unified QueryScope
         authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)

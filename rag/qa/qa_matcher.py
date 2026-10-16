@@ -6,6 +6,7 @@ Strictly verifies that Policy, PolicyVersion, and Source Chunks exist in the dat
 from typing import List, Optional, Dict, Any
 from models import db, CanonicalQuestion, CompiledAnswer, Policy, PolicyVersion, PolicyChunkV2
 from rag.qa.qa_index import CanonicalQAIndex
+from rag.authorization.evidence_filter import get_evidence_filter
 
 class QAMatcher:
     def __init__(self):
@@ -54,8 +55,7 @@ class QAMatcher:
                 return None
 
         # Authoritative Authorization and Scope Validation
-        from rag.authorization.evidence_filter import EvidenceFilter
-        evidence_filter = EvidenceFilter()
+        evidence_filter = get_evidence_filter()
 
         if scope:
             if not evidence_filter.is_authorized_for_policy(scope, policy):

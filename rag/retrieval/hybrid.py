@@ -11,8 +11,8 @@ class HybridRetriever:
         self.dense = DenseRetriever()
         self.sparse = PersistentBM25Index()
 
-    def search(self, query: str, filters: dict = None, top_k: int = 25) -> List[Dict[str, Any]]:
-        dense_results = self.dense.search(query, filters, top_k=top_k)
+    def search(self, query: str, filters: dict = None, top_k: int = 25, query_embedding: List[float] = None) -> List[Dict[str, Any]]:
+        dense_results = self.dense.search(query, filters, top_k=top_k, query_embedding=query_embedding)
         sparse_results = self.sparse.get_scores(query, filters)
         
         # RRF Fusion

@@ -18,6 +18,7 @@ class PersistentBM25Index:
     def __init__(self):
         self._bm25 = None
         self._corpus: List[Dict[str, Any]] = []
+        self._tokenized_corpus: List[List[str]] = []
         self._revision = 0
         self.load()
 
@@ -28,6 +29,9 @@ class PersistentBM25Index:
                     data = pickle.load(f)
                     self._bm25 = data['bm25']
                     self._corpus = data['corpus']
+                    self._tokenized_corpus = data.get('tokenized_corpus')
+                    if self._tokenized_corpus is None or len(self._tokenized_corpus) != len(self._corpus):
+                        self._tokenized_corpus = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
                     self._revision = data.get('revision', 0)
                 logger.info(f"Loaded persistent BM25 index with {len(self._corpus)} documents (revision {self._revision})")
                 return
@@ -43,6 +47,7 @@ class PersistentBM25Index:
                 pickle.dump({
                     'bm25': self._bm25,
                     'corpus': self._corpus,
+                    'tokenized_corpus': self._tokenized_corpus,
                     'revision': self._revision
                 }, f)
             os.replace(tmp_path, self.INDEX_PATH)
@@ -54,6 +59,7 @@ class PersistentBM25Index:
             chunks = PolicyChunkV2.query.all()
             if not chunks:
                 self._corpus = []
+                self._tokenized_corpus = []
                 self._bm25 = None
                 return
                 
@@ -76,6 +82,7 @@ class PersistentBM25Index:
                 
             self._bm25 = BM25Okapi(tokenized_corpus)
             self._corpus = corpus
+            self._tokenized_corpus = tokenized_corpus
             self._revision += 1
             self.save()
             logger.info(f"Rebuilt BM25 index with {len(corpus)} chunks (revision {self._revision})")
@@ -85,17 +92,25 @@ class PersistentBM25Index:
     def update_policy_version(self, policy_id: int, version_id: int, new_chunks: List[Dict[str, Any]]):
         """
         Incremental delta update: replaces/inserts chunks for a single policy version
-        without rebuilding the entire database.
+        without re-tokenizing the entire corpus.
         """
-        # Remove existing chunks for this version
-        filtered_corpus = [c for c in self._corpus if not (c.get("policy_id") == policy_id and c.get("version_id") == version_id)]
+        kept_indices = [
+            i for i, c in enumerate(self._corpus)
+            if not (c.get("policy_id") == policy_id and c.get("version_id") == version_id)
+        ]
+        filtered_corpus = [self._corpus[i] for i in kept_indices]
+        if self._tokenized_corpus and len(self._tokenized_corpus) == len(self._corpus):
+            filtered_tokens = [self._tokenized_corpus[i] for i in kept_indices]
+        else:
+            filtered_tokens = [re.findall(r"\b\w+\b", c["text"].lower()) for c in filtered_corpus]
         
-        # Add new chunks
+        # Add and tokenize only the new delta chunks
         for chunk in new_chunks:
+            text = chunk.get("text", "")
             filtered_corpus.append({
                 "id": chunk.get("chunk_id") or chunk.get("id"),
                 "chunk_id": chunk.get("chunk_id") or chunk.get("id"),
-                "text": chunk.get("text", ""),
+                "text": text,
                 "policy_id": policy_id,
                 "version_id": version_id,
                 "version": str(chunk.get("version", version_id)),
@@ -103,11 +118,12 @@ class PersistentBM25Index:
                 "section_path": chunk.get("section_path") or chunk.get("section") or "General",
                 "page": chunk.get("page", 1)
             })
+            filtered_tokens.append(re.findall(r"\b\w+\b", text.lower()))
 
         self._corpus = filtered_corpus
-        if self._corpus:
-            tokenized = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
-            self._bm25 = BM25Okapi(tokenized)
+        self._tokenized_corpus = filtered_tokens
+        if self._tokenized_corpus:
+            self._bm25 = BM25Okapi(self._tokenized_corpus)
         else:
             self._bm25 = None
         self._revision += 1
@@ -115,11 +131,19 @@ class PersistentBM25Index:
         logger.info(f"Incrementally updated BM25 for policy {policy_id} v{version_id} ({len(new_chunks)} chunks, rev {self._revision})")
 
     def delete_policy_version(self, policy_id: int, version_id: int):
-        """Incremental deletion for a policy version."""
-        self._corpus = [c for c in self._corpus if not (c.get("policy_id") == policy_id and c.get("version_id") == version_id)]
-        if self._corpus:
-            tokenized = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
-            self._bm25 = BM25Okapi(tokenized)
+        """Incremental deletion for a policy version without re-tokenizing unchanged corpus."""
+        kept_indices = [
+            i for i, c in enumerate(self._corpus)
+            if not (c.get("policy_id") == policy_id and c.get("version_id") == version_id)
+        ]
+        self._corpus = [self._corpus[i] for i in kept_indices]
+        if self._tokenized_corpus and len(self._tokenized_corpus) >= len(kept_indices):
+            self._tokenized_corpus = [self._tokenized_corpus[i] for i in kept_indices if i < len(self._tokenized_corpus)]
+        else:
+            self._tokenized_corpus = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
+
+        if self._tokenized_corpus:
+            self._bm25 = BM25Okapi(self._tokenized_corpus)
         else:
             self._bm25 = None
         self._revision += 1

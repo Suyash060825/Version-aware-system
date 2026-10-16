@@ -37,6 +37,8 @@ class CanonicalQAIndex:
         try:
             import faiss
             self._base_index = faiss.IndexHNSWFlat(self.dimension, 32, faiss.METRIC_INNER_PRODUCT)
+            if hasattr(self._base_index, "hnsw"):
+                self._base_index.hnsw.efSearch = 64
         except Exception:
             import faiss
             self._base_index = faiss.IndexFlatIP(self.dimension)
@@ -57,6 +59,8 @@ class CanonicalQAIndex:
             try:
                 import faiss
                 self._base_index = faiss.read_index(self.INDEX_FILE)
+                if hasattr(self._base_index, "hnsw"):
+                    self._base_index.hnsw.efSearch = 64
                 with open(self.META_FILE, "rb") as f:
                     meta_data = pickle.load(f)
                     self._metadata = meta_data.get("items", [])

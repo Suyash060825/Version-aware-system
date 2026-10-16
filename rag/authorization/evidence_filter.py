@@ -2,12 +2,31 @@
 rag/authorization/evidence_filter.py
 Enforces strict policy and chunk authorization before context construction.
 """
-from typing import List, Dict, Any, Optional
+import time
+from typing import List, Dict, Any, Optional, Tuple
 from models import db, Policy, PolicyVersion, User, UserRole, PolicyStatus, ConfidentialityLevel
 
 class EvidenceFilter:
     def __init__(self):
-        pass
+        self._allowed_pids_cache: Dict[str, Tuple[float, Optional[List[int]]]] = {}
+        self._cache_ttl = 120  # 2 minute TTL cache
+
+    def clear_cache(self):
+        self._allowed_pids_cache.clear()
+
+    def _get_cache_key(self, user_or_scope: Optional[Any]) -> str:
+        if user_or_scope is None:
+            return "anon"
+        if hasattr(user_or_scope, "user_id"):
+            u_id = getattr(user_or_scope, "user_id", None)
+            role = getattr(user_or_scope, "role", "")
+            dept_ids = tuple(sorted(getattr(user_or_scope, "department_ids", ()) or []))
+            conf = tuple(sorted(getattr(user_or_scope, "allowed_confidentiality", ()) or []))
+            return f"scope:{u_id}:{role}:{dept_ids}:{conf}"
+        u_id = getattr(user_or_scope, "id", None)
+        role = getattr(user_or_scope, "role", "")
+        dept_id = getattr(user_or_scope, "department_id", None)
+        return f"user:{u_id}:{role}:{dept_id}"
 
     def is_authorized_for_policy(self, user_or_scope: Optional[Any], policy: Policy, version: Optional[PolicyVersion] = None) -> bool:
         if not policy:
@@ -136,6 +155,23 @@ class EvidenceFilter:
             elif not callable(user_or_scope.is_admin) and user_or_scope.is_admin:
                 return None
 
+        key = self._get_cache_key(user_or_scope)
+        now = time.time()
+        if key in self._allowed_pids_cache:
+            ts, pids = self._allowed_pids_cache[key]
+            if now - ts < self._cache_ttl:
+                return list(pids) if pids is not None else None
+
         query = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE)
         policies = query.all()
-        return [p.id for p in policies if self.is_authorized_for_policy(user_or_scope, p)]
+        result = [p.id for p in policies if self.is_authorized_for_policy(user_or_scope, p)]
+        self._allowed_pids_cache[key] = (now, list(result))
+        return result
+
+_EVIDENCE_FILTER = None
+
+def get_evidence_filter() -> EvidenceFilter:
+    global _EVIDENCE_FILTER
+    if _EVIDENCE_FILTER is None:
+        _EVIDENCE_FILTER = EvidenceFilter()
+    return _EVIDENCE_FILTER

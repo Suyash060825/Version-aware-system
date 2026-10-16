@@ -181,8 +181,8 @@ class MultiLevelCache:
             from flask import has_app_context
             if has_app_context():
                 from models import db, Policy
-                from rag.authorization.evidence_filter import EvidenceFilter
-                evidence_filter = EvidenceFilter()
+                from rag.authorization.evidence_filter import get_evidence_filter
+                evidence_filter = get_evidence_filter()
 
                 citations = cached.get("citations", [])
                 checked_policies = set()

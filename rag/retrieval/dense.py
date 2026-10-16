@@ -7,8 +7,9 @@ class DenseRetriever:
         self.store = get_store()
         self.embedder = get_embedder()
 
-    def search(self, query: str, filters: dict = None, top_k: int = 50) -> List[Dict]:
-        query_embedding = self.embedder.embed_query(query)
+    def search(self, query: str, filters: dict = None, top_k: int = 50, query_embedding: List[float] = None) -> List[Dict]:
+        if query_embedding is None:
+            query_embedding = self.embedder.embed_query(query)
         # Filters should be normalized by whoever calls this
         results = self.store.search(
             embedding=query_embedding,
