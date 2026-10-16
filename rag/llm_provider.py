@@ -99,6 +99,9 @@ class OllamaProvider(LLMProvider):
         self.timeout = timeout if timeout is not None else (2.0, 3.5)
         import requests
         self._session = requests.Session()
+        self._last_health_time = 0
+        self._is_healthy = None
+        self.negative_cache_window = 60
 
     def generate(
         self,
@@ -192,15 +195,22 @@ class OllamaProvider(LLMProvider):
             return []
 
     def health_check(self) -> bool:
+        import time
+        if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
+            return False
         endpoint = f"{self.base_url}/api/version"
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         try:
             req = urllib.request.Request(endpoint, headers=headers)
-            with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310
-                return resp.status == 200
+            with urllib.request.urlopen(req, timeout=1.0) as resp:  # nosec B310
+                self._is_healthy = (resp.status == 200)
+                self._last_health_time = time.time()
+                return self._is_healthy
         except Exception as e:
+            self._is_healthy = False
+            self._last_health_time = time.time()
             logger.debug(f"[OllamaProvider] Health check failed: {e}")
             return False
 

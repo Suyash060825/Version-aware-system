@@ -171,6 +171,21 @@ def create_app(env="default"):
     def ratelimit_handler(e):
         return jsonify({"error": "Rate limit exceeded. Please wait before asking more questions."}), 429
 
+    # Model preloading hook (runs once on first request if PRELOAD_MODELS=true and not in test)
+    _models_preloaded = False
+
+    @app.before_request
+    def preload_models_once():
+        nonlocal _models_preloaded
+        if not _models_preloaded:
+            _models_preloaded = True
+            if os.environ.get("PRELOAD_MODELS", "false").lower() == "true" and not app.testing:
+                try:
+                    from rag.engine.query_engine import get_query_engine
+                    get_query_engine()
+                except Exception as e:
+                    logging.getLogger("app.init").warning(f"Engine warm-up warning: {e}")
+
     # Create tables on first run in development/testing only
     if app.config.get("DEBUG") or app.config.get("TESTING") or os.environ.get("FLASK_ENV", "development").lower() in ("development", "testing"):
         with app.app_context():

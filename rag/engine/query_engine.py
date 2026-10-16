@@ -9,9 +9,15 @@ Level 4: Local Small LLM Reasoning + Entailment Verification
 """
 import time
 import re
+import logging
 from typing import Optional, List, Dict, Any
+
+from models import Policy, PolicyVersion, PolicyStatus
 from rag.engine.query_result import QueryResult
 from rag.engine.evidence_pack import EvidencePack
+from rag.engine.query_scope import QueryScope
+from rag.cache.semantic_cache import get_cache
+from rag.embeddings.embedder import get_embedder
 from rag.router.query_router import QueryRouter
 from rag.router.complexity_classifier import ComplexityLevel
 from rag.facts.fact_resolver import FactResolver
@@ -20,11 +26,14 @@ from rag.retrieval.hybrid import HybridRetriever
 from rag.retrieval.reranker import get_reranker
 from rag.authorization.evidence_filter import EvidenceFilter
 from rag.verification.confidence import ConfidenceEngine
-from rag.verification.entailment import EntailmentVerifier
+from rag.verification.entailment import EntailmentVerifier, get_entailment_verifier
 from rag.verification.citation_validator import CitationValidator
 from rag.versions.resolver import VersionResolver
 from rag.versions.diff_engine import PolicyDiffEngine
 from rag.generation.qwen import QwenLocalProvider
+from rag.generation.prompts import STREAMING_POLICY_GROUNDING_PROMPT, build_streaming_qa_prompt
+
+logger = logging.getLogger("rag.engine.query_engine")
 
 class QueryEngine:
     def __init__(self):
@@ -35,11 +44,13 @@ class QueryEngine:
         self.reranker = get_reranker()
         self.evidence_filter = EvidenceFilter()
         self.confidence_engine = ConfidenceEngine()
-        self.entailment_verifier = EntailmentVerifier()
+        self.entailment_verifier = get_entailment_verifier()
         self.citation_validator = CitationValidator()
         self.version_resolver = VersionResolver()
         self.diff_engine = PolicyDiffEngine()
         self.llm = QwenLocalProvider()
+        self.cache = get_cache()
+        self.embedder = get_embedder()
 
     def answer(self, query: str, user=None, session_id: str = None) -> QueryResult:
         t_start = time.time()
@@ -49,17 +60,12 @@ class QueryEngine:
         intent, complexity, route_name, meta = self.router.route(normalized_query)
         temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
         allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
-        from rag.engine.query_scope import QueryScope
         scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
 
         # 1.5 Scoped Cache Lookup (L1 / L2)
-        from rag.cache.semantic_cache import get_cache
-        cache = get_cache()
-        from rag.embeddings.embedder import get_embedder
-        embedder = get_embedder()
-        q_emb = embedder.embed_query(normalized_query)
+        q_emb = self.embedder.embed_query(normalized_query)
 
-        cached = cache.get(q_emb, scope=scope, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
+        cached = self.cache.get(q_emb, scope=scope, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
         if cached:
             cits = self.citation_validator.validate_and_enrich(cached.get("citations", []), scope=scope)
             return QueryResult(
@@ -125,7 +131,6 @@ class QueryEngine:
         if temporal_meta.get("is_comparison") and temporal_meta.get("version_v1") and temporal_meta.get("version_v2"):
             v1_num = temporal_meta["version_v1"]
             v2_num = temporal_meta["version_v2"]
-            from models import Policy, PolicyVersion, PolicyStatus
 
             # Scalable candidate lookup: query only relevant/authorized policies
             if temporal_context.policy_id:
@@ -183,7 +188,7 @@ class QueryEngine:
         if temporal_context.policy_id:
             filters["policy_id"] = str(temporal_context.policy_id)
 
-        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50)
+        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=25)
         
         # 6. Authorization Filtering using unified QueryScope
         authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
@@ -266,7 +271,7 @@ class QueryEngine:
                 return QueryResult.abstained("I could not find sufficient authoritative evidence to answer this specific question.", (time.time() - t_start) * 1000)
 
         # Cache successful verified answer preserving exact confidence score
-        cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3", confidence=conf.value)
+        self.cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3", confidence=conf.value)
 
         return QueryResult(
             answer=final_answer,
@@ -292,8 +297,32 @@ class QueryEngine:
         intent, complexity, route_name, meta = self.router.route(normalized_query)
         temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
         allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
-        from rag.engine.query_scope import QueryScope
         scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
+
+        # 1.5 Scoped Cache Lookup (L1 / L2) - compute embedding once at the top
+        q_emb = self.embedder.embed_query(normalized_query)
+        cached = self.cache.get(q_emb, scope=scope, is_diff_query=(route_name == "TEMPORAL_COMPARISON"))
+        if cached:
+            cits = self.citation_validator.validate_and_enrich(cached.get("citations", []), scope=scope)
+            words = cached["answer"].split(" ")
+            for i, word in enumerate(words):
+                chunk = word if i == len(words) - 1 else word + " "
+                yield {"type": "token", "token": chunk}
+            conf_val = cached.get("confidence", 0.95)
+            yield {
+                "type": "done",
+                "result": {
+                    "answer": cached["answer"],
+                    "citations": cits,
+                    "confidence": conf_val * 100 if conf_val <= 1.0 else conf_val,
+                    "route": "CACHE_HIT",
+                    "llm_used": False,
+                    "latency_ms": (time.time() - t_start) * 1000,
+                    "fallback": False,
+                    "model": "semantic-cache"
+                }
+            }
+            return
 
         # 2. Level 0: Fast Structured Fact Path
         fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
@@ -318,11 +347,8 @@ class QueryEngine:
             }
             return
 
-        # 3. Level 1: Precomputed Canonical QA Fast Path
+        # 3. Level 1: Precomputed Canonical QA Fast Path (reusing q_emb)
         if complexity <= ComplexityLevel.LEVEL_1_COMPILED_QA:
-            from rag.embeddings.embedder import get_embedder
-            embedder = get_embedder()
-            q_emb = embedder.embed_query(normalized_query)
             qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.80)
             
             if qa_match:
@@ -359,7 +385,6 @@ class QueryEngine:
         if temporal_meta.get("is_comparison") and temporal_meta.get("version_v1") and temporal_meta.get("version_v2"):
             v1_num = temporal_meta["version_v1"]
             v2_num = temporal_meta["version_v2"]
-            from models import Policy, PolicyVersion, PolicyStatus
 
             # Scalable candidate lookup: query only relevant/authorized policies
             if temporal_context.policy_id:
@@ -424,7 +449,7 @@ class QueryEngine:
         if temporal_context.policy_id:
             filters["policy_id"] = str(temporal_context.policy_id)
 
-        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50)
+        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=25)
         
         # 6. Authorization Filtering using unified QueryScope
         authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
@@ -496,8 +521,6 @@ class QueryEngine:
         # 9. Real-time Streaming Generation
         llm_used = False
         full_answer = ""
-
-        from rag.generation.prompts import STREAMING_POLICY_GROUNDING_PROMPT, build_streaming_qa_prompt
         
         if complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL and self.llm.health_check():
             try:
@@ -536,6 +559,9 @@ class QueryEngine:
             for i, word in enumerate(words):
                 chunk = word if i == len(words) - 1 else word + " "
                 yield {"type": "token", "token": chunk}
+
+        # Cache successful verified answer preserving confidence score
+        self.cache.put(q_emb, full_answer, citations, len(ranked), scope=scope, model="qwen3" if llm_used else "deterministic-rag", confidence=conf.value)
 
         yield {
             "type": "done",

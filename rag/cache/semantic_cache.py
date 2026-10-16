@@ -91,18 +91,40 @@ class MultiLevelCache:
         self._local_l1[key] = item_data
 
     def get_l2(self, query_embedding: List[float], scope_key: str = "", threshold: float = 0.95) -> Optional[dict]:
-        if not query_embedding:
+        if not query_embedding or not self._local_l2:
             return None
         now = time.time()
-        for item in reversed(self._local_l2):
-            if item.get("expires_at", 0) < now:
-                continue
-            if item.get("scope_key") == scope_key:
+        # Filter candidate items by scope_key and non-expiration in reverse order
+        candidates = [
+            item for item in reversed(self._local_l2)
+            if item.get("expires_at", 0) >= now and item.get("scope_key") == scope_key and item.get("embedding")
+        ]
+        if not candidates:
+            return None
+
+        try:
+            import numpy as np
+            embeddings = np.array([item["embedding"] for item in candidates], dtype=np.float32)
+            q_vec = np.array(query_embedding, dtype=np.float32)
+            q_norm = np.linalg.norm(q_vec)
+            if q_norm == 0:
+                return None
+            q_unit = q_vec / q_norm
+
+            emb_norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+            emb_norms[emb_norms == 0] = 1e-9
+            normalized_embs = embeddings / emb_norms
+
+            sims = np.dot(normalized_embs, q_unit)
+            best_idx = int(np.argmax(sims))
+            if sims[best_idx] >= threshold:
+                return candidates[best_idx].get("data")
+        except Exception as e:
+            logger.warning(f"Vectorized L2 cosine scan fallback: {e}")
+            for item in candidates:
                 cached_vec = item.get("embedding")
-                if cached_vec:
-                    sim = _cosine_similarity(query_embedding, cached_vec)
-                    if sim >= threshold:
-                        return item.get("data")
+                if cached_vec and _cosine_similarity(query_embedding, cached_vec) >= threshold:
+                    return item.get("data")
         return None
 
     def set_l2(
@@ -118,7 +140,8 @@ class MultiLevelCache:
         if not query_embedding:
             return
         if len(self._local_l2) > self._max_local:
-            self._local_l2 = self._local_l2[-500:]
+            now = time.time()
+            self._local_l2 = [item for item in self._local_l2 if item.get("expires_at", 0) >= now][-500:]
         self._local_l2.append({
             "embedding": query_embedding,
             "scope_key": scope_key,
@@ -143,44 +166,36 @@ class MultiLevelCache:
         return scope_str
 
     def get(self, query_embedding: List[float], scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, is_diff_query: bool = False) -> Optional[dict]:
+        """
+        Fast L2 cache lookup with lazy TTL strategy for chunks and versions.
+        Chunk/version validity is trusted for its TTL window and invalidated on writes.
+        Policy-level authorization is validated fail-closed.
+        """
         scope_key = self._make_scope_key(scope=scope, allowed_depts=allowed_depts, is_diff_query=is_diff_query)
         cached = self.get_l2(query_embedding, scope_key=scope_key)
         if not cached:
             return None
 
-        # Verify cached policies, versions, and source authorization still valid in DB
+        # Verify cached policy authorization (lazy TTL strategy: chunk & version validity trusted within TTL)
         try:
             from flask import has_app_context
             if has_app_context():
-                from models import db, Policy, PolicyVersion, PolicyChunkV2
+                from models import db, Policy
                 from rag.authorization.evidence_filter import EvidenceFilter
                 evidence_filter = EvidenceFilter()
 
                 citations = cached.get("citations", [])
+                checked_policies = set()
                 for cit in citations:
                     pid = cit.get("policy_id")
-                    vid = cit.get("version_id")
-                    cid = cit.get("chunk_id")
-
-                    if pid:
+                    if pid and pid not in checked_policies:
+                        checked_policies.add(pid)
                         policy = db.session.get(Policy, int(pid))
                         if not policy:
                             logger.info(f"Cached policy {pid} no longer exists in DB. Invalidating cache hit.")
                             return None
                         if scope and not evidence_filter.is_authorized_for_policy(scope, policy):
                             logger.info(f"User scope not authorized for cached policy {pid}. Invalidating cache hit.")
-                            return None
-
-                    if vid:
-                        version = db.session.get(PolicyVersion, int(vid))
-                        if not version:
-                            logger.info(f"Cached version {vid} no longer exists in DB. Invalidating cache hit.")
-                            return None
-
-                    if cid:
-                        chunk = PolicyChunkV2.query.filter_by(chunk_id=cid).first()
-                        if not chunk:
-                            logger.info(f"Cached chunk {cid} no longer exists in DB. Invalidating cache hit.")
                             return None
             else:
                 # Outside application context with no DB access, do not serve unverifiable cache

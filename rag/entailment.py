@@ -5,7 +5,7 @@ Entailment-based grounding check for RAG responses.
 import re
 import os
 
-ENTAILMENT_ENABLED = os.environ.get('ENTAILMENT_ENABLED', 'true').lower() == 'true'
+ENTAILMENT_ENABLED = os.environ.get('ENTAILMENT_ENABLED', 'false').lower() == 'true'
 
 _nli_model = None
 _use_nli = True
@@ -51,7 +51,7 @@ def verify_entailment(answer: str, chunks: list[dict]) -> tuple[bool, float]:
         # cross-encoder/nli-deberta-v3-base outputs: [Contradiction, Entailment, Neutral]
         pairs = [(context, claim) for claim in claims]
         try:
-            scores = nli.predict(pairs)
+            scores = nli.predict(pairs, batch_size=32)
             import numpy as np
             def softmax(x):
                 e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))

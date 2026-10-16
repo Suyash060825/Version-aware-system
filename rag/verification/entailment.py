@@ -19,21 +19,38 @@ class EntailmentResult:
     failed_claims: List[str]
 
 class EntailmentVerifier:
+    _shared_nli_model = None
+    _shared_use_nli = True
+
     def __init__(self):
-        self.enabled = os.environ.get('ENTAILMENT_ENABLED', 'true').lower() == 'true'
-        self._nli_model = None
-        self._use_nli = True
+        self.enabled = os.environ.get('ENTAILMENT_ENABLED', 'false').lower() == 'true'
+
+    @property
+    def _nli_model(self):
+        return EntailmentVerifier._shared_nli_model
+
+    @_nli_model.setter
+    def _nli_model(self, val):
+        EntailmentVerifier._shared_nli_model = val
+
+    @property
+    def _use_nli(self):
+        return EntailmentVerifier._shared_use_nli
+
+    @_use_nli.setter
+    def _use_nli(self, val):
+        EntailmentVerifier._shared_use_nli = val
 
     def _get_nli_model(self):
-        if self._nli_model is None and self._use_nli:
+        if EntailmentVerifier._shared_nli_model is None and EntailmentVerifier._shared_use_nli:
             try:
                 from sentence_transformers import CrossEncoder
                 device = os.environ.get("RERANKER_DEVICE", "cpu")
-                self._nli_model = CrossEncoder("cross-encoder/nli-deberta-v3-base", device=device)
+                EntailmentVerifier._shared_nli_model = CrossEncoder("cross-encoder/nli-deberta-v3-base", device=device)
             except Exception as e:
                 logger.warning(f"Failed to load NLI model, falling back to lexical overlap: {e}")
-                self._use_nli = False
-        return self._nli_model
+                EntailmentVerifier._shared_use_nli = False
+        return EntailmentVerifier._shared_nli_model
 
     def split_into_claims(self, text: str) -> List[str]:
         # Strip markdown, citations, header boilerplate
@@ -65,7 +82,7 @@ class EntailmentVerifier:
         if nli:
             pairs = [(context, claim) for claim in claims]
             try:
-                scores = nli.predict(pairs)
+                scores = nli.predict(pairs, batch_size=32)
                 import numpy as np
                 def softmax(x):
                     e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
@@ -123,7 +140,15 @@ class EntailmentVerifier:
 
         return EntailmentResult(is_entailed=is_entailed, score=avg_overlap, verdict=verdict, failed_claims=failed)
 
+_DEFAULT_VERIFIER = None
+
+def get_entailment_verifier() -> EntailmentVerifier:
+    global _DEFAULT_VERIFIER
+    if _DEFAULT_VERIFIER is None:
+        _DEFAULT_VERIFIER = EntailmentVerifier()
+    return _DEFAULT_VERIFIER
+
 def verify_entailment(answer: str, chunks: List[Dict[str, Any]]) -> Tuple[bool, float]:
-    verifier = EntailmentVerifier()
+    verifier = get_entailment_verifier()
     res = verifier.verify(answer, chunks)
     return res.is_entailed, res.score

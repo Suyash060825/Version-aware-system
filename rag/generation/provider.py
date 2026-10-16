@@ -30,13 +30,14 @@ class OllamaProvider(LocalLLMProvider):
         self.base_url = base_url or os.environ.get("LOCAL_LLM_BASE_URL", "http://localhost:11434")
         self.model = model or os.environ.get("LOCAL_LLM_MODEL", "qwen3:4b-q4_K_M")
         self.timeout = float(os.environ.get("LLM_TIMEOUT", "2.5"))
+        self.negative_cache_window = 60
         self._last_health_time = 0
         self._is_healthy = None
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
         import requests, time
         # Fast check if server is available
-        if self._is_healthy is False and (time.time() - self._last_health_time < 30):
+        if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
             return None
 
         try:
@@ -66,7 +67,7 @@ class OllamaProvider(LocalLLMProvider):
 
     def stream(self, prompt: str, system_prompt: Optional[str] = None):
         import requests, json, time
-        if self._is_healthy is False and (time.time() - self._last_health_time < 30):
+        if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
             return
 
         try:
@@ -102,7 +103,7 @@ class OllamaProvider(LocalLLMProvider):
 
     def health_check(self) -> bool:
         import requests, time
-        if self._is_healthy is False and (time.time() - self._last_health_time < 60):
+        if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
             return False
         try:
             resp = requests.get(f"{self.base_url}/api/tags", timeout=(0.3, 0.5))
