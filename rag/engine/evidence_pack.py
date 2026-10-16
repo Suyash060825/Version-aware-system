@@ -10,5 +10,6 @@ class EvidencePack:
     facts: List[dict] = field(default_factory=list)
     chunks: List[dict] = field(default_factory=list)
     scores: List[float] = field(default_factory=list)
+    score_type: str = "rerank_prob"
     authorization: dict = field(default_factory=dict)
     confidence: float = 0.0

@@ -27,7 +27,9 @@ def test_query_engine(app):
         policy_id=p.id,
         version_num=1, version_label="v1",
         content="Employees are entitled to 30 days of annual leave.",
-        created_by_id=u.id
+        created_by_id=u.id,
+        is_active=True,
+        status="approved"
     )
     db.session.add(v)
     db.session.commit()

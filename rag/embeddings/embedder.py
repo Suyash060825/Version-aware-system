@@ -64,6 +64,7 @@ class Qwen3Embedder(BaseEmbedder):
         except Exception as e:
             logger.warning(f"Failed to load {model_name} on {self.device}: {e}. Falling back to CPU.")
             self.device = "cpu"
+            self._model = SentenceTransformer(model_name, device="cpu")
         if hasattr(self._model, "get_embedding_dimension"):
             self.dimension = self._model.get_embedding_dimension()
         else:

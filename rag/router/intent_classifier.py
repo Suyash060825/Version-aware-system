@@ -31,7 +31,7 @@ class IntentClassifier:
     
     FACT_PATTERNS = [
         re.compile(r"\b(?:how many|how much|what is the limit|maximum amount|per diem|number of days|working hours|notice period|probation period|gift limit)\b", re.IGNORECASE),
-        re.compile(r"\b(?:amount|percentage|threshold|allowance|entitlement)\b", re.IGNORECASE)
+        re.compile(r"\b(?:what is the (?:amount|percentage|threshold|allowance|entitlement)|daily allowance|metro allowance|internet allowance)\b", re.IGNORECASE)
     ]
     
     REASONING_PATTERNS = [
@@ -72,7 +72,7 @@ class IntentClassifier:
                 return Intent.FACT, 0.90
 
         # 6. Default to Search / Semantic QA
-        if len(q.split()) <= 6 and q.startswith(("what is", "how to", "who is", "where is", "can i")):
+        if q.startswith(("what is", "how to", "who is", "where is", "can i", "do i", "does ", "is it", "am i", "are employees", "how do", "what are", "when is", "when can")) or q.endswith("?"):
             return Intent.COMPILED_QA, 0.75
             
         return Intent.SEARCH, 0.70

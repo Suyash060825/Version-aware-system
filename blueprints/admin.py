@@ -477,10 +477,15 @@ def version_create(policy_id):
             if current_ver:
                 diff = compute_diff(current_ver.content, content)
 
-            # Deactivate old version
-            if current_ver:
-                current_ver.is_active = False
-                current_ver.status = "superseded"
+            # Preserve active version and active policy status while new version is in draft
+            is_policy_active = bool(policy.status == PolicyStatus.ACTIVE and current_ver is not None)
+
+            if is_policy_active:
+                new_is_active = False
+            else:
+                if current_ver:
+                    current_ver.is_active = False
+                new_is_active = True
 
             new_ver = PolicyVersion(
                 policy_id=policy.id,
@@ -491,7 +496,7 @@ def version_create(policy_id):
                 diff_json=json.dumps(diff),
                 change_reason=change_reason,
                 created_by_id=current_user.id,
-                is_active=True,
+                is_active=new_is_active,
                 status="draft",
             )
             eff_date = request.form.get("effective_date")
@@ -501,8 +506,9 @@ def version_create(policy_id):
                 except ValueError:
                     pass
 
-            policy.current_version = ver_label
-            policy.status = PolicyStatus.DRAFT  # back to draft after new version
+            if not is_policy_active:
+                policy.current_version = ver_label
+                policy.status = PolicyStatus.DRAFT
 
             db.session.add(new_ver)
             db.session.commit()

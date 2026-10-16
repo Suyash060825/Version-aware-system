@@ -183,20 +183,42 @@ class KnowledgeCompilerPipeline:
     def _stage_index(self, job: CompilationJob):
         from rag.vectordb.chroma import get_store
         store = get_store()
+        
+        pv = db.session.get(PolicyVersion, job.version_id)
+        pol = db.session.get(Policy, job.policy_id)
+        v_num = float(pv.version_num) if pv and pv.version_num is not None else 1.0
+        v_lbl = pv.version_label if pv and pv.version_label else f"v{v_num}"
+        is_curr = bool(pv.is_active) if pv else True
+        p_name = pol.title if pol else (getattr(self._document_ir, "title", "Policy") or "Policy")
+
+        valid_from_ts = 0
+        valid_to_ts = 32472144000
+        if pv and pv.effective_from:
+            from datetime import datetime, time
+            valid_from_ts = int(datetime.combine(pv.effective_from, time.min).timestamp())
+        if pv and pv.effective_to:
+            from datetime import datetime, time
+            valid_to_ts = int(datetime.combine(pv.effective_to, time.max).timestamp())
+
         chunk_dicts = []
         for c in self._chunks:
             chunk_dicts.append({
                 "chunk_id": c.chunk_id,
                 "text": c.text,
-                "policy_id": c.policy_id,
-                "version": str(c.version_id),
-                "version_id": c.version_id,
+                "policy_id": int(c.policy_id),
+                "policy_name": p_name,
+                "version": v_lbl,
+                "version_num": v_num,
+                "version_id": int(c.version_id),
                 "department": self._document_ir.department or "Company",
                 "section": c.section_path or "General",
                 "section_path": c.section_path or "General",
                 "page": c.page or 1,
                 "chunk_index": c.paragraph_num or 0,
-                "is_active": True
+                "is_active": is_curr,
+                "is_current": is_curr,
+                "valid_from_ts": valid_from_ts,
+                "valid_to_ts": valid_to_ts
             })
         store.delete_policy_version(job.policy_id, str(job.version_id))
         store.upsert_chunks(chunk_dicts, self._embeddings)

@@ -34,7 +34,8 @@ class ConfidenceEngine:
                 value=0.0, high=False, abstain=True, retrieval_score=0.0, coverage_score=0.0
             )
 
-        retrieval_conf = self._retrieval_confidence(evidence.scores)
+        score_type = getattr(evidence, "score_type", "rerank_prob")
+        retrieval_conf = self._retrieval_confidence(evidence.scores, score_type=score_type)
         coverage_conf = self._evidence_coverage(query, evidence.chunks)
         
         # Weighted combination: 55% retrieval rank, 45% evidence coverage
@@ -79,13 +80,13 @@ class ConfidenceEngine:
         
         return max(0.0, min(1.0, raw_score))
         
-    def _retrieval_confidence(self, scores: list) -> float:
+    def _retrieval_confidence(self, scores: list, score_type: str = "rerank_prob") -> float:
         if not scores:
             return 0.0
         raw_max = max(scores)
-        if raw_max < 0.05:
+        if score_type == "rrf":
             return min(1.0, raw_max / 0.0328)
-        return float(min(1.0, raw_max))
+        return float(min(1.0, max(0.0, raw_max)))
         
     def _evidence_coverage(self, query: str, chunks: list) -> float:
         if not chunks:

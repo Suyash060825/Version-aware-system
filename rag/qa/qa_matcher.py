@@ -79,6 +79,10 @@ class QAMatcher:
                     elif t_date:
                         if not version.is_valid_for_date(t_date):
                             return None
+                else:
+                    version = db.session.get(PolicyVersion, ver_id)
+                    if not version or not version.is_active or str(version.status).lower() in ("superseded", "rejected"):
+                        return None
 
             citations = [{
                 "policy_id": pol_id,

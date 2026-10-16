@@ -177,10 +177,14 @@ class VectorStore(VectorStoreBase):
             return None
         conditions = []
         for k, v in filters.items():
-            if isinstance(v, list):
-                conditions.append({k: {"$in": [str(x) for x in v]}})
+            if k in ("$and", "$or"):
+                conditions.append({k: v})
+            elif isinstance(v, dict):
+                conditions.append({k: v})
+            elif isinstance(v, (list, tuple, set)):
+                conditions.append({k: {"$in": list(v)}})
             else:
-                conditions.append({k: {"$eq": str(v)}})
+                conditions.append({k: {"$eq": v}})
         if not conditions:
             return None
         if len(conditions) == 1:

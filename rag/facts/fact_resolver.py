@@ -61,8 +61,22 @@ class FactResolver:
             # SECURITY REQUIREMENT 7: Fact route must fail closed without explicit authorization context
             return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
-        query_lower = query.lower()
+        query_lower = query.lower().strip()
         query_words = set(re.findall(r"\b[a-z0-9]+\b", query_lower))
+
+        # Guard against section headings, policy titles, or non-factual queries
+        if re.match(r"^(?:\d+[\.\)]\s*)?[a-z\s&—\-]+(?:\bpolicy\b|\bguidelines\b|\bcode\b|\boverview\b)$", query_lower) or re.match(r"^\d+(\.\d+)*\s+[a-z\s]+$", query_lower):
+            return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
+
+        # Require quantity, allowance, or value cues to prevent misrouting descriptive queries
+        has_quantity_cue = bool(re.search(
+            r"\b(?:how many|how much|what is the|limit|amount|allowance|entitlement|rate|duration|period|number|maximum|minimum|budget|"
+            r"number of|days of|per diem|daily allowance|grace period|notice period|pip duration|bonus|reimbursement|"
+            r"hours|days|weeks|months|years|payout|compensation|core hours)\b",
+            query_lower
+        ))
+        if not has_quantity_cue:
+            return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
         target_predicates = []
         for pattern, preds in self.FACT_PATTERNS:

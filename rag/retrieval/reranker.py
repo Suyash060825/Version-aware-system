@@ -89,14 +89,15 @@ class FlashRankReranker:
         if not self._ranker:
             return candidates[:top_k]
         try:
-            passages = [{"id": i, "text": c.get("text", "")} for i, c in enumerate(candidates)]
+            eval_candidates = candidates[:min(len(candidates), 15)]
+            passages = [{"id": i, "text": c.get("text", "")} for i, c in enumerate(eval_candidates)]
             req = self._rerank_request_cls(query=query, passages=passages)
             ranked_passages = self._ranker.rerank(req)
             
             results = []
             for item in ranked_passages[:top_k]:
                 idx = item["id"]
-                c_copy = dict(candidates[idx])
+                c_copy = dict(eval_candidates[idx])
                 c_copy["rerank_score"] = float(item["score"])
                 results.append(c_copy)
             return results

@@ -63,18 +63,43 @@ class PersistentBM25Index:
                 self._bm25 = None
                 return
                 
+            from models import Policy, PolicyVersion
+            from datetime import datetime, time
+            versions_map = {v.id: v for v in PolicyVersion.query.all()}
+            policies_map = {p.id: p for p in Policy.query.all()}
+
             corpus = []
             tokenized_corpus = []
             for chunk in chunks:
-                tokens = re.findall(r"\b\w+\b", chunk.text.lower())
+                pv = versions_map.get(chunk.version_id)
+                pol = policies_map.get(chunk.policy_id)
+                v_num = float(pv.version_num) if pv and pv.version_num is not None else 1.0
+                v_lbl = pv.version_label if pv and pv.version_label else f"v{v_num}"
+                is_curr = bool(pv.is_active) if pv else True
+                p_name = pol.title if pol else "Policy"
+
+                valid_from_ts = 0
+                valid_to_ts = 32472144000
+                if pv and pv.effective_from:
+                    valid_from_ts = int(datetime.combine(pv.effective_from, time.min).timestamp())
+                if pv and pv.effective_to:
+                    valid_to_ts = int(datetime.combine(pv.effective_to, time.max).timestamp())
+
+                contextual_text = f"[{p_name} {v_lbl} {chunk.section_path or 'General'}] {chunk.text}"
+                tokens = re.findall(r"\b\w+\b", contextual_text.lower())
                 tokenized_corpus.append(tokens)
                 corpus.append({
                     "id": chunk.chunk_id,
                     "chunk_id": chunk.chunk_id,
                     "text": chunk.text,
                     "policy_id": chunk.policy_id,
+                    "policy_name": p_name,
                     "version_id": chunk.version_id,
-                    "version": str(chunk.version_id),
+                    "version": v_lbl,
+                    "version_num": v_num,
+                    "is_current": is_curr,
+                    "valid_from_ts": valid_from_ts,
+                    "valid_to_ts": valid_to_ts,
                     "section": chunk.section_path or "General",
                     "section_path": chunk.section_path or "General",
                     "page": chunk.page or 1
@@ -107,18 +132,28 @@ class PersistentBM25Index:
         # Add and tokenize only the new delta chunks
         for chunk in new_chunks:
             text = chunk.get("text", "")
+            p_name = chunk.get("policy_name", "Policy")
+            v_lbl = str(chunk.get("version", version_id))
+            section = chunk.get("section") or chunk.get("section_path") or "General"
+            contextual_text = f"[{p_name} {v_lbl} {section}] {text}"
+
             filtered_corpus.append({
                 "id": chunk.get("chunk_id") or chunk.get("id"),
                 "chunk_id": chunk.get("chunk_id") or chunk.get("id"),
                 "text": text,
                 "policy_id": policy_id,
+                "policy_name": p_name,
                 "version_id": version_id,
-                "version": str(chunk.get("version", version_id)),
-                "section": chunk.get("section") or chunk.get("section_path") or "General",
-                "section_path": chunk.get("section_path") or chunk.get("section") or "General",
+                "version": v_lbl,
+                "version_num": chunk.get("version_num", 1.0),
+                "is_current": chunk.get("is_current", True),
+                "valid_from_ts": chunk.get("valid_from_ts", 0),
+                "valid_to_ts": chunk.get("valid_to_ts", 32472144000),
+                "section": section,
+                "section_path": chunk.get("section_path") or section,
                 "page": chunk.get("page", 1)
             })
-            filtered_tokens.append(re.findall(r"\b\w+\b", text.lower()))
+            filtered_tokens.append(re.findall(r"\b\w+\b", contextual_text.lower()))
 
         self._corpus = filtered_corpus
         self._tokenized_corpus = filtered_tokens
@@ -174,15 +209,40 @@ class PersistentBM25Index:
                         if doc.get("version_id") not in scope.allowed_version_ids:
                             continue
 
-                # Pre-filtered partition matching
+                # Pre-filtered partition matching (supports exact, list, and operator dicts)
                 if filters:
                     match = True
                     for k, v in filters.items():
-                        if isinstance(v, list):
-                            if str(doc.get(k)) not in [str(x) for x in v]:
+                        if k in ("is_active", "is_current"):
+                            doc_val = doc.get("is_active")
+                            if doc_val is None:
+                                doc_val = doc.get("is_current", True)
+                            if bool(doc_val) != bool(v):
                                 match = False
                                 break
-                        elif str(doc.get(k)) != str(v):
+                            continue
+                        doc_val = doc.get(k)
+                        if isinstance(v, dict):
+                            for op, op_val in v.items():
+                                if op == "$lte" and not (doc_val is not None and doc_val <= op_val):
+                                    match = False; break
+                                elif op == "$gte" and not (doc_val is not None and doc_val >= op_val):
+                                    match = False; break
+                                elif op == "$lt" and not (doc_val is not None and doc_val < op_val):
+                                    match = False; break
+                                elif op == "$gt" and not (doc_val is not None and doc_val > op_val):
+                                    match = False; break
+                                elif op == "$in" and not (doc_val in op_val or str(doc_val) in [str(x) for x in op_val]):
+                                    match = False; break
+                                elif op == "$eq" and not (doc_val == op_val or str(doc_val) == str(op_val)):
+                                    match = False; break
+                            if not match:
+                                break
+                        elif isinstance(v, (list, tuple, set)):
+                            if doc_val not in v and str(doc_val) not in [str(x) for x in v]:
+                                match = False
+                                break
+                        elif str(doc_val) != str(v):
                             match = False
                             break
                     if not match:
