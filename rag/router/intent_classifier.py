@@ -18,29 +18,29 @@ class Intent(str, Enum):
 
 class IntentClassifier:
     COMPARISON_PATTERNS = [
-        r"\b(?:compare|difference|changed|changes|versus|vs|diff|updated from|between v\d+ and v\d+)\b",
-        r"\bwhat changed\b",
-        r"\bhow is .* different from\b"
+        re.compile(r"\b(?:compare|difference|changed|changes|versus|vs|diff|updated from|between v\d+ and v\d+)\b", re.IGNORECASE),
+        re.compile(r"\bwhat changed\b", re.IGNORECASE),
+        re.compile(r"\bhow is .* different from\b", re.IGNORECASE)
     ]
     
     TEMPORAL_PATTERNS = [
-        r"\b(?:in 20\d\d|as of|effective date|historical|previous version|prior policy|back in|when was .* enacted|old version)\b",
-        r"\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+20\d\d\b",
-        r"\bv\d+\b"
+        re.compile(r"\b(?:in 20\d\d|as of|effective date|historical|previous version|prior policy|back in|when was .* enacted|old version)\b", re.IGNORECASE),
+        re.compile(r"\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+20\d\d\b", re.IGNORECASE),
+        re.compile(r"\bv\d+\b", re.IGNORECASE)
     ]
     
     FACT_PATTERNS = [
-        r"\b(?:how many|how much|what is the limit|maximum amount|per diem|number of days|working hours|notice period|probation period|gift limit)\b",
-        r"\b(?:amount|percentage|threshold|allowance|entitlement)\b"
+        re.compile(r"\b(?:how many|how much|what is the limit|maximum amount|per diem|number of days|working hours|notice period|probation period|gift limit)\b", re.IGNORECASE),
+        re.compile(r"\b(?:amount|percentage|threshold|allowance|entitlement)\b", re.IGNORECASE)
     ]
     
     REASONING_PATTERNS = [
-        r"\b(?:what if|suppose|scenario|if i transfer|how does .* affect|consequences|exception to|is it allowed if)\b",
-        r"\b(?:eligible if|can i also|hypothetical)\b"
+        re.compile(r"\b(?:what if|suppose|scenario|if i transfer|how does .* affect|consequences|exception to|is it allowed if)\b", re.IGNORECASE),
+        re.compile(r"\b(?:eligible if|can i also|hypothetical)\b", re.IGNORECASE)
     ]
 
     MULTI_POLICY_PATTERNS = [
-        r"\b(?:both|and also|across policies|travel and expense.*leave|security.*conduct)\b"
+        re.compile(r"\b(?:both|and also|across policies|travel and expense.*leave|security.*conduct)\b", re.IGNORECASE)
     ]
 
     def classify(self, query: str) -> Tuple[Intent, float]:
@@ -48,27 +48,27 @@ class IntentClassifier:
         
         # 1. Comparison
         for pattern in self.COMPARISON_PATTERNS:
-            if re.search(pattern, q):
+            if pattern.search(q):
                 return Intent.COMPARISON, 0.95
                 
         # 2. Temporal
         for pattern in self.TEMPORAL_PATTERNS:
-            if re.search(pattern, q):
+            if pattern.search(q):
                 return Intent.TEMPORAL, 0.90
 
         # 3. Reasoning / What-if
         for pattern in self.REASONING_PATTERNS:
-            if re.search(pattern, q):
+            if pattern.search(q):
                 return Intent.REASONING, 0.85
 
         # 4. Multi-policy
         for pattern in self.MULTI_POLICY_PATTERNS:
-            if re.search(pattern, q):
+            if pattern.search(q):
                 return Intent.MULTI_POLICY, 0.80
 
         # 5. Direct Fact
         for pattern in self.FACT_PATTERNS:
-            if re.search(pattern, q):
+            if pattern.search(q):
                 return Intent.FACT, 0.90
 
         # 6. Default to Search / Semantic QA

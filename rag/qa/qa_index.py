@@ -159,13 +159,29 @@ class CanonicalQAIndex:
             faiss.normalize_L2(vecs)
             self._base_index.add(vecs)
 
+            from models import PolicyChunkV2
             for q, a in valid_pairs:
+                pol = getattr(q, "policy", None)
+                ver = getattr(q, "version", None)
+                chunk = None
+                if getattr(q, "source_chunk_id", None):
+                    chunk = PolicyChunkV2.query.filter_by(chunk_id=q.source_chunk_id).first()
+                if not chunk and ver:
+                    chunk = PolicyChunkV2.query.filter_by(policy_id=q.policy_id, version_id=ver.id).first()
+
                 self._metadata.append({
                     "question_id": q.id,
                     "answer_id": a.id,
                     "policy_id": q.policy_id,
                     "version_id": q.version_id,
-                    "question": q.question
+                    "question": q.question,
+                    "answer_text": getattr(a, "answer", None),
+                    "answer_confidence": getattr(a, "confidence", None),
+                    "policy_name": getattr(pol, "title", "Policy") if pol else "Policy",
+                    "version_number": getattr(ver, "version_number", "1.0") if ver else "1.0",
+                    "section": chunk.section_path if chunk and chunk.section_path else "General",
+                    "chunk_id": chunk.chunk_id if chunk else getattr(q, "source_chunk_id", None),
+                    "page": chunk.page if chunk and chunk.page else 1
                 })
 
             self._index_revision = 1
@@ -195,12 +211,21 @@ class CanonicalQAIndex:
         self._delta_index.add(vecs)
 
         for q, a in zip(questions, answers):
+            pol = getattr(q, "policy", None)
+            ver = getattr(q, "version", None)
             self._delta_metadata.append({
                 "question_id": getattr(q, "id", None),
                 "answer_id": getattr(a, "id", None),
                 "policy_id": getattr(q, "policy_id", None),
                 "version_id": getattr(q, "version_id", None),
-                "question": getattr(q, "question", "")
+                "question": getattr(q, "question", ""),
+                "answer_text": getattr(a, "answer", None),
+                "answer_confidence": getattr(a, "confidence", None),
+                "policy_name": getattr(pol, "title", "Policy") if pol else "Policy",
+                "version_number": getattr(ver, "version_number", "1.0") if ver else "1.0",
+                "section": getattr(a, "section", "General") if hasattr(a, "section") else "General",
+                "chunk_id": getattr(q, "source_chunk_id", None),
+                "page": 1
             })
         self._index_revision += 1
 
@@ -309,7 +334,7 @@ class CanonicalQAIndex:
                     meta = self._metadata[idx]
                     qid = meta.get("question_id")
                     if qid not in self._tombstones:
-                        base_candidates.append((float(dist), meta["answer_id"], qid))
+                        base_candidates.append((float(dist), meta["answer_id"], qid, meta))
 
         # 2. Search Delta Overlay Index
         if self._delta_index and self._delta_index.ntotal > 0:
@@ -320,19 +345,19 @@ class CanonicalQAIndex:
                     meta = self._delta_metadata[idx]
                     qid = meta.get("question_id")
                     if qid not in self._tombstones:
-                        delta_candidates.append((float(dist), meta["answer_id"], qid))
+                        delta_candidates.append((float(dist), meta["answer_id"], qid, meta))
 
         # 3. Deduplicate across Delta and Base: Delta takes precedence; retain highest valid score
         deduped = {}
-        for score, aid, qid in delta_candidates:
+        for score, aid, qid, meta in delta_candidates:
             if qid not in deduped or score > deduped[qid][0]:
-                deduped[qid] = (score, aid, qid)
+                deduped[qid] = (score, aid, qid, meta)
 
-        for score, aid, qid in base_candidates:
+        for score, aid, qid, meta in base_candidates:
             if qid not in deduped:
-                deduped[qid] = (score, aid, qid)
+                deduped[qid] = (score, aid, qid, meta)
             elif score > deduped[qid][0]:
-                deduped[qid] = (score, aid, qid)
+                deduped[qid] = (score, aid, qid, meta)
 
         candidates = list(deduped.values())
         candidates.sort(key=lambda x: x[0], reverse=True)

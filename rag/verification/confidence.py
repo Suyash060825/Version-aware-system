@@ -99,5 +99,5 @@ class ConfidenceEngine:
         combined_text = " ".join([c.get("text", "").lower() for c in chunks])
         chunk_stems = set([self._stem(w) for w in re.findall(r"\b[a-z0-9]+\b", combined_text)])
         
-        matched = sum(1 for s in stemmed_query if s in chunk_stems or any(s in cw for cw in chunk_stems))
+        matched = sum(1 for s in stemmed_query if s in chunk_stems or (len(s) >= 4 and any(cw.startswith(s) for cw in chunk_stems)))
         return matched / len(stemmed_query)

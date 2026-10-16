@@ -161,18 +161,35 @@ class MultiLevelCache:
             hist = getattr(scope, "historical", False)
             t_date = getattr(scope, "target_date", "") or ""
             ver = getattr(scope, "requested_version", "") or ""
-            return f"t={tenant}|r={role}|d={depts}|c={conf}|h={hist}|td={t_date}|v={ver}|diff={is_diff_query}"
+            allowed_pids = getattr(scope, "allowed_policy_ids", None)
+            if allowed_pids is not None:
+                pids_hash = hashlib.md5(str(sorted(allowed_pids)).encode()).hexdigest()[:8]
+            else:
+                pids_hash = "all"
+            return f"t={tenant}|r={role}|d={depts}|c={conf}|h={hist}|td={t_date}|v={ver}|pids={pids_hash}|diff={is_diff_query}"
         scope_str = ",".join(sorted(allowed_depts or [])) + f"|diff={is_diff_query}"
         return scope_str
 
-    def get(self, query_embedding: List[float], scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, is_diff_query: bool = False) -> Optional[dict]:
+    def get(self, query_embedding: Optional[List[float]] = None, query: Optional[str] = None, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, is_diff_query: bool = False) -> Optional[dict]:
         """
-        Fast L2 cache lookup with lazy TTL strategy for chunks and versions.
+        Fast multi-tier cache lookup:
+        - L1 exact hash cache check (sub-millisecond dict lookup) when query string provided.
+        - L2 semantic vector cache scan when query_embedding provided.
         Chunk/version validity is trusted for its TTL window and invalidated on writes.
         Policy-level authorization is validated fail-closed.
         """
         scope_key = self._make_scope_key(scope=scope, allowed_depts=allowed_depts, is_diff_query=is_diff_query)
-        cached = self.get_l2(query_embedding, scope_key=scope_key)
+        
+        cached = None
+        # 1. Try L1 exact match first
+        if query:
+            q_hash = self._hash_query(query, scope_key)
+            cached = self.get_l1(q_hash, scope_key=scope_key)
+            
+        # 2. Fall back to L2 semantic vector similarity
+        if not cached and query_embedding:
+            cached = self.get_l2(query_embedding, scope_key=scope_key)
+
         if not cached:
             return None
 
@@ -207,7 +224,7 @@ class MultiLevelCache:
 
         return cached
 
-    def put(self, query_embedding: List[float], answer: str, citations: list, chunks_used: int, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, model: str = "", confidence: Optional[float] = None, is_diff_query: bool = False):
+    def put(self, query_embedding: Optional[List[float]], answer: str, citations: list, chunks_used: int, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, model: str = "", confidence: Optional[float] = None, is_diff_query: bool = False, query: Optional[str] = None):
         scope_key = self._make_scope_key(scope=scope, allowed_depts=allowed_depts, is_diff_query=is_diff_query)
         policy_ids = [c.get("policy_id") for c in citations if c.get("policy_id")]
         version_ids = [c.get("version_id") for c in citations if c.get("version_id")]
@@ -223,14 +240,25 @@ class MultiLevelCache:
             "model": model,
             "confidence": conf_val
         }
-        self.set_l2(
-            query_embedding,
-            scope_key=scope_key,
-            result=res,
-            policy_ids=policy_ids,
-            version_ids=version_ids,
-            chunk_ids=chunk_ids
-        )
+        if query:
+            q_hash = self._hash_query(query, scope_key)
+            self.set_l1(
+                q_hash,
+                scope_key=scope_key,
+                result=res,
+                policy_ids=policy_ids,
+                version_ids=version_ids,
+                chunk_ids=chunk_ids
+            )
+        if query_embedding:
+            self.set_l2(
+                query_embedding,
+                scope_key=scope_key,
+                result=res,
+                policy_ids=policy_ids,
+                version_ids=version_ids,
+                chunk_ids=chunk_ids
+            )
 
     def invalidate_policy(self, policy_id: int):
         """Purge only cached entries touching a modified policy without clearing unrelated data."""

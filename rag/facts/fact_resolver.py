@@ -26,30 +26,30 @@ class FactResolutionResult:
 
 class FactResolver:
     FACT_PATTERNS = [
-        (r"\b(?:annual leave|paid leave|vacation days|leave entitlement|days of leave|days of annual leave|pto)\b", ["annual_leave"]),
-        (r"\b(?:sick leave|medical leave)\b", ["sick_leave"]),
-        (r"\b(?:maternity leave|maternity)\b", ["maternity_leave"]),
-        (r"\b(?:paternity leave|paternity)\b", ["paternity_leave"]),
-        (r"\b(?:bereavement leave|bereavement)\b", ["bereavement_leave"]),
-        (r"\b(?:remote work|work from home|wfh|days.*remotely)\b", ["remote_work_allowance"]),
-        (r"\b(?:internet allowance|internet reimbursement|wifi reimbursement)\b", ["internet_allowance"]),
-        (r"\b(?:core hours|working hours|work hours|office hours)\b", ["core_hours"]),
-        (r"\b(?:grace period|late arrival|arrival window)\b", ["grace_period"]),
-        (r"\b(?:hotel|hotel limit|lodging limit|domestic hotel)\b", ["hotel_limit"]),
-        (r"\b(?:daily allowance|per diem|metro daily allowance|metro da)\b", ["daily_allowance_metro"]),
-        (r"\b(?:non-metro|non metro)\b", ["daily_allowance_non_metro"]),
-        (r"\b(?:medical insurance|health insurance|mediclaim|hospitalization cover)\b", ["medical_insurance_limit"]),
-        (r"\b(?:opd|opd limit|opd allowance|outpatient)\b", ["opd_limit"]),
-        (r"\b(?:notice period|resignation notice|resignation period)\b", ["notice_period"]),
-        (r"\b(?:pip|performance improvement plan|pip duration)\b", ["pip_duration"]),
-        (r"\b(?:learning budget|training budget|education assistance|certification reimbursement)\b", ["learning_budget"]),
-        (r"\b(?:laptop refresh|hardware refresh|laptop replacement)\b", ["hardware_refresh"]),
-        (r"\b(?:referral bonus.*senior|senior referral|lead referral)\b", ["referral_bonus_senior"]),
-        (r"\b(?:referral bonus|referral amount|referral payout)\b", ["referral_bonus_junior", "referral_bonus_senior"]),
-        (r"\b(?:relocation|relocation allowance|relocation package|moving allowance)\b", ["relocation_allowance"]),
-        (r"\b(?:gift limit|gift policy|accept.*gift|corporate gift)\b", ["gift_limit"]),
-        (r"\b(?:incident report|report.*incident|security incident)\b", ["incident_reporting_deadline"]),
-        (r"\b(?:password change|password expiration|rotate password|password rotation)\b", ["password_rotation_period"]),
+        (re.compile(r"\b(?:annual leave|paid leave|vacation days|leave entitlement|days of leave|days of annual leave|pto)\b", re.I), ["annual_leave"]),
+        (re.compile(r"\b(?:sick leave|medical leave)\b", re.I), ["sick_leave"]),
+        (re.compile(r"\b(?:maternity leave|maternity)\b", re.I), ["maternity_leave"]),
+        (re.compile(r"\b(?:paternity leave|paternity)\b", re.I), ["paternity_leave"]),
+        (re.compile(r"\b(?:bereavement leave|bereavement)\b", re.I), ["bereavement_leave"]),
+        (re.compile(r"\b(?:remote work|work from home|wfh|days.*remotely)\b", re.I), ["remote_work_allowance"]),
+        (re.compile(r"\b(?:internet allowance|internet reimbursement|wifi reimbursement)\b", re.I), ["internet_allowance"]),
+        (re.compile(r"\b(?:core hours|working hours|work hours|office hours)\b", re.I), ["core_hours"]),
+        (re.compile(r"\b(?:grace period|late arrival|arrival window)\b", re.I), ["grace_period"]),
+        (re.compile(r"\b(?:hotel|hotel limit|lodging limit|domestic hotel)\b", re.I), ["hotel_limit"]),
+        (re.compile(r"\b(?:daily allowance|per diem|metro daily allowance|metro da)\b", re.I), ["daily_allowance_metro"]),
+        (re.compile(r"\b(?:non-metro|non metro)\b", re.I), ["daily_allowance_non_metro"]),
+        (re.compile(r"\b(?:medical insurance|health insurance|mediclaim|hospitalization cover)\b", re.I), ["medical_insurance_limit"]),
+        (re.compile(r"\b(?:opd|opd limit|opd allowance|outpatient)\b", re.I), ["opd_limit"]),
+        (re.compile(r"\b(?:notice period|resignation notice|resignation period)\b", re.I), ["notice_period"]),
+        (re.compile(r"\b(?:pip|performance improvement plan|pip duration)\b", re.I), ["pip_duration"]),
+        (re.compile(r"\b(?:learning budget|training budget|education assistance|certification reimbursement)\b", re.I), ["learning_budget"]),
+        (re.compile(r"\b(?:laptop refresh|hardware refresh|laptop replacement)\b", re.I), ["hardware_refresh"]),
+        (re.compile(r"\b(?:referral bonus.*senior|senior referral|lead referral)\b", re.I), ["referral_bonus_senior"]),
+        (re.compile(r"\b(?:referral bonus|referral amount|referral payout)\b", re.I), ["referral_bonus_junior", "referral_bonus_senior"]),
+        (re.compile(r"\b(?:relocation|relocation allowance|relocation package|moving allowance)\b", re.I), ["relocation_allowance"]),
+        (re.compile(r"\b(?:gift limit|gift policy|accept.*gift|corporate gift)\b", re.I), ["gift_limit"]),
+        (re.compile(r"\b(?:incident report|report.*incident|security incident)\b", re.I), ["incident_reporting_deadline"]),
+        (re.compile(r"\b(?:password change|password expiration|rotate password|password rotation)\b", re.I), ["password_rotation_period"]),
     ]
 
     def __init__(self):
@@ -66,7 +66,7 @@ class FactResolver:
 
         target_predicates = []
         for pattern, preds in self.FACT_PATTERNS:
-            if re.search(pattern, query_lower):
+            if pattern.search(query_lower):
                 target_predicates.extend(preds)
 
         if not target_predicates:
@@ -88,8 +88,8 @@ class FactResolver:
         if not candidate_facts:
             return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
-        from rag.authorization.evidence_filter import EvidenceFilter
-        evidence_filter = EvidenceFilter()
+        from rag.authorization.evidence_filter import get_evidence_filter
+        evidence_filter = get_evidence_filter()
 
         # PERFORMANCE REQUIREMENT 11: Bulk load policies and versions (eliminates N+1 queries)
         p_ids = {f.policy_id for f in candidate_facts}

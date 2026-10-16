@@ -110,3 +110,43 @@ class CitationValidator:
             })
 
         return validated
+
+    def enrich_only(self, citations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Zero-DB enrichment for fast-path exits (L0, L1, L3) that already verified
+        and resolved policies, versions, chunks, and authorization.
+        Deduplicates and standardizes citation display fields.
+        """
+        if not citations:
+            return []
+
+        enriched = []
+        seen = set()
+
+        for cit in citations:
+            p_id = cit.get("policy_id")
+            v_id = cit.get("version_id")
+            if not p_id or not v_id:
+                continue
+
+            section = cit.get("section") or "General"
+            page_val = cit.get("page", 1)
+            page_int = int(page_val) if str(page_val).isdigit() else 1
+            ver_str = str(cit.get("version", "1.0"))
+
+            key = (int(p_id), int(v_id), section, page_int)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            enriched.append({
+                "policy_id": int(p_id),
+                "version_id": int(v_id),
+                "policy_name": cit.get("policy_name") or "Policy",
+                "version": ver_str,
+                "section": section,
+                "page": page_int,
+                "chunk_id": cit.get("chunk_id")
+            })
+
+        return enriched

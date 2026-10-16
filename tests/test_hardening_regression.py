@@ -529,3 +529,94 @@ def test_version_comparison_pre_authorization_and_refusal(app):
     res_auth = engine.answer("Compare v1 vs v2 of Executive Compensation Strategy", user=u_exec)
     assert res_auth.route == "TEMPORAL_COMPARISON"
     assert "Executive Compensation Strategy" in res_auth.answer
+
+def test_audit_optimizations_verification(app):
+    """
+    Verify:
+    1. _allowed_pids_cache produces identical key for User and QueryScope and bounds cache
+    2. L1 exact hash cache hit works via query string
+    3. Scope key incorporates allowed_policy_ids hash
+    4. filter_chunks bypasses DB when allowed_policy_ids is present
+    5. enrich_only formats citations with zero DB queries
+    6. IntentClassifier and FactResolver patterns are pre-compiled
+    7. ConfidenceEngine uses prefix check
+    """
+    from rag.authorization.evidence_filter import get_evidence_filter
+    from rag.engine.query_scope import QueryScope
+    from rag.cache.semantic_cache import get_cache
+    from rag.verification.citation_validator import CitationValidator
+    from rag.router.intent_classifier import IntentClassifier
+    from rag.facts.fact_resolver import FactResolver
+    from rag.verification.confidence import ConfidenceEngine
+    import re
+
+    # 1. EvidenceFilter cache key unification
+    ev_filter = get_evidence_filter()
+    u = User(name="audit_u", email="audit@test.com", password_hash="h", role="employee", department_id=5)
+    db.session.add(u)
+    db.session.commit()
+
+    p1 = Policy(policy_id="POL-AUDIT-1", title="Leave Policy", author_id=u.id, status=PolicyStatus.ACTIVE, confidentiality=ConfidentialityLevel.INTERNAL)
+    db.session.add(p1)
+    db.session.commit()
+
+    scope = QueryScope.from_user(u)
+
+    key_user = ev_filter._get_cache_key(u)
+    key_scope = ev_filter._get_cache_key(scope)
+    assert key_user == key_scope, f"Cache keys must be identical for same user: {key_user} != {key_scope}"
+
+    # 2. Scope key includes allowed_policy_ids hash
+    cache = get_cache()
+    scope_p1 = QueryScope.from_user(u, allowed_policy_ids=[p1.id, 2])
+    scope_p2 = QueryScope.from_user(u, allowed_policy_ids=[p1.id, 3])
+    k1 = cache._make_scope_key(scope=scope_p1)
+    k2 = cache._make_scope_key(scope=scope_p2)
+    assert k1 != k2, "Different allowed_policy_ids must produce different scope keys"
+    assert "pids=" in k1 and "pids=" in k2
+
+    # 3. L1 exact hash cache test
+    test_q = "what is the remote work policy?"
+    cache.put(
+        query_embedding=[0.5] * 384,
+        answer="2 days per week",
+        citations=[{"policy_id": p1.id, "version_id": 1, "version": "1.0", "section": "General", "page": 1}],
+        chunks_used=1,
+        scope=scope_p1,
+        query=test_q
+    )
+    hit = cache.get(query=test_q, scope=scope_p1)
+    assert hit is not None
+    assert hit["answer"] == "2 days per week"
+
+    # 4. filter_chunks fast path
+    chunks = [
+        {"chunk_id": "c1", "policy_id": p1.id, "policy_name": "Leave Policy"},
+        {"chunk_id": "c2", "policy_id": 999, "policy_name": "Secret Policy"}
+    ]
+    # scope_p1 has allowed_policy_ids=[p1.id, 2], so policy 999 must be rejected without DB query
+    filtered = ev_filter.filter_chunks(chunks, scope_p1)
+    assert len(filtered) == 1
+    assert filtered[0]["policy_id"] == p1.id
+
+    # 5. CitationValidator.enrich_only
+    cv = CitationValidator()
+    raw = [
+        {"policy_id": "1", "version_id": "2", "policy_name": "Test Pol", "version": "1.5", "section": "Sec 1", "page": "3"},
+        {"policy_id": "1", "version_id": "2", "policy_name": "Test Pol", "version": "1.5", "section": "Sec 1", "page": "3"}
+    ]
+    enriched = cv.enrich_only(raw)
+    assert len(enriched) == 1
+    assert enriched[0]["policy_id"] == 1
+    assert enriched[0]["version_id"] == 2
+    assert enriched[0]["page"] == 3
+    assert enriched[0]["version"] == "1.5"
+
+    # 6. Precompiled regex verification
+    assert isinstance(IntentClassifier.COMPARISON_PATTERNS[0], re.Pattern)
+    assert isinstance(FactResolver.FACT_PATTERNS[0][0], re.Pattern)
+
+    # 7. ConfidenceEngine prefix check
+    ce = ConfidenceEngine()
+    score = ce._evidence_coverage("maternity leave", [{"text": "the maternal leave rules"}])
+    assert score > 0.0

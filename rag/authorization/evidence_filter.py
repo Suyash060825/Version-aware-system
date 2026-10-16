@@ -19,14 +19,32 @@ class EvidenceFilter:
             return "anon"
         if hasattr(user_or_scope, "user_id"):
             u_id = getattr(user_or_scope, "user_id", None)
-            role = getattr(user_or_scope, "role", "")
+            role = getattr(user_or_scope, "role", "employee")
             dept_ids = tuple(sorted(getattr(user_or_scope, "department_ids", ()) or []))
             conf = tuple(sorted(getattr(user_or_scope, "allowed_confidentiality", ()) or []))
-            return f"scope:{u_id}:{role}:{dept_ids}:{conf}"
+            return f"auth:{u_id}:{role}:{dept_ids}:{conf}"
         u_id = getattr(user_or_scope, "id", None)
-        role = getattr(user_or_scope, "role", "")
+        role = getattr(user_or_scope, "role", "employee")
+        if hasattr(role, "value"):
+            role = role.value
+        role = str(role).lower()
         dept_id = getattr(user_or_scope, "department_id", None)
-        return f"user:{u_id}:{role}:{dept_id}"
+        dept_ids = (int(dept_id),) if dept_id is not None else ()
+        if hasattr(user_or_scope, "allowed_confidentiality"):
+            conf = tuple(sorted(user_or_scope.allowed_confidentiality))
+        else:
+            is_adm = False
+            if hasattr(user_or_scope, "is_admin"):
+                is_adm = user_or_scope.is_admin() if callable(user_or_scope.is_admin) else bool(user_or_scope.is_admin)
+            elif role in ("admin", "hr"):
+                is_adm = True
+            conf_list = ["public", "internal"]
+            if is_adm or role in ("admin", "executive", "legal"):
+                conf_list.extend(["confidential", "restricted"])
+            elif role in ("hr", "manager"):
+                conf_list.append("confidential")
+            conf = tuple(sorted(conf_list))
+        return f"auth:{u_id}:{role}:{dept_ids}:{conf}"
 
     def is_authorized_for_policy(self, user_or_scope: Optional[Any], policy: Policy, version: Optional[PolicyVersion] = None) -> bool:
         if not policy:
@@ -111,6 +129,7 @@ class EvidenceFilter:
 
         authorized = []
         policy_cache = {}
+        allowed_pids = getattr(user_or_scope, "allowed_policy_ids", None)
 
         for chunk in chunks:
             policy_id = chunk.get("policy_id")
@@ -121,6 +140,16 @@ class EvidenceFilter:
                 p_id = int(policy_id)
             except (ValueError, TypeError):
                 continue
+
+            # Fast path: If allowed_policy_ids is pre-computed and confirms authorization
+            if allowed_pids is not None:
+                if p_id not in allowed_pids:
+                    # Unauthorized: strictly reject chunk without DB query
+                    continue
+                # Authorized: if authoritative policy_name already present, bypass DB lookup entirely
+                if chunk.get("policy_name") and chunk["policy_name"] not in ("Policy", None, "N/A", "Unknown"):
+                    authorized.append(chunk)
+                    continue
 
             if p_id not in policy_cache:
                 try:
@@ -161,6 +190,15 @@ class EvidenceFilter:
             ts, pids = self._allowed_pids_cache[key]
             if now - ts < self._cache_ttl:
                 return list(pids) if pids is not None else None
+
+        # Bounded cache cleanup: evict expired entries or oldest if cache size exceeds limit
+        if len(self._allowed_pids_cache) >= 256:
+            expired_keys = [k for k, (ts, _) in self._allowed_pids_cache.items() if now - ts >= self._cache_ttl]
+            for k in expired_keys:
+                self._allowed_pids_cache.pop(k, None)
+            while len(self._allowed_pids_cache) >= 256:
+                oldest_k = min(self._allowed_pids_cache.keys(), key=lambda k: self._allowed_pids_cache[k][0])
+                self._allowed_pids_cache.pop(oldest_k, None)
 
         query = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE)
         policies = query.all()
