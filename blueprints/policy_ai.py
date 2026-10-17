@@ -25,9 +25,13 @@ from policy_ai import (generate_policy_draft, rewrite_text, explain_clause, revi
 policy_ai_bp = Blueprint("policy_ai", __name__, url_prefix="/admin/policies")
 
 
-def _hr_or_admin():
+def _hr_or_admin(policy=None):
     if not current_user.can_manage_policies():
         abort(403)
+    if policy is not None:
+        from rag.authorization.evidence_filter import get_evidence_filter
+        if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+            abort(403)
 
 
 # ================================================================
@@ -56,8 +60,8 @@ def generate_draft():
 @policy_ai_bp.route("/<int:policy_id>/ai")
 @login_required
 def ai_assistant(policy_id):
-    _hr_or_admin()
     policy = Policy.query.get_or_404(policy_id)
+    _hr_or_admin(policy)
     current_ver = policy.versions.filter_by(is_active=True).first()
     review = PolicyAIReview.query.filter_by(policy_id=policy.id).first()
     insight = PolicyAIInsight.query.filter_by(policy_id=policy.id).first()
@@ -73,8 +77,8 @@ def ai_assistant(policy_id):
 @policy_ai_bp.route("/<int:policy_id>/ai/writer", methods=["POST"])
 @login_required
 def writer_action(policy_id):
-    _hr_or_admin()
     policy = Policy.query.get_or_404(policy_id)
+    _hr_or_admin(policy)
     mode = request.form.get("mode", "rewrite")
     content = request.form.get("content", "").strip()
     target_language = request.form.get("target_language", "").strip()
@@ -97,8 +101,8 @@ def writer_action(policy_id):
 @policy_ai_bp.route("/<int:policy_id>/ai/apply", methods=["POST"])
 @login_required
 def apply_writer_output(policy_id):
-    _hr_or_admin()
     policy = db.get_or_404(Policy, policy_id)
+    _hr_or_admin(policy)
     content = request.form.get("content", "").strip()
     change_summary = request.form.get("change_summary", "AI-assisted edit").strip()
     bump_type = request.form.get("bump_type", "minor")
@@ -140,8 +144,8 @@ def apply_writer_output(policy_id):
 @policy_ai_bp.route("/<int:policy_id>/ai/review", methods=["POST"])
 @login_required
 def run_review(policy_id):
-    _hr_or_admin()
     policy = Policy.query.get_or_404(policy_id)
+    _hr_or_admin(policy)
     current_ver = policy.versions.filter_by(is_active=True).first()
     if not current_ver:
         return jsonify({"success": False, "error": "This policy has no content yet."}), 400
@@ -150,6 +154,9 @@ def run_review(policy_id):
 
     # Duplicate detection against other active policies (heuristic, cheap)
     other_policies = Policy.query.filter(Policy.id != policy.id, Policy.status == PolicyStatus.ACTIVE).all()
+    if not (current_user.is_admin() if callable(current_user.is_admin) else current_user.is_admin):
+        from rag.authorization.evidence_filter import get_evidence_filter
+        other_policies = [p for p in other_policies if get_evidence_filter().is_authorized_for_policy(current_user, p)]
     candidates = []
     for p in other_policies:
         v = p.versions.filter_by(is_active=True).first()
@@ -189,8 +196,8 @@ def run_review(policy_id):
 @policy_ai_bp.route("/<int:policy_id>/ai/insights", methods=["POST"])
 @login_required
 def run_insights(policy_id):
-    _hr_or_admin()
     policy = Policy.query.get_or_404(policy_id)
+    _hr_or_admin(policy)
     current_ver = policy.versions.filter_by(is_active=True).first()
     if not current_ver:
         return jsonify({"success": False, "error": "This policy has no content yet."}), 400

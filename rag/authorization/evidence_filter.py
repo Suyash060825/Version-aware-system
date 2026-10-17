@@ -36,13 +36,17 @@ class EvidenceFilter:
             is_adm = False
             if hasattr(user_or_scope, "is_admin"):
                 is_adm = user_or_scope.is_admin() if callable(user_or_scope.is_admin) else bool(user_or_scope.is_admin)
-            elif role in ("admin", "hr"):
+            elif role == "admin":
                 is_adm = True
-            conf_list = ["public", "internal"]
-            if is_adm or role in ("admin", "executive", "legal"):
-                conf_list.extend(["confidential", "restricted"])
-            elif role in ("hr", "manager"):
-                conf_list.append("confidential")
+            user_clearance = getattr(user_or_scope, "clearance", None)
+            if user_clearance == "public_only":
+                conf_list = ["public"]
+            else:
+                conf_list = ["public", "internal"]
+                if is_adm or role in ("admin", "executive", "legal") or user_clearance == "restricted":
+                    conf_list.extend(["confidential", "restricted"])
+                elif user_clearance == "confidential" or role in ("hr", "manager"):
+                    conf_list.append("confidential")
             conf = tuple(sorted(conf_list))
         return f"auth:{u_id}:{role}:{dept_ids}:{conf}"
 
@@ -79,38 +83,49 @@ class EvidenceFilter:
             if conf_str not in scope.allowed_confidentiality:
                 return False
 
-            if conf_str != "public" and policy.department_id is not None and scope.role not in ("admin", "executive", "legal", "hr"):
-                if scope.department_ids and policy.department_id not in scope.department_ids:
+            if conf_str in ("internal", "confidential") and policy.department_id is not None and scope.role not in ("admin", "executive", "legal", "hr"):
+                if not scope.department_ids or policy.department_id not in scope.department_ids:
                     return False
 
             return True
 
         # Case B: User model / proxy passed
         user = user_or_scope
-        if user.is_admin() or user.can_manage_policies():
+        if callable(getattr(user, "is_admin", None)) and user.is_admin():
             return True
-
-        if status_str not in ("active", "published"):
-            if policy.author_id == getattr(user, "id", None):
-                return True
-            return False
+        elif not callable(getattr(user, "is_admin", None)) and getattr(user, "is_admin", False):
+            return True
 
         user_role = user.role.value if hasattr(user.role, "value") else str(user.role)
         user_role = user_role.lower()
 
         if conf_str == "restricted":
-            if user_role not in ("admin", "executive", "legal"):
+            user_clearance = getattr(user, "clearance", None)
+            if user_clearance != "restricted" and user_role not in ("admin", "executive", "legal"):
                 return False
+
+        if status_str not in ("active", "published"):
+            if getattr(user, "id", None) and policy.author_id == user.id:
+                return True
+            if hasattr(user, "can_manage_policies"):
+                can_manage = user.can_manage_policies() if callable(user.can_manage_policies) else bool(user.can_manage_policies)
+                if can_manage:
+                    if user_role == "hr" or (policy.department_id is None or getattr(user, "department_id", None) == policy.department_id):
+                        return True
+            return False
         elif conf_str == "confidential":
+            user_clearance = getattr(user, "clearance", None)
             if user_role not in ("admin", "executive", "legal", "hr"):
+                if user_clearance and user_clearance not in ("confidential", "restricted"):
+                    return False
                 user_dept = getattr(user, "department_id", None)
-                if user_dept is not None and policy.department_id is not None and user_dept != policy.department_id:
+                if user_dept is None or (policy.department_id is not None and user_dept != policy.department_id):
                     return False
 
         # General Department restriction for standard employees
-        if policy.department_id is not None and user_role not in ("admin", "executive", "legal", "hr"):
+        if conf_str in ("internal", "confidential") and policy.department_id is not None and user_role not in ("admin", "executive", "legal", "hr"):
             user_dept = getattr(user, "department_id", None)
-            if user_dept is not None and user_dept != policy.department_id:
+            if user_dept is None or user_dept != policy.department_id:
                 return False
 
         return True
@@ -128,8 +143,29 @@ class EvidenceFilter:
                 return chunks
 
         authorized = []
-        policy_cache = {}
         allowed_pids = getattr(user_or_scope, "allowed_policy_ids", None)
+
+        # Batch prefetch needed policies if allowed_pids is not restricting
+        policy_cache = {}
+        needed_pids = set()
+        for chunk in chunks:
+            policy_id = chunk.get("policy_id")
+            if policy_id:
+                try:
+                    p_id = int(policy_id)
+                    if allowed_pids is None or p_id in allowed_pids:
+                        needed_pids.add(p_id)
+                except (ValueError, TypeError):
+                    pass
+
+        if needed_pids:
+            try:
+                from flask import has_app_context
+                if has_app_context():
+                    pol_rows = Policy.query.filter(Policy.id.in_(needed_pids)).all()
+                    policy_cache = {p.id: p for p in pol_rows}
+            except Exception:
+                policy_cache = {}
 
         for chunk in chunks:
             policy_id = chunk.get("policy_id")

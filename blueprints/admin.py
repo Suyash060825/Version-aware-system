@@ -18,6 +18,7 @@ from flask import (Blueprint, render_template, redirect, url_for,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from models import (db, Policy, PolicyVersion, PolicyCategory, PolicyStatus,
+                    ConfidentialityLevel,
                     User, UserRole, Department, Tag, ApprovalWorkflow,
                     ApprovalStage, ApprovalStatus, NotificationType,
                     AuditLog, PolicyAcknowledgement, WorkflowTemplate,
@@ -138,6 +139,10 @@ def policy_list():
     search = request.args.get("q", "").strip()
 
     q = Policy.query
+    if not (current_user.is_admin() if callable(current_user.is_admin) else current_user.is_admin):
+        user_clearance = getattr(current_user, "clearance", None)
+        if user_clearance != "restricted":
+            q = q.filter(Policy.confidentiality != ConfidentialityLevel.RESTRICTED)
     if status_filter:
         q = q.filter_by(status=status_filter)
     if cat_filter:
@@ -350,6 +355,9 @@ def policy_extract_file():
 @hr_required
 def policy_detail(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+        abort(403)
     versions = policy.versions.order_by(PolicyVersion.version_num.desc()).all()
     approvals = policy.approvals.order_by(ApprovalWorkflow.order).all()
     ack_count = policy.acknowledgements.filter(
@@ -404,6 +412,9 @@ def policy_detail(policy_id):
 @hr_required
 def policy_edit(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+        abort(403)
     categories = PolicyCategory.query.order_by(PolicyCategory.name).all()
     departments = Department.query.order_by(Department.name).all()
     hr_users = User.query.filter(User.role.in_([UserRole.HR, UserRole.ADMIN])).all()
@@ -456,6 +467,9 @@ def policy_edit(policy_id):
 @hr_required
 def version_create(policy_id):
     policy = db.get_or_404(Policy, policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+        abort(403)
     current_ver = policy.versions.filter_by(is_active=True).first()
     error = None
 
@@ -534,6 +548,9 @@ def version_create(policy_id):
 @hr_required
 def version_compare(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+        abort(403)
     v1_id = request.args.get("v1", type=int)
     v2_id = request.args.get("v2", type=int)
 
@@ -558,6 +575,9 @@ def version_compare(policy_id):
 @hr_required
 def policy_publish(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+        abort(403)
     policy.status = PolicyStatus.ACTIVE
 
     active_ver = policy.versions.filter_by(is_active=True).first()
@@ -567,6 +587,9 @@ def policy_publish(policy_id):
         active_ver.approved_at = datetime.now(timezone.utc)
 
     db.session.commit()
+    from rag.cache.semantic_cache import get_cache
+    get_cache().invalidate_policy(policy.id)
+    get_evidence_filter().clear_cache()
     audit("policy.publish", "policy", policy.id)
 
     # Notify employees
@@ -609,8 +632,14 @@ def policy_publish(policy_id):
 @hr_required
 def policy_archive(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+        abort(403)
     policy.status = PolicyStatus.ARCHIVED
     db.session.commit()
+    from rag.cache.semantic_cache import get_cache
+    get_cache().invalidate_policy(policy.id)
+    get_evidence_filter().clear_cache()
     audit("policy.archive", "policy", policy.id)
     flash(f'"{policy.title}" archived.', "info")
     return redirect(url_for("admin.policy_list"))
@@ -621,8 +650,14 @@ def policy_archive(policy_id):
 @hr_required
 def policy_restore(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+        abort(403)
     policy.status = PolicyStatus.DRAFT
     db.session.commit()
+    from rag.cache.semantic_cache import get_cache
+    get_cache().invalidate_policy(policy.id)
+    get_evidence_filter().clear_cache()
     audit("policy.restore", "policy", policy.id)
     flash(f'"{policy.title}" restored to draft.', "success")
     return redirect(url_for("admin.policy_detail", policy_id=policy.id))
@@ -633,6 +668,11 @@ def policy_restore(policy_id):
 @hr_required
 def policy_delete(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+        abort(403)
+    from rag.indexing.index_policy import delete_policy_from_index
+    delete_policy_from_index(policy_id)
     title = policy.title
     db.session.delete(policy)
     db.session.commit()
@@ -646,6 +686,9 @@ def policy_delete(policy_id):
 @hr_required
 def policy_duplicate(policy_id):
     orig = db.get_or_404(Policy, policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, orig):
+        abort(403)
     orig_ver = orig.versions.filter_by(is_active=True).first()
 
     new_policy = Policy(
@@ -694,6 +737,9 @@ def policy_duplicate(policy_id):
 @hr_required
 def submit_for_review(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+        abort(403)
     active_ver = policy.versions.filter_by(is_active=True).first()
     if not active_ver:
         flash("No active version to submit.", "danger")

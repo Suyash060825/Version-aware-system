@@ -26,6 +26,49 @@ class CitationValidator:
         validated = []
         seen = set()
 
+        # Batch pre-fetch chunk, policy, and version records in single queries (eliminates N+1 lookups)
+        c_ids = [c.get("chunk_id") for c in raw_citations if c.get("chunk_id")]
+        chunks_map = {}
+        if c_ids:
+            try:
+                chunks_map = {chk.chunk_id: chk for chk in PolicyChunkV2.query.filter(PolicyChunkV2.chunk_id.in_(c_ids)).all()}
+            except Exception:
+                chunks_map = {}
+
+        p_ids = set()
+        v_ids = set()
+        for cit in raw_citations:
+            cid = cit.get("chunk_id")
+            if cid in chunks_map:
+                p_ids.add(chunks_map[cid].policy_id)
+                v_ids.add(chunks_map[cid].version_id)
+            pid = cit.get("policy_id")
+            if pid:
+                try:
+                    p_ids.add(int(pid))
+                except (ValueError, TypeError):
+                    pass
+            vid = cit.get("version_id")
+            if vid:
+                try:
+                    v_ids.add(int(vid))
+                except (ValueError, TypeError):
+                    pass
+
+        policies_map = {}
+        if p_ids:
+            try:
+                policies_map = {p.id: p for p in Policy.query.filter(Policy.id.in_(p_ids)).all()}
+            except Exception:
+                policies_map = {}
+
+        versions_map = {}
+        if v_ids:
+            try:
+                versions_map = {v.id: v for v in PolicyVersion.query.filter(PolicyVersion.id.in_(v_ids)).all()}
+            except Exception:
+                versions_map = {}
+
         for cit in raw_citations:
             policy_id = cit.get("policy_id")
             version_id = cit.get("version_id")
@@ -34,12 +77,14 @@ class CitationValidator:
             policy = None
             version = None
 
-            # 1. Resolve via chunk_id if available
+            # 1. Resolve via chunk_id if available (using batch pre-fetch first)
             if chunk_id:
-                chunk = PolicyChunkV2.query.filter_by(chunk_id=chunk_id).first()
+                chunk = chunks_map.get(chunk_id)
+                if not chunk:
+                    chunk = PolicyChunkV2.query.filter_by(chunk_id=chunk_id).first()
                 if chunk:
-                    policy = db.session.get(Policy, chunk.policy_id)
-                    version = db.session.get(PolicyVersion, chunk.version_id)
+                    policy = policies_map.get(chunk.policy_id) or db.session.get(Policy, chunk.policy_id)
+                    version = versions_map.get(chunk.version_id) or db.session.get(PolicyVersion, chunk.version_id)
                     section = chunk.section_path or cit.get("section") or "General"
                     page = chunk.page or cit.get("page") or 1
                 else:
@@ -52,7 +97,8 @@ class CitationValidator:
             # 2. Resolve via policy_id if not found via chunk
             if not policy and policy_id:
                 try:
-                    policy = db.session.get(Policy, int(policy_id))
+                    p_int = int(policy_id)
+                    policy = policies_map.get(p_int) or db.session.get(Policy, p_int)
                 except (ValueError, TypeError):
                     pass
 
@@ -68,7 +114,8 @@ class CitationValidator:
             if policy and not version:
                 if version_id:
                     try:
-                        version = db.session.get(PolicyVersion, int(version_id))
+                        v_int = int(version_id)
+                        version = versions_map.get(v_int) or db.session.get(PolicyVersion, v_int)
                     except (ValueError, TypeError):
                         pass
                 if not version and cit.get("version"):

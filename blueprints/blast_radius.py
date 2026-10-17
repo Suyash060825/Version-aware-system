@@ -38,8 +38,8 @@ Routes:
   GET /admin/policies/<policy_id>/blast-radius
 """
 
-from flask import Blueprint, render_template
-from flask_login import login_required
+from flask import Blueprint, render_template, abort
+from flask_login import login_required, current_user
 
 from models import (Policy, PolicyAcknowledgement, User, UserRole, QuizAttempt,
                     WhatIfQuery, WhatIfVerdict, ContradictionFlag, ContradictionScanStatus)
@@ -144,5 +144,9 @@ def compute_blast_radius(policy: Policy):
 @role_required(UserRole.HR, UserRole.ADMIN)
 def preview(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    if not (current_user.is_admin() if callable(getattr(current_user, "is_admin", None)) else getattr(current_user, "is_admin", False)):
+        from rag.authorization.evidence_filter import get_evidence_filter
+        if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+            abort(403)
     data = compute_blast_radius(policy)
     return render_template("admin/blast_radius.html", **data)

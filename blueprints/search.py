@@ -133,7 +133,10 @@ def advanced_search():
     policy_results, meeting_results = [], []
     if has_query:
         if scope in ("policies", "all"):
-            policy_results = _search_policies(f)
+            raw_policies = _search_policies(f)
+            from rag.authorization.evidence_filter import get_evidence_filter
+            ev_filter = get_evidence_filter()
+            policy_results = [p for p in raw_policies if ev_filter.is_authorized_for_policy(current_user, p)]
         if scope in ("meetings", "all"):
             meeting_results = _search_meetings(f)
 

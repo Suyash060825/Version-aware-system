@@ -61,19 +61,28 @@ def build_onboarding_checklist(user):
 @employee_bp.route("/dashboard")
 @login_required
 def dashboard():
+    from rag.authorization.evidence_filter import get_evidence_filter
+    ev_filter = get_evidence_filter()
+
     # Recent active policies
-    recent = Policy.query.filter_by(status=PolicyStatus.ACTIVE)\
-        .order_by(Policy.updated_at.desc()).limit(6).all()
+    recent_raw = Policy.query.filter_by(status=PolicyStatus.ACTIVE)\
+        .order_by(Policy.updated_at.desc()).limit(12).all()
+    recent = [p for p in recent_raw if ev_filter.is_authorized_for_policy(current_user, p)][:6]
+
     # Trending (most viewed)
-    trending = Policy.query.filter_by(status=PolicyStatus.ACTIVE)\
-        .order_by(Policy.view_count.desc()).limit(6).all()
+    trending_raw = Policy.query.filter_by(status=PolicyStatus.ACTIVE)\
+        .order_by(Policy.view_count.desc()).limit(12).all()
+    trending = [p for p in trending_raw if ev_filter.is_authorized_for_policy(current_user, p)][:6]
+
     # Pending acknowledgements
     acked_ids = [a.policy_id for a in current_user.acknowledgements.all()]
-    pending_acks = Policy.query.filter(
+    pending_acks_raw = Policy.query.filter(
         Policy.status == PolicyStatus.ACTIVE,
         Policy.is_mandatory == True,
         ~Policy.id.in_(acked_ids) if acked_ids else True
     ).all()
+    pending_acks = [p for p in pending_acks_raw if ev_filter.is_authorized_for_policy(current_user, p)]
+
     # Saved
     saved = current_user.saved.all()
     # Notifications
@@ -100,6 +109,12 @@ def policy_browse():
     tag_filter = request.args.get("tag", "").strip()
 
     q = Policy.query.filter_by(status=PolicyStatus.ACTIVE)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    ev_filter = get_evidence_filter()
+    allowed_pids = ev_filter.get_allowed_policy_ids(current_user)
+    if allowed_pids is not None:
+        q = q.filter(Policy.id.in_(allowed_pids))
+
     if cat_filter:
         q = q.filter_by(category_id=cat_filter)
     if dept_filter:
@@ -128,6 +143,12 @@ def policy_browse():
 @login_required
 def policy_view(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    ev_filter = get_evidence_filter()
+    if not ev_filter.is_authorized_for_policy(current_user, policy):
+        flash("You are not authorized to view this policy.", "danger")
+        return redirect(url_for("employee.dashboard"))
+
     if policy.status != PolicyStatus.ACTIVE and not current_user.can_manage_policies():
         flash("This policy is not currently available.", "warning")
         return redirect(url_for("employee.dashboard"))
@@ -262,9 +283,12 @@ def search():
         for w in words:
             conditions.append(Policy.title.ilike(f"%{w}%"))
             conditions.append(Policy.description.ilike(f"%{w}%"))
-        results = Policy.query.filter(
+        raw_results = Policy.query.filter(
             Policy.status == PolicyStatus.ACTIVE, or_(*conditions)
         ).order_by(Policy.view_count.desc()).limit(20).all()
+        from rag.authorization.evidence_filter import get_evidence_filter
+        ev_filter = get_evidence_filter()
+        results = [p for p in raw_results if ev_filter.is_authorized_for_policy(current_user, p)]
 
         try:
             from rag.chatbot.chat_service import answer as rag_answer
@@ -276,6 +300,7 @@ def search():
             raw = rag_answer(
                 query=q,
                 session_id=sess_id,
+                user=current_user,
                 user_role=current_user.role,
                 user_department=dept,
                 top_k_rerank=4,
@@ -303,7 +328,7 @@ def search():
                     cited_ids.append(pid)
             if cited_ids:
                 cited_policies = {p.id: p for p in Policy.query.filter(Policy.id.in_(cited_ids)).all()}
-                results = [cited_policies[pid] for pid in cited_ids if pid in cited_policies]
+                results = [cited_policies[pid] for pid in cited_ids if pid in cited_policies and ev_filter.is_authorized_for_policy(current_user, cited_policies[pid])]
 
         audit("search", detail={"query": q, "results": len(results)})
 
@@ -320,6 +345,12 @@ def policy_download_pdf(policy_id):
     Policy.download_count which already existed in the schema but had
     nothing populating it."""
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    ev_filter = get_evidence_filter()
+    if not ev_filter.is_authorized_for_policy(current_user, policy):
+        from flask import abort
+        abort(403)
+
     version = policy.active_version or policy.latest_version
     if not version:
         flash("This policy has no content yet.", "warning")
@@ -513,6 +544,12 @@ def policy_as_of(policy_id):
     needed — it's a plain date filter over existing version history.
     """
     policy = Policy.query.get_or_404(policy_id)
+    from rag.authorization.evidence_filter import get_evidence_filter
+    ev_filter = get_evidence_filter()
+    if not ev_filter.is_authorized_for_policy(current_user, policy):
+        flash("You are not authorized to view this policy.", "danger")
+        return redirect(url_for("employee.dashboard"))
+
     if policy.status != PolicyStatus.ACTIVE and not current_user.can_manage_policies():
         flash("This policy is not currently available.", "warning")
         return redirect(url_for("employee.dashboard"))

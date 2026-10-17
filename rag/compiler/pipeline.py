@@ -106,20 +106,23 @@ class KnowledgeCompilerPipeline:
         job.chunk_count = len(self._chunks)
         
         PolicyChunkV2.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).delete()
-        for c in self._chunks:
-            pc = PolicyChunkV2(
+        pcs = [
+            PolicyChunkV2(
                 chunk_id=c.chunk_id, policy_id=c.policy_id, version_id=c.version_id,
                 section_path=c.section_path, page=c.page, paragraph_num=c.paragraph_num,
                 text=c.text, text_hash=c.text_hash, char_count=c.char_count
             )
-            db.session.add(pc)
+            for c in self._chunks
+        ]
+        if pcs:
+            db.session.add_all(pcs)
 
     def _stage_facts(self, job: CompilationJob):
         facts = self.fact_extractor.extract(self._chunks)
         job.fact_count = len(facts)
         PolicyFact.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).delete()
-        for f in facts:
-            db.session.add(f)
+        if facts:
+            db.session.add_all(facts)
 
     def _stage_qa(self, job: CompilationJob):
         self._questions = self.question_generator.generate(self._chunks)
@@ -133,8 +136,8 @@ class KnowledgeCompilerPipeline:
             db.session.commit()
 
         # Add questions and flush to get primary keys
-        for q in self._questions:
-            db.session.add(q)
+        if self._questions:
+            db.session.add_all(self._questions)
         db.session.flush()
         
         raw_answers = self.answer_generator.generate(self._questions, self._chunks)
@@ -158,7 +161,9 @@ class KnowledgeCompilerPipeline:
             ans.entailment_score = entail_score
             ans.confidence = float(entail_score)
             ans.status = "validated" if is_valid else "rejected"
-            db.session.add(ans)
+        
+        if raw_answers:
+            db.session.add_all(raw_answers)
                 
         db.session.commit()
 
@@ -228,8 +233,17 @@ class KnowledgeCompilerPipeline:
         qa_index = CanonicalQAIndex()
         # Find newly created valid QA pairs for this version
         valid_qs = CanonicalQuestion.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).all()
-        valid_ans = [CompiledAnswer.query.filter_by(question_id=q.id, status="validated").first() for q in valid_qs]
-        valid_pairs = [(q, a) for q, a in zip(valid_qs, valid_ans) if a is not None]
+        if valid_qs:
+            q_ids = [q.id for q in valid_qs]
+            answers_by_qid = {
+                a.question_id: a for a in CompiledAnswer.query.filter(
+                    CompiledAnswer.question_id.in_(q_ids),
+                    CompiledAnswer.status == "validated"
+                ).all()
+            }
+            valid_pairs = [(q, answers_by_qid[q.id]) for q in valid_qs if q.id in answers_by_qid]
+        else:
+            valid_pairs = []
         
         if valid_pairs:
             from rag.embeddings.embedder import get_embedder
@@ -245,7 +259,7 @@ class KnowledgeCompilerPipeline:
         else:
             qa_index.delete_policy_version(job.policy_id, job.version_id)
 
-        # Invalidate affected cache entries, fact predicates, and diff cache
+        # Invalidate affected cache entries, fact predicates, diff cache, and evidence filter cache
         from rag.cache.semantic_cache import get_cache
         get_cache().invalidate_version(job.policy_id, job.version_id)
         try:
@@ -256,6 +270,11 @@ class KnowledgeCompilerPipeline:
         try:
             from rag.versions.diff_engine import clear_diff_cache
             clear_diff_cache()
+        except Exception:
+            pass
+        try:
+            from rag.authorization.evidence_filter import get_evidence_filter
+            get_evidence_filter().clear_cache()
         except Exception:
             pass
 

@@ -7,7 +7,7 @@ import re
 import os
 import logging
 from typing import List, Dict, Any, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger("rag.entailment")
 
@@ -16,7 +16,11 @@ class EntailmentResult:
     is_entailed: bool
     score: float
     verdict: str  # ENTAILMENT, CONTRADICTION, UNKNOWN
-    failed_claims: List[str]
+    failed_claims: List[str] = field(default_factory=list)
+
+    def __iter__(self):
+        yield self.is_entailed
+        yield self.score
 
 class EntailmentVerifier:
     _shared_nli_model = None

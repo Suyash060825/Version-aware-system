@@ -41,6 +41,14 @@ class PersistentBM25Index:
                 logger.error(f"Failed to load BM25 index from {self.INDEX_PATH}: {e}. Rebuilding...")
         self.rebuild_from_db()
 
+    @property
+    def corpus(self):
+        return self._corpus
+
+    @corpus.setter
+    def corpus(self, val):
+        self._corpus = val
+
     def save(self):
         try:
             os.makedirs(os.path.dirname(self.INDEX_PATH), exist_ok=True)
@@ -198,6 +206,27 @@ class PersistentBM25Index:
             self._bm25 = None
         self._revision += 1
         self.save()
+
+    def delete_policy(self, policy_id: int):
+        """Incremental deletion for an entire policy without re-tokenizing unchanged corpus."""
+        p_val = int(policy_id) if str(policy_id).isdigit() else policy_id
+        kept_indices = [
+            i for i, c in enumerate(self._corpus)
+            if c.get("policy_id") != p_val and str(c.get("policy_id")) != str(p_val)
+        ]
+        self._corpus = [self._corpus[i] for i in kept_indices]
+        if self._tokenized_corpus and len(self._tokenized_corpus) >= len(kept_indices):
+            self._tokenized_corpus = [self._tokenized_corpus[i] for i in kept_indices if i < len(self._tokenized_corpus)]
+        else:
+            self._tokenized_corpus = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
+
+        if self._tokenized_corpus:
+            self._bm25 = BM25Okapi(self._tokenized_corpus)
+        else:
+            self._bm25 = None
+        self._revision += 1
+        self.save()
+        logger.info(f"Deleted policy {policy_id} from BM25 index (revision {self._revision})")
 
     def _matches_filters(self, doc: dict, filters: dict) -> bool:
         for k, v in filters.items():

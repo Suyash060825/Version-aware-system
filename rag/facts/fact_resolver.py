@@ -173,6 +173,9 @@ class FactResolver:
             elif t_date:
                 if not version.is_valid_for_date(t_date):
                     continue
+            elif not (temporal and getattr(temporal, "is_historic", False)):
+                if not version.is_active:
+                    continue
 
             score = 0
             pred = (fact.predicate or "").lower()

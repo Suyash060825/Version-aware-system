@@ -16,6 +16,10 @@ class QueryResult:
     model: Optional[str] = None
     usage: dict = field(default_factory=dict)
 
+    @property
+    def cache_hit(self) -> bool:
+        return self.route in ("CACHE_HIT", "L1_CACHE", "L2_CACHE")
+
     @classmethod
     def from_fact(cls, fact, latency_ms: float):
         return cls(

@@ -57,7 +57,7 @@ class QueryScope:
         is_adm = False
         if hasattr(user, "is_admin"):
             is_adm = user.is_admin() if callable(user.is_admin) else bool(user.is_admin)
-        elif getattr(user, "role", "") in ("admin", "hr"):
+        elif getattr(user, "role", "") == "admin":
             is_adm = True
 
         role = getattr(user, "role", "employee")
@@ -82,11 +82,14 @@ class QueryScope:
         if hasattr(user, "allowed_confidentiality"):
             confidentiality = list(user.allowed_confidentiality)
         else:
-            confidentiality = ["public", "internal"]
-            if is_adm or role in ("admin", "executive", "legal"):
-                confidentiality.extend(["confidential", "restricted"])
-            elif role in ("hr", "manager"):
-                confidentiality.append("confidential")
+            if getattr(user, "clearance", None) == "public_only":
+                confidentiality = ["public"]
+            else:
+                confidentiality = ["public", "internal"]
+                if is_adm or role in ("admin", "executive", "legal"):
+                    confidentiality.extend(["confidential", "restricted"])
+                elif role in ("hr", "manager"):
+                    confidentiality.append("confidential")
 
         return cls(
             user_id=user_id,

@@ -9,8 +9,8 @@ Routes:
 """
 from datetime import date
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_required
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask_login import login_required, current_user
 
 from models import (db, Policy, PolicyStatus, PolicyAcknowledgement, ComplianceFramework,
                     ensure_default_frameworks, PolicyAIReview, User, UserRole)
@@ -23,6 +23,13 @@ def _compute_compliance_data():
     ensure_default_frameworks()
     frameworks = ComplianceFramework.query.filter_by(is_active=True).order_by(ComplianceFramework.name).all()
     active_policies = Policy.query.filter_by(status=PolicyStatus.ACTIVE).all()
+    # Filter out restricted policies if user not authorized
+    if not (current_user.is_admin() if callable(getattr(current_user, "is_admin", None)) else getattr(current_user, "is_admin", False)):
+        user_clearance = getattr(current_user, "clearance", None)
+        if user_clearance != "restricted":
+            active_policies = [p for p in active_policies if p.confidentiality != "restricted"]
+    all_framework_policies = active_policies
+    total_active = len(active_policies)
 
     # Missing compliance: frameworks with zero mapped active policies
     framework_data = []
@@ -97,7 +104,12 @@ def _compute_compliance_data():
 @role_required(UserRole.ADMIN, UserRole.HR)
 def compliance_center():
     data = _compute_compliance_data()
-    all_policies = Policy.query.filter_by(status=PolicyStatus.ACTIVE).order_by(Policy.title).all()
+    all_policies_q = Policy.query.filter_by(status=PolicyStatus.ACTIVE)
+    if not (current_user.is_admin() if callable(getattr(current_user, "is_admin", None)) else getattr(current_user, "is_admin", False)):
+        user_clearance = getattr(current_user, "clearance", None)
+        if user_clearance != "restricted":
+            all_policies_q = all_policies_q.filter(Policy.confidentiality != "restricted")
+    all_policies = all_policies_q.order_by(Policy.title).all()
     return render_template("admin/compliance_center.html", all_policies=all_policies, **data)
 
 
@@ -106,6 +118,10 @@ def compliance_center():
 @role_required(UserRole.ADMIN, UserRole.HR)
 def update_frameworks(policy_id):
     policy = Policy.query.get_or_404(policy_id)
+    if not (current_user.is_admin() if callable(getattr(current_user, "is_admin", None)) else getattr(current_user, "is_admin", False)):
+        from rag.authorization.evidence_filter import get_evidence_filter
+        if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+            abort(403)
     framework_ids = request.form.getlist("framework_ids", type=int)
     policy.frameworks = ComplianceFramework.query.filter(ComplianceFramework.id.in_(framework_ids)).all()
     db.session.commit()

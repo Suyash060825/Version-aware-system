@@ -122,12 +122,31 @@ def _extract_best_evidence_context(
         policy_name = best_chunk.get("policy_name") or (citations[0]["policy_name"] if citations else "Policy")
         version_raw = best_chunk.get("version") or (citations[0]["version"] if citations else "1.0")
         version_num = str(version_raw).lstrip("v")
+
+        # Multi-part question evidence synthesis across distinct chunks/sections
+        top_chunk_words = set(re.findall(r"\b[a-z0-9]+\b", context_paragraph.lower()))
+        uncovered = q_words - top_chunk_words
+        if len(uncovered) >= 2:
+            for cand in scored_candidates[1:]:
+                cand_chunk, cand_sec, cand_idx, cand_sent, cand_sents = cand[1], cand[2], cand[3], cand[4], cand[5]
+                cand_sent_words = set(re.findall(r"\b[a-z0-9]+\b", cand_sent.lower()))
+                if cand_chunk != best_chunk and len(uncovered & cand_sent_words) >= 1:
+                    s_i = max(0, cand_idx - 1)
+                    e_i = min(len(cand_sents), cand_idx + 2)
+                    sec_context = " ".join(cand_sents[s_i:e_i])
+                    sec_pname = cand_chunk.get("policy_name") or (citations[1]["policy_name"] if len(citations) > 1 else "Policy")
+                    sec_vraw = cand_chunk.get("version") or (citations[1]["version"] if len(citations) > 1 else "1.0")
+                    sec_vnum = str(sec_vraw).lstrip("v")
+                    return f"According to the {policy_name} (v{version_num}, {best_sec}):\n{context_paragraph}\n\nAdditionally, according to {sec_pname} (v{sec_vnum}, {cand_sec}):\n{sec_context}"
+
         return f"According to the {policy_name} (v{version_num}, {best_sec}):\n{context_paragraph}"
-    elif top_text:
-        policy_name = citations[0]["policy_name"] if citations else "Policy"
-        version_raw = citations[0]["version"] if citations else "1.0"
-        version_num = str(version_raw).lstrip("v")
-        return f"According to the {policy_name} (v{version_num}, {top_section}):\n{top_text}"
+    elif top_text and q_words:
+        top_words = set(re.findall(r"\b[a-z0-9]+\b", top_text.lower()))
+        if len(q_words & top_words) >= 1:
+            policy_name = citations[0]["policy_name"] if citations else "Policy"
+            version_raw = citations[0]["version"] if citations else "1.0"
+            version_num = str(version_raw).lstrip("v")
+            return f"According to the {policy_name} (v{version_num}, {top_section}):\n{top_text}"
     return None
 
 
@@ -494,7 +513,8 @@ class QueryEngine:
                     ans_candidate = ans_text
                     if verify_numeric_grounding(ans_candidate, ctx_nums):
                         if self.config.use_nli:
-                            is_grounded, entail_score = self.entailment_verifier.verify(ans_candidate, ranked[:5])
+                            entail_res = self.entailment_verifier.verify(ans_candidate, ranked[:5])
+                            is_grounded = bool(getattr(entail_res, "is_entailed", False))
                         else:
                             is_grounded = True
                         if is_grounded:

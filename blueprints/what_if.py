@@ -52,6 +52,7 @@ def simulator():
         try:
             ai_result = evaluate_scenario(
                 scenario=scenario, user_role=current_user.role, user_department=dept,
+                user=current_user
             )
         except Exception:
             ai_result = {

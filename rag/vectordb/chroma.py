@@ -105,24 +105,48 @@ class VectorStore(VectorStoreBase):
             self._col = self._client.create_collection(name=self.col_name, metadata={"hnsw:space": "cosine"})
             self._col.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
 
-    def delete_policy_version(self, policy_id: int, version: str):
+    def delete_policy_version(self, policy_id: int, version: Any):
         try:
-            results = self._col.get(where={"$and": [
-                {"policy_id": {"$eq": str(policy_id)}},
-                {"version": {"$eq": str(version)}},
-            ]})
-            if results and results["ids"]:
-                self._col.delete(ids=results["ids"])
-        except Exception:
-            pass
+            p_val = int(policy_id) if str(policy_id).isdigit() else policy_id
+            v_int = int(version) if str(version).isdigit() else None
+            v_str = str(version)
+
+            all_results = []
+            res_int = self._col.get(where={"policy_id": {"$eq": p_val}})
+            if res_int and res_int.get("ids"):
+                all_results.append(res_int)
+            if str(p_val) != p_val:
+                res_str = self._col.get(where={"policy_id": {"$eq": str(p_val)}})
+                if res_str and res_str.get("ids"):
+                    all_results.append(res_str)
+
+            to_delete = set()
+            for results in all_results:
+                for idx, m in enumerate(results.get("metadatas", [])):
+                    m_vid = m.get("version_id")
+                    m_ver = str(m.get("version", ""))
+                    if (v_int is not None and m_vid == v_int) or m_ver == v_str or str(m_vid) == v_str:
+                        to_delete.add(results["ids"][idx])
+            if to_delete:
+                self._col.delete(ids=list(to_delete))
+        except Exception as e:
+            logger.error(f"Failed to delete policy {policy_id} version {version} from Chroma: {e}")
 
     def delete_policy(self, policy_id: int):
         try:
-            results = self._col.get(where={"policy_id": {"$eq": str(policy_id)}})
-            if results and results["ids"]:
-                self._col.delete(ids=results["ids"])
-        except Exception:
-            pass
+            p_val = int(policy_id) if str(policy_id).isdigit() else policy_id
+            ids_to_del = set()
+            res_int = self._col.get(where={"policy_id": {"$eq": p_val}})
+            if res_int and res_int.get("ids"):
+                ids_to_del.update(res_int["ids"])
+            if str(p_val) != p_val:
+                res_str = self._col.get(where={"policy_id": {"$eq": str(p_val)}})
+                if res_str and res_str.get("ids"):
+                    ids_to_del.update(res_str["ids"])
+            if ids_to_del:
+                self._col.delete(ids=list(ids_to_del))
+        except Exception as e:
+            logger.error(f"Failed to delete policy {policy_id} from Chroma: {e}")
 
     def search(self, embedding: List[float], filters: dict, top_k: int = 50) -> List[dict]:
         if embedding and len(embedding) != self.embedding_dimension:

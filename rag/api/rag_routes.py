@@ -474,6 +474,9 @@ def get_policy_chunks(policy_id):
     policy = db.session.get(Policy, policy_id)
     if not policy:
         return jsonify({"error": "Policy not found"}), 404
+    from rag.authorization.evidence_filter import get_evidence_filter
+    if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+        return jsonify({"error": "Forbidden"}), 403
     active_ver = policy.versions.filter_by(is_active=True).first()
     version_id = request.args.get("version_id", active_ver.id if active_ver else None, type=int)
     
@@ -523,8 +526,13 @@ def get_policy_chunks(policy_id):
 def admin_delete_index(policy_id):
     if not current_user.can_manage_policies():
         return jsonify({"error": "Forbidden"}), 403
-    from rag.vectordb.chroma import get_store
-    get_store().delete_policy(policy_id)
+    policy = db.session.get(Policy, policy_id)
+    if policy:
+        from rag.authorization.evidence_filter import get_evidence_filter
+        if not get_evidence_filter().is_authorized_for_policy(current_user, policy):
+            return jsonify({"error": "Forbidden"}), 403
+    from rag.indexing.index_policy import delete_policy_from_index
+    delete_policy_from_index(policy_id)
     return jsonify({"ok": True})
 
 

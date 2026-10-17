@@ -77,8 +77,11 @@ def _heuristic_verdict(scenario: str, chunks: list[dict]) -> dict:
     }
 
 
+from typing import Optional, Any
+
+
 def evaluate_scenario(scenario: str, user_role: str = "employee", user_department: str = "",
-                      top_k_retrieve: int = 20, top_k_rerank: int = 6) -> dict:
+                      top_k_retrieve: int = 20, top_k_rerank: int = 6, user: Optional[Any] = None) -> dict:
     """
     Full pipeline: scenario -> embed -> retrieve -> rerank -> structured verdict.
 
@@ -121,6 +124,14 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
             hits = HybridRetriever().search(scenario, top_k=top_k_retrieve)
         except Exception:
             hits = []
+
+    # Enforce policy authorization so restricted policies cannot leak through simulator
+    if user is not None:
+        try:
+            from rag.authorization.evidence_filter import get_evidence_filter
+            hits = get_evidence_filter().filter_chunks(hits, user)
+        except Exception:
+            pass
 
     hits = [h for h in hits if h.get("score", 0) >= RELEVANCE_THRESHOLD or h.get("hybrid_score", 0) >= RELEVANCE_THRESHOLD]
     

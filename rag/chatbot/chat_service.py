@@ -29,7 +29,7 @@ def answer(
             'role': user_role,
             'department': type('DeptProxy', (), {'name': user_department, 'id': None})() if user_department else None,
             'department_id': None,
-            'is_admin': lambda self: self.role.lower() in ("admin", "hr"),
+            'is_admin': lambda self: self.role.lower() == "admin",
             'is_hr': lambda self: self.role.lower() in ("admin", "hr"),
             'can_manage_policies': lambda self: self.role.lower() in ("admin", "hr", "manager"),
             'allowed_policy_ids': None,

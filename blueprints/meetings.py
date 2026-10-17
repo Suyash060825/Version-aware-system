@@ -82,7 +82,12 @@ def list_meetings():
 def create_meeting():
     departments = Department.query.order_by(Department.name).all()
     users = User.query.filter_by(is_active=True).order_by(User.name).all()
-    policies = Policy.query.filter_by(status=PolicyStatus.ACTIVE).order_by(Policy.title).all()
+    policies_q = Policy.query.filter_by(status=PolicyStatus.ACTIVE)
+    if not (current_user.is_admin() if callable(current_user.is_admin) else current_user.is_admin):
+        user_clearance = getattr(current_user, "clearance", None)
+        if user_clearance != "restricted":
+            policies_q = policies_q.filter(Policy.confidentiality != "restricted")
+    policies = policies_q.order_by(Policy.title).all()
     error = None
 
     if request.method == "POST":
@@ -125,7 +130,11 @@ def create_meeting():
             # Related policies
             policy_ids = request.form.getlist("policy_ids", type=int)
             if policy_ids:
-                meeting.related_policies = Policy.query.filter(Policy.id.in_(policy_ids)).all()
+                selected_policies = Policy.query.filter(Policy.id.in_(policy_ids)).all()
+                if not (current_user.is_admin() if callable(current_user.is_admin) else current_user.is_admin):
+                    from rag.authorization.evidence_filter import get_evidence_filter
+                    selected_policies = [p for p in selected_policies if get_evidence_filter().is_authorized_for_policy(current_user, p)]
+                meeting.related_policies = selected_policies
 
             db.session.commit()
 
