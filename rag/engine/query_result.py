@@ -60,8 +60,12 @@ class QueryResult:
         
     @classmethod
     def abstained(cls, reason: str, latency_ms: float):
+        if reason.startswith("I cannot") or reason.startswith("I could not"):
+            ans = reason
+        else:
+            ans = f"I cannot provide a confident answer based on the available policies. Reason: {reason}"
         return cls(
-            answer=f"I cannot provide a confident answer based on the available policies. Reason: {reason}",
+            answer=ans,
             route="ABSTAINED",
             confidence=0.0,
             citations=[],

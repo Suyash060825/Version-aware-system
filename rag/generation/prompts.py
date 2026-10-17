@@ -2,6 +2,7 @@
 rag/generation/prompts.py
 Strict, structured generation prompts for factual policy grounding, version diffs, and complex reasoning.
 """
+from typing import Optional
 
 SYSTEM_POLICY_GROUNDING_PROMPT = """You are an Enterprise Policy Assistant.
 Answer the user's question using ONLY the provided authoritative policy evidence.
@@ -17,7 +18,7 @@ Example: {"answer": "Section 3.1 of the Annual Leave Policy states that employee
 STREAMING_POLICY_GROUNDING_PROMPT = """You are an Enterprise Policy Assistant.
 Answer the user's question directly, clearly, and concisely based ONLY on the provided authoritative policy evidence.
 Do NOT fabricate rules, numbers, or exceptions.
-If the evidence does not contain the answer, state clearly that the policy does not specify this information.
+If the evidence does not contain the answer, emit only "INSUFFICIENT_EVIDENCE", do not invent an answer.
 Do not output JSON, markdown tags, or boilerplate; output the direct natural answer."""
 
 def build_grounded_qa_prompt(query: str, evidence_chunks: list) -> str:
@@ -29,7 +30,7 @@ def build_grounded_qa_prompt(query: str, evidence_chunks: list) -> str:
         ver = str(c.get("version") or "1.0").lstrip("v")
         status = "Active" if c.get("is_active", True) else "Superseded"
         status_label = f" ({status})" if status == "Active" else ""
-        text = c.get("text", "").strip()
+        text = c.get("text", "").strip()[:700]
         context_blocks.append(f"[{cid}] [Policy: {pname} | Version: v{ver}{status_label} | Section: {sec}]:\n{text}")
 
     context_str = "\n\n".join(context_blocks)
@@ -49,7 +50,7 @@ def build_streaming_qa_prompt(query: str, evidence_chunks: list) -> str:
         sec = c.get("section") or c.get("section_path") or "Policy Section"
         pname = c.get("policy_name") or "Policy"
         ver = c.get("version") or "1.0"
-        text = c.get("text", "").strip()
+        text = c.get("text", "").strip()[:700]
         context_blocks.append(f"[{pname} v{ver} - Section: {sec}]:\n{text}")
 
     context_str = "\n\n".join(context_blocks)
@@ -61,14 +62,22 @@ User Question:
 
 Direct Answer:"""
 
-def build_comparison_prompt(policy_name: str, v1_num: str, v1_text: str, v2_num: str, v2_text: str) -> str:
+def build_comparison_prompt(policy_name: str, v1_num: str, v1_text: str, v2_num: str, v2_text: str, diff_summary: Optional[str] = None) -> str:
+    if diff_summary:
+        return f"""Compare Policy '{policy_name}' Version {v1_num} vs Version {v2_num}.
+Synthesize the key changes, additions, and removals clearly and concisely based on the following pre-computed structural diff:
+
+{diff_summary}
+
+Summary of changes:"""
+
     return f"""Compare Policy '{policy_name}' Version {v1_num} vs Version {v2_num}.
 Summarize the key changes, additions, and removals clearly and concisely.
 
 Version {v1_num}:
-{v1_text}
+{v1_text[:700]}
 
 Version {v2_num}:
-{v2_text}
+{v2_text[:700]}
 
 Summary of changes:"""

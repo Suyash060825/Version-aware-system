@@ -10,7 +10,7 @@ Level 4: Local Small LLM Reasoning + Entailment Verification
 import time
 import re
 import logging
-from typing import Optional, List, Dict, Any, Set
+from typing import Optional, List, Dict, Any, Set, Tuple
 
 from models import Policy, PolicyVersion, PolicyStatus
 from rag import metrics
@@ -51,6 +51,8 @@ _STOPWORDS = {
     "from", "that", "this", "our", "you", "your", "will", "shall", "is", "under"
 }
 
+DEFAULT_REFUSAL_MESSAGE = "I could not find sufficient authoritative evidence in the applicable policies."
+
 def extract_grounding_numbers(chunks: List[Dict[str, Any]]) -> Set[str]:
     """Precompute set of numerical tokens across context chunks in a single pass."""
     if not chunks:
@@ -90,7 +92,7 @@ def _extract_best_evidence_context(
 ) -> Optional[str]:
     """
     Multi-sentence contextual evidence synthesis across top ranked chunks.
-    Unified across answer() and stream_answer().
+    Unified single source of truth across answer() and stream_answer().
     """
     if not ranked:
         return None
@@ -128,6 +130,7 @@ def _extract_best_evidence_context(
         return f"According to the {policy_name} (v{version_num}, {top_section}):\n{top_text}"
     return None
 
+
 class QueryEngine:
     def __init__(self, config: Optional[EngineConfig] = None):
         self.config = config or EngineConfig()
@@ -146,184 +149,24 @@ class QueryEngine:
         self.cache = get_cache()
         self.embedder = get_embedder()
 
-    def answer(self, query: str, user=None, session_id: str = None) -> QueryResult:
-        t_start = time.time()
-        
-        # 1. Normalize Query & Fast Authorization Scope
-        normalized_query = self.router.normalize(query)
-        allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
-
-        # Fast temporal cues check (avoids 15 regex patterns for common queries)
-        is_diff = bool(_IS_DIFF_RE.search(normalized_query))
-        has_temporal_cue = is_diff or bool(_HAS_TEMPORAL_CUE_RE.search(normalized_query))
-
-        temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user) if has_temporal_cue else None
-        scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
-
-        # 1.5 Scoped Cache Lookup (L1 Exact Hash -> L2 Semantic Vector)
-        cached = None
-        q_emb = None
-        if self.config.use_cache:
-            cached = self.cache.get(query=normalized_query, scope=scope, is_diff_query=is_diff)
-            if not cached:
-                q_emb = self.embedder.embed_query(normalized_query)
-                cached = self.cache.get(query_embedding=q_emb, scope=scope, is_diff_query=is_diff)
-
-        if cached:
-            metrics.CACHE_HITS.inc()
-            cits = cached.get("citations", [])
-            return QueryResult(
-                answer=cached["answer"],
-                route="CACHE_HIT",
-                confidence=cached.get("confidence", 0.95),
-                citations=cits,
-                policy_versions=[str(cits[0]["version"])] if cits and "version" in cits[0] else [],
-                latency_ms=(time.time() - t_start) * 1000,
-                llm_used=False,
-                retrieval_count=cached.get("chunks_used", 0),
-                reranker_used=False,
-                abstained=False
-            )
-
-        if self.config.use_cache:
-            metrics.CACHE_MISSES.labels(reason="miss").inc()
-
-        # If cache missed and embedding was not yet computed, compute now
-        if q_emb is None:
-            q_emb = self.embedder.embed_query(normalized_query)
-
-        # 1.6 Classify Route on Cache Miss
-        intent, complexity, route_name, meta = self.router.route(normalized_query, pre_normalized=True)
-        if temporal_context is None and (route_name in ("TEMPORAL_COMPARISON", "TEMPORAL") or intent in (Intent.TEMPORAL, Intent.COMPARISON)):
-            temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
-            scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
-            is_diff = (route_name == "TEMPORAL_COMPARISON")
-
-        # 2. Level 0: Fast Structured Fact Path
-        if self.config.use_fact:
-            fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
-            if fact_res.found and fact_res.answer:
-                cits = self.citation_validator.enrich_only(fact_res.citations)
-                if self.config.use_cache:
-                    self.cache.put(q_emb, fact_res.answer, cits, 1, scope=scope, confidence=fact_res.confidence, is_diff_query=is_diff, query=normalized_query)
-                return QueryResult(
-                    answer=fact_res.answer,
-                    route="FAST_PATH_FACT",
-                    confidence=fact_res.confidence,
-                    citations=cits,
-                    policy_versions=[str(cits[0]["version"])] if cits else [],
-                    latency_ms=(time.time() - t_start) * 1000,
-                    llm_used=False,
-                    retrieval_count=1,
-                    reranker_used=False,
-                    abstained=False
-                )
-
-        # 3. Level 1: Precomputed Canonical QA Fast Path (checked reliably when enabled)
-        if self.config.use_qa and not is_diff:
-            qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.80)
-            
-            if qa_match:
-                pol = qa_match.get("policy")
-                ver = qa_match.get("version")
-                # Authoritative entity authorization check if loaded
-                is_auth = True
-                conf_ok = True
-                temp_ok = True
-                if pol:
-                    is_auth = self.evidence_filter.is_authorized_for_policy(scope, pol)
-                    conf_ok = pol.confidentiality in scope.allowed_confidentiality
-                if ver:
-                    temp_ok = (not scope.target_date) or ver.is_valid_for_date(scope.target_date)
-
-                if is_auth and conf_ok and temp_ok:
-                    cits = self.citation_validator.enrich_only(qa_match["citations"])
-                    if cits:
-                        if self.config.use_cache:
-                            self.cache.put(q_emb, qa_match["answer"], cits, 1, scope=scope, confidence=qa_match["confidence"], is_diff_query=is_diff, query=normalized_query)
-                        return QueryResult(
-                            answer=qa_match["answer"],
-                            route="FAST_PATH_COMPILED_QA",
-                            confidence=qa_match["confidence"],
-                            citations=cits,
-                            policy_versions=[str(cits[0]["version"])],
-                            latency_ms=(time.time() - t_start) * 1000,
-                            llm_used=False,
-                            retrieval_count=1,
-                            reranker_used=False,
-                            abstained=False
-                        )
-
-        # 4. Level 3: Version Comparison Path (Strictly Authorized & Scalable)
-        temporal_meta = meta.get("temporal", {})
-        if temporal_meta.get("is_comparison") and temporal_meta.get("version_v1") and temporal_meta.get("version_v2"):
-            v1_num = temporal_meta["version_v1"]
-            v2_num = temporal_meta["version_v2"]
-
-            # Scalable candidate lookup: query only relevant/authorized policies
-            if temporal_context and temporal_context.policy_id:
-                p_query = Policy.query.filter(Policy.id == temporal_context.policy_id)
-            elif scope.allowed_policy_ids is not None:
-                p_query = Policy.query.filter(Policy.id.in_(scope.allowed_policy_ids))
-            else:
-                p_query = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE)
-
-            candidate_policies = p_query.all()
-            q_lower = normalized_query.lower()
-            q_words_long = [w for w in q_lower.split() if len(w) > 3]
-            for p in candidate_policies:
-                p_title_lower = p.title.lower()
-                if p_title_lower in q_lower or any(w in p_title_lower for w in q_words_long):
-                    # SECURITY REQUIREMENT 4: Enforce authorization BEFORE loading comparison versions or computing diff
-                    if not self.evidence_filter.is_authorized_for_policy(scope, p):
-                        continue
-
-                    v1 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, (PolicyVersion.version_num == float(v1_num)) | (PolicyVersion.version_label.ilike(f"%{v1_num}%"))).first()
-                    v2 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, (PolicyVersion.version_num == float(v2_num)) | (PolicyVersion.version_label.ilike(f"%{v2_num}%"))).first()
-                    if v1 and v2:
-                        diff_res = self.diff_engine.compute_diff(v1.content or "", v2.content or "", version_a_id=v1.id, version_b_id=v2.id)
-                        v1_label = v1.version_label or f"v{v1.version_num}"
-                        v2_label = v2.version_label or f"v{v2.version_num}"
-                        diff_summary = f"Comparison of {p.title} {v1_label} vs {v2_label}:\n"
-                        if diff_res.get("added_clauses"):
-                            diff_summary += f"\n- Added ({len(diff_res['added_clauses'])} clauses): " + "; ".join(diff_res['added_clauses'][:3])
-                        if diff_res.get("removed_clauses"):
-                            diff_summary += f"\n- Removed ({len(diff_res['removed_clauses'])} clauses): " + "; ".join(diff_res['removed_clauses'][:3])
-                        if diff_res.get("changed_clauses"):
-                            diff_summary += f"\n- Modified ({len(diff_res['changed_clauses'])} clauses): " + "; ".join(diff_res['changed_clauses'][:3])
-                        if not diff_res.get("added_clauses") and not diff_res.get("removed_clauses") and not diff_res.get("changed_clauses"):
-                            diff_summary += "\nNo structural text differences detected between these two versions."
-                            
-                        cits = self.citation_validator.enrich_only([
-                            {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1},
-                            {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
-                        ])
-                        diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
-                        comparison_evidence_score = 0.85 if diff_clauses > 0 else 0.80
-
-                        if self.config.use_cache:
-                            self.cache.put(q_emb, diff_summary, cits, 2, scope=scope, confidence=comparison_evidence_score, is_diff_query=True, query=normalized_query)
-                        return QueryResult(
-                            answer=diff_summary,
-                            route="TEMPORAL_COMPARISON",
-                            confidence=comparison_evidence_score,
-                            citations=cits,
-                            policy_versions=[str(v1.version_num), str(v2.version_num)],
-                            latency_ms=(time.time() - t_start) * 1000,
-                            llm_used=False,
-                            retrieval_count=2,
-                            reranker_used=False,
-                            abstained=False
-                        )
-
-        # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering
-        filters = {}
+    def _build_retrieval_filters(
+        self,
+        scope: QueryScope,
+        temporal_context: Any,
+        has_temporal_cue: bool,
+        is_diff: bool
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Builds authorization and temporal pre-filters for hybrid retrieval.
+        Returns None if authorization is impossible (fail-closed).
+        """
+        filters: Dict[str, Any] = {}
         if scope.allowed_policy_ids is not None:
             if len(scope.allowed_policy_ids) == 0:
-                return QueryResult.abstained("I could not find sufficient authoritative evidence in the applicable policies.", (time.time() - t_start) * 1000)
+                return None
             if temporal_context and temporal_context.policy_id:
                 if temporal_context.policy_id not in scope.allowed_policy_ids:
-                    return QueryResult.abstained("I could not find sufficient authoritative evidence in the applicable policies.", (time.time() - t_start) * 1000)
+                    return None
                 filters["policy_id"] = temporal_context.policy_id
             else:
                 filters["policy_id"] = list(scope.allowed_policy_ids)
@@ -339,16 +182,27 @@ class QueryEngine:
             elif not has_temporal_cue and not is_diff:
                 filters["is_active"] = True
 
+        return filters
+
+    def _retrieve_and_rank(
+        self,
+        normalized_query: str,
+        q_emb: List[float],
+        scope: QueryScope,
+        filters: Dict[str, Any]
+    ) -> Optional[Tuple[List[Dict[str, Any]], str, Any, List[Dict[str, Any]]]]:
+        """
+        Shared retrieval, authorization filtering, cross-encoder reranking,
+        confidence scoring, and citation extraction.
+        Returns (ranked_chunks, score_type, conf, citations) or None if evidence absent.
+        """
         with metrics.RETRIEVAL_LATENCY.time():
             raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50, query_embedding=q_emb)
-        
-        # 6. Authorization Filtering using unified QueryScope
-        authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
-        
-        if not authorized_candidates:
-            return QueryResult.abstained("I could not find sufficient authoritative evidence in the applicable policies.", (time.time() - t_start) * 1000)
 
-        # 7. CrossEncoder Precision Reranking
+        authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
+        if not authorized_candidates:
+            return None
+
         if self.config.use_rerank:
             with metrics.RERANK_LATENCY.time():
                 ranked = self.reranker.rank(normalized_query, authorized_candidates, top_k=min(len(authorized_candidates), self.config.rerank_top_k))
@@ -361,7 +215,6 @@ class QueryEngine:
             ranked = authorized_candidates[:8]
             score_type = "rrf"
 
-        # 8. Multi-Factor Confidence Scoring
         evidence = EvidencePack(
             query=normalized_query,
             route="HYBRID_RAG",
@@ -369,10 +222,7 @@ class QueryEngine:
             scores=[c.get("rerank_score", c.get("hybrid_score", 0.5)) for c in ranked],
             score_type=score_type
         )
-        
         conf = self.confidence_engine.score(normalized_query, evidence)
-        if self.config.use_confidence_gate and conf.abstain:
-            return QueryResult.abstained("I could not find sufficient authoritative evidence in the applicable policies.", (time.time() - t_start) * 1000)
 
         # Build clean citations deduplicated by (policy_id, section)
         seen_cit_keys = set()
@@ -403,12 +253,239 @@ class QueryEngine:
                 break
         citations = self.citation_validator.validate_and_enrich(raw_cits, scope=scope)
 
+        return ranked, score_type, conf, citations
+
+    def _run_version_comparison(
+        self,
+        normalized_query: str,
+        meta: Dict[str, Any],
+        temporal_context: Any,
+        scope: QueryScope,
+        q_emb: Optional[List[float]] = None
+    ) -> Optional[Tuple[str, List[Dict[str, Any]], float, List[str]]]:
+        """
+        Shared Level 3 version comparison execution across answer() and stream_answer().
+        Returns (diff_summary, citations, confidence_score, policy_versions) or None.
+        """
+        temporal_meta = meta.get("temporal", {})
+        if not (temporal_meta.get("is_comparison") and temporal_meta.get("version_v1") and temporal_meta.get("version_v2")):
+            return None
+
+        v1_num = temporal_meta["version_v1"]
+        v2_num = temporal_meta["version_v2"]
+
+        if temporal_context and temporal_context.policy_id:
+            p_query = Policy.query.filter(Policy.id == temporal_context.policy_id)
+        elif scope.allowed_policy_ids is not None:
+            p_query = Policy.query.filter(Policy.id.in_(scope.allowed_policy_ids))
+        else:
+            p_query = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE)
+
+        candidate_policies = p_query.all()
+        q_lower = normalized_query.lower()
+        q_words_long = [w for w in q_lower.split() if len(w) > 3]
+
+        for p in candidate_policies:
+            p_title_lower = p.title.lower()
+            if p_title_lower in q_lower or any(w in p_title_lower for w in q_words_long):
+                if not self.evidence_filter.is_authorized_for_policy(scope, p):
+                    continue
+
+                v1 = PolicyVersion.query.filter(
+                    PolicyVersion.policy_id == p.id,
+                    (PolicyVersion.version_num == float(v1_num)) | (PolicyVersion.version_label.ilike(f"%{v1_num}%"))
+                ).first()
+                v2 = PolicyVersion.query.filter(
+                    PolicyVersion.policy_id == p.id,
+                    (PolicyVersion.version_num == float(v2_num)) | (PolicyVersion.version_label.ilike(f"%{v2_num}%"))
+                ).first()
+
+                if v1 and v2:
+                    diff_res = self.diff_engine.compute_diff(v1.content or "", v2.content or "", version_a_id=v1.id, version_b_id=v2.id)
+                    v1_label = v1.version_label or f"v{v1.version_num}"
+                    v2_label = v2.version_label or f"v{v2.version_num}"
+                    diff_summary = f"Comparison of {p.title} {v1_label} vs {v2_label}:\n"
+                    if diff_res.get("added_clauses"):
+                        diff_summary += f"\n- Added ({len(diff_res['added_clauses'])} clauses): " + "; ".join(diff_res['added_clauses'][:3])
+                    if diff_res.get("removed_clauses"):
+                        diff_summary += f"\n- Removed ({len(diff_res['removed_clauses'])} clauses): " + "; ".join(diff_res['removed_clauses'][:3])
+                    if diff_res.get("changed_clauses"):
+                        diff_summary += f"\n- Modified ({len(diff_res['changed_clauses'])} clauses): " + "; ".join(diff_res['changed_clauses'][:3])
+                    if not diff_res.get("added_clauses") and not diff_res.get("removed_clauses") and not diff_res.get("changed_clauses"):
+                        diff_summary += "\nNo structural text differences detected between these two versions."
+
+                    cits = self.citation_validator.enrich_only([
+                        {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1},
+                        {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
+                    ])
+
+                    diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
+                    comparison_evidence_score = 0.85 if diff_clauses > 0 else 0.80
+
+                    if self.config.use_cache:
+                        self.cache.put(q_emb, diff_summary, cits, 2, scope=scope, confidence=comparison_evidence_score, is_diff_query=True, query=normalized_query)
+
+                    return diff_summary, cits, comparison_evidence_score, [str(v1.version_num), str(v2.version_num)]
+
+        return None
+
+    def answer(self, query: str, user=None, session_id: str = None) -> QueryResult:
+        t_start = time.time()
+        
+        # 1. Normalize Query & Fast Authorization Scope
+        normalized_query = self.router.normalize(query)
+        allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
+
+        # Fast temporal cues check
+        is_diff = bool(_IS_DIFF_RE.search(normalized_query))
+        has_temporal_cue = is_diff or bool(_HAS_TEMPORAL_CUE_RE.search(normalized_query))
+
+        temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user) if has_temporal_cue else None
+        scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
+
+        # 1.5 Scoped L1 Exact Match Cache Lookup (Sub-millisecond, zero embedding needed)
+        cached = None
+        if self.config.use_cache:
+            cached = self.cache.get(query=normalized_query, scope=scope, is_diff_query=is_diff)
+
+        if cached:
+            metrics.CACHE_HITS.inc()
+            cits = cached.get("citations", [])
+            return QueryResult(
+                answer=cached["answer"],
+                route="CACHE_HIT",
+                confidence=cached.get("confidence", 0.95),
+                citations=cits,
+                policy_versions=[str(cits[0]["version"])] if cits and "version" in cits[0] else [],
+                latency_ms=(time.time() - t_start) * 1000,
+                llm_used=False,
+                retrieval_count=cached.get("chunks_used", 0),
+                reranker_used=False,
+                abstained=False,
+                model=cached.get("model", "semantic-cache")
+            )
+
+        # 1.6 Classify Route BEFORE embedding (F1)
+        intent, complexity, route_name, meta = self.router.route(normalized_query, pre_normalized=True)
+        if temporal_context is None and (route_name in ("TEMPORAL_COMPARISON", "TEMPORAL") or intent in (Intent.TEMPORAL, Intent.COMPARISON)):
+            temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
+            scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
+            is_diff = (route_name == "TEMPORAL_COMPARISON")
+
+        # 2. Level 0: Fast Structured Fact Path (Zero embedding needed!)
+        if self.config.use_fact:
+            fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
+            if fact_res.found and fact_res.answer:
+                cits = self.citation_validator.enrich_only(fact_res.citations)
+                if self.config.use_cache:
+                    self.cache.put(None, fact_res.answer, cits, 1, scope=scope, confidence=fact_res.confidence, is_diff_query=is_diff, query=normalized_query)
+                return QueryResult(
+                    answer=fact_res.answer,
+                    route="FAST_PATH_FACT",
+                    confidence=fact_res.confidence,
+                    citations=cits,
+                    policy_versions=[str(cits[0]["version"])] if cits else [],
+                    latency_ms=(time.time() - t_start) * 1000,
+                    llm_used=False,
+                    retrieval_count=1,
+                    reranker_used=False,
+                    abstained=False,
+                    model="fact-engine"
+                )
+
+        # Fact path missed. NOW embed query for L2 vector cache, QA ANN search, and Hybrid retrieval (F1)
+        q_emb = self.embedder.embed_query(normalized_query)
+        if self.config.use_cache:
+            cached = self.cache.get(query_embedding=q_emb, scope=scope, is_diff_query=is_diff)
+            if cached:
+                metrics.CACHE_HITS.inc()
+                cits = cached.get("citations", [])
+                return QueryResult(
+                    answer=cached["answer"],
+                    route="CACHE_HIT",
+                    confidence=cached.get("confidence", 0.95),
+                    citations=cits,
+                    policy_versions=[str(cits[0]["version"])] if cits and "version" in cits[0] else [],
+                    latency_ms=(time.time() - t_start) * 1000,
+                    llm_used=False,
+                    retrieval_count=cached.get("chunks_used", 0),
+                    reranker_used=False,
+                    abstained=False,
+                    model=cached.get("model", "semantic-cache")
+                )
+            metrics.CACHE_MISSES.labels(reason="miss").inc()
+
+        # 3. Level 1: Precomputed Canonical QA Fast Path
+        if self.config.use_qa and not is_diff:
+            qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.80)
+            if qa_match:
+                pol = qa_match.get("policy")
+                ver = qa_match.get("version")
+                is_auth = True
+                conf_ok = True
+                temp_ok = True
+                if pol:
+                    is_auth = self.evidence_filter.is_authorized_for_policy(scope, pol)
+                    conf_ok = pol.confidentiality in scope.allowed_confidentiality
+                if ver:
+                    temp_ok = (not scope.target_date) or ver.is_valid_for_date(scope.target_date)
+
+                if is_auth and conf_ok and temp_ok:
+                    cits = self.citation_validator.enrich_only(qa_match["citations"])
+                    if cits:
+                        if self.config.use_cache:
+                            self.cache.put(q_emb, qa_match["answer"], cits, 1, scope=scope, confidence=qa_match["confidence"], is_diff_query=is_diff, query=normalized_query)
+                        return QueryResult(
+                            answer=qa_match["answer"],
+                            route="FAST_PATH_COMPILED_QA",
+                            confidence=qa_match["confidence"],
+                            citations=cits,
+                            policy_versions=[str(cits[0]["version"])],
+                            latency_ms=(time.time() - t_start) * 1000,
+                            llm_used=False,
+                            retrieval_count=1,
+                            reranker_used=False,
+                            abstained=False,
+                            model="precompiled-qa"
+                        )
+
+        # 4. Level 3: Version Comparison Path (F3 shared helper)
+        comp_res = self._run_version_comparison(normalized_query, meta, temporal_context, scope, q_emb=q_emb)
+        if comp_res:
+            diff_summary, cits, comp_conf, p_versions = comp_res
+            return QueryResult(
+                answer=diff_summary,
+                route="TEMPORAL_COMPARISON",
+                confidence=comp_conf,
+                citations=cits,
+                policy_versions=p_versions,
+                latency_ms=(time.time() - t_start) * 1000,
+                llm_used=False,
+                retrieval_count=2,
+                reranker_used=False,
+                abstained=False,
+                model="diff-engine"
+            )
+
+        # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering (F3 shared helper)
+        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff)
+        if filters is None:
+            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000)
+
+        retrieval_pack = self._retrieve_and_rank(normalized_query, q_emb, scope, filters)
+        if not retrieval_pack:
+            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000)
+
+        ranked, score_type, conf, citations = retrieval_pack
+
+        if self.config.use_confidence_gate and conf.abstain:
+            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000)
+
         # 9. Answer Generation: Grounded Evidence Extraction vs Local LLM
         ctx_nums = extract_grounding_numbers(ranked[:5])
         llm_used = False
         final_answer = None
 
-        # Try LLM generation first when available
         if self.llm.health_check():
             try:
                 llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:5])
@@ -431,11 +508,11 @@ class QueryEngine:
         if not final_answer:
             final_answer = _extract_best_evidence_context(normalized_query, ranked, citations)
             if not final_answer:
-                return QueryResult.abstained("I could not find sufficient authoritative evidence to answer this specific question.", (time.time() - t_start) * 1000)
+                return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000)
 
-        # Cache successful verified answer preserving exact confidence score
+        # Cache successful verified answer (F8: both query string and embedding always passed)
         if self.config.use_cache:
-            self.cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3", confidence=conf.value, is_diff_query=is_diff, query=normalized_query)
+            self.cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3" if llm_used else "deterministic-rag", confidence=conf.value, is_diff_query=is_diff, query=normalized_query)
 
         return QueryResult(
             answer=final_answer,
@@ -447,15 +524,17 @@ class QueryEngine:
             llm_used=llm_used,
             retrieval_count=len(ranked),
             reranker_used=self.config.use_rerank,
-            abstained=False
+            abstained=False,
+            model="qwen3" if llm_used else "deterministic-rag"
         )
 
     def stream_answer(self, query: str, user=None, session_id: str = None):
         """
-        True streaming generator yielding token events in real time and final result metadata for SSE.
+        Token-by-token streaming response generator for low-latency interactive UI chat.
+        Implements identical multi-tier routing, security, and verified fallback.
         """
         t_start = time.time()
-        
+
         # 1. Normalize Query & Fast Authorization Scope
         normalized_query = self.router.normalize(query)
         allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
@@ -467,14 +546,10 @@ class QueryEngine:
         temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user) if has_temporal_cue else None
         scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
 
-        # 1.5 Scoped Cache Lookup (L1 Exact Hash -> L2 Semantic Vector)
+        # 1.5 Scoped L1 Exact Match Cache Lookup (Sub-millisecond, zero embedding needed)
         cached = None
-        q_emb = None
         if self.config.use_cache:
             cached = self.cache.get(query=normalized_query, scope=scope, is_diff_query=is_diff)
-            if not cached:
-                q_emb = self.embedder.embed_query(normalized_query)
-                cached = self.cache.get(query_embedding=q_emb, scope=scope, is_diff_query=is_diff)
 
         if cached:
             metrics.CACHE_HITS.inc()
@@ -494,32 +569,25 @@ class QueryEngine:
                     "llm_used": False,
                     "latency_ms": (time.time() - t_start) * 1000,
                     "fallback": False,
-                    "model": "semantic-cache"
+                    "model": cached.get("model", "semantic-cache")
                 }
             }
             return
 
-        if self.config.use_cache:
-            metrics.CACHE_MISSES.labels(reason="miss").inc()
-
-        # If cache missed and embedding was not yet computed, compute now
-        if q_emb is None:
-            q_emb = self.embedder.embed_query(normalized_query)
-
-        # 1.6 Classify Route on Cache Miss
+        # 1.6 Classify Route BEFORE embedding (F1)
         intent, complexity, route_name, meta = self.router.route(normalized_query, pre_normalized=True)
         if temporal_context is None and (route_name in ("TEMPORAL_COMPARISON", "TEMPORAL") or intent in (Intent.TEMPORAL, Intent.COMPARISON)):
             temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
             scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
             is_diff = (route_name == "TEMPORAL_COMPARISON")
 
-        # 2. Level 0: Fast Structured Fact Path
+        # 2. Level 0: Fast Structured Fact Path (Zero embedding needed!)
         if self.config.use_fact:
             fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
             if fact_res.found and fact_res.answer:
                 cits = self.citation_validator.enrich_only(fact_res.citations)
                 if self.config.use_cache:
-                    self.cache.put(q_emb, fact_res.answer, cits, 1, scope=scope, confidence=fact_res.confidence, is_diff_query=is_diff, query=normalized_query)
+                    self.cache.put(None, fact_res.answer, cits, 1, scope=scope, confidence=fact_res.confidence, is_diff_query=is_diff, query=normalized_query)
                 words = fact_res.answer.split(" ")
                 for i, word in enumerate(words):
                     chunk = word if i == len(words) - 1 else word + " "
@@ -539,10 +607,37 @@ class QueryEngine:
                 }
                 return
 
+        # Fact path missed. NOW embed query for L2 vector cache, QA ANN search, and Hybrid retrieval (F1)
+        q_emb = self.embedder.embed_query(normalized_query)
+        if self.config.use_cache:
+            cached = self.cache.get(query_embedding=q_emb, scope=scope, is_diff_query=is_diff)
+            if cached:
+                metrics.CACHE_HITS.inc()
+                cits = cached.get("citations", [])
+                words = cached["answer"].split(" ")
+                for i, word in enumerate(words):
+                    chunk = word if i == len(words) - 1 else word + " "
+                    yield {"type": "token", "token": chunk}
+                conf_val = cached.get("confidence", 0.95)
+                yield {
+                    "type": "done",
+                    "result": {
+                        "answer": cached["answer"],
+                        "citations": cits,
+                        "confidence": conf_val,
+                        "route": "CACHE_HIT",
+                        "llm_used": False,
+                        "latency_ms": (time.time() - t_start) * 1000,
+                        "fallback": False,
+                        "model": cached.get("model", "semantic-cache")
+                    }
+                }
+                return
+            metrics.CACHE_MISSES.labels(reason="miss").inc()
+
         # 3. Level 1: Precomputed Canonical QA Fast Path
         if self.config.use_qa and not is_diff:
             qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.80)
-            
             if qa_match:
                 pol = qa_match.get("policy")
                 ver = qa_match.get("version")
@@ -579,144 +674,39 @@ class QueryEngine:
                         }
                         return
 
-        # 4. Level 3: Version Comparison Path (Strictly Authorized & Scalable)
-        temporal_meta = meta.get("temporal", {})
-        if temporal_meta.get("is_comparison") and temporal_meta.get("version_v1") and temporal_meta.get("version_v2"):
-            v1_num = temporal_meta["version_v1"]
-            v2_num = temporal_meta["version_v2"]
-
-            # Scalable candidate lookup: query only relevant/authorized policies
-            if temporal_context and temporal_context.policy_id:
-                p_query = Policy.query.filter(Policy.id == temporal_context.policy_id)
-            elif scope.allowed_policy_ids is not None:
-                p_query = Policy.query.filter(Policy.id.in_(scope.allowed_policy_ids))
-            else:
-                p_query = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE)
-
-            candidate_policies = p_query.all()
-            q_lower = normalized_query.lower()
-            q_words_long = [w for w in q_lower.split() if len(w) > 3]
-            for p in candidate_policies:
-                p_title_lower = p.title.lower()
-                if p_title_lower in q_lower or any(w in p_title_lower for w in q_words_long):
-                    # SECURITY: Enforce authorization BEFORE loading comparison versions or computing diff
-                    if not self.evidence_filter.is_authorized_for_policy(scope, p):
-                        continue
-
-                    v1 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, (PolicyVersion.version_num == float(v1_num)) | (PolicyVersion.version_label.ilike(f"%{v1_num}%"))).first()
-                    v2 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, (PolicyVersion.version_num == float(v2_num)) | (PolicyVersion.version_label.ilike(f"%{v2_num}%"))).first()
-                    if v1 and v2:
-                        diff_res = self.diff_engine.compute_diff(v1.content or "", v2.content or "", version_a_id=v1.id, version_b_id=v2.id)
-                        v1_label = v1.version_label or f"v{v1.version_num}"
-                        v2_label = v2.version_label or f"v{v2.version_num}"
-                        diff_summary = f"Comparison of {p.title} {v1_label} vs {v2_label}:\n"
-                        if diff_res.get("added_clauses"):
-                            diff_summary += f"\n- Added ({len(diff_res['added_clauses'])} clauses): " + "; ".join(diff_res['added_clauses'][:3])
-                        if diff_res.get("removed_clauses"):
-                            diff_summary += f"\n- Removed ({len(diff_res['removed_clauses'])} clauses): " + "; ".join(diff_res['removed_clauses'][:3])
-                        if diff_res.get("changed_clauses"):
-                            diff_summary += f"\n- Modified ({len(diff_res['changed_clauses'])} clauses): " + "; ".join(diff_res['changed_clauses'][:3])
-                        if not diff_res.get("added_clauses") and not diff_res.get("removed_clauses") and not diff_res.get("changed_clauses"):
-                            diff_summary += "\nNo structural text differences detected between these two versions."
-                            
-                        cits = self.citation_validator.enrich_only([
-                            {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1},
-                            {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
-                        ])
-
-                        diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
-                        comparison_evidence_score = 0.85 if diff_clauses > 0 else 0.80
-
-                        if self.config.use_cache:
-                            self.cache.put(q_emb, diff_summary, cits, 2, scope=scope, confidence=comparison_evidence_score, is_diff_query=True, query=normalized_query)
-
-                        words = diff_summary.split(" ")
-                        for i, word in enumerate(words):
-                            chunk = word if i == len(words) - 1 else word + " "
-                            yield {"type": "token", "token": chunk}
-                        yield {
-                            "type": "done",
-                            "result": {
-                                "answer": diff_summary,
-                                "citations": cits,
-                                "confidence": comparison_evidence_score,
-                                "route": "TEMPORAL_COMPARISON",
-                                "llm_used": False,
-                                "latency_ms": (time.time() - t_start) * 1000,
-                                "fallback": False,
-                                "model": "diff-engine"
-                            }
-                        }
-                        return
-
-        # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering
-        filters = {}
-        if scope.allowed_policy_ids is not None:
-            if len(scope.allowed_policy_ids) == 0:
-                refusal = "I could not find sufficient authoritative evidence in the applicable policies."
-                yield {"type": "token", "token": refusal}
-                yield {
-                    "type": "done",
-                    "result": {
-                        "answer": refusal,
-                        "citations": [],
-                        "confidence": 0,
-                        "route": "REFUSAL",
-                        "llm_used": False,
-                        "latency_ms": (time.time() - t_start) * 1000,
-                        "fallback": True,
-                        "model": "retrieval-filter"
-                    }
-                }
-                return
-            if temporal_context and temporal_context.policy_id:
-                if temporal_context.policy_id not in scope.allowed_policy_ids:
-                    refusal = "I could not find sufficient authoritative evidence in the applicable policies."
-                    yield {"type": "token", "token": refusal}
-                    yield {
-                        "type": "done",
-                        "result": {
-                            "answer": refusal,
-                            "citations": [],
-                            "confidence": 0,
-                            "route": "REFUSAL",
-                            "llm_used": False,
-                            "latency_ms": (time.time() - t_start) * 1000,
-                            "fallback": True,
-                            "model": "retrieval-filter"
-                        }
-                    }
-                    return
-                filters["policy_id"] = temporal_context.policy_id
-            else:
-                filters["policy_id"] = list(scope.allowed_policy_ids)
-        elif temporal_context and temporal_context.policy_id:
-            filters["policy_id"] = temporal_context.policy_id
-
-        if self.config.use_temporal_filter:
-            if scope.target_date:
-                from datetime import datetime, time as dt_time
-                target_ts = int(datetime.combine(scope.target_date, dt_time.min).timestamp())
-                filters["valid_from_ts"] = {"$lte": target_ts}
-                filters["valid_to_ts"] = {"$gte": target_ts}
-            elif not has_temporal_cue and not is_diff:
-                filters["is_active"] = True
-
-        with metrics.RETRIEVAL_LATENCY.time():
-            raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50, query_embedding=q_emb)
-        
-        # 6. Authorization Filtering using unified QueryScope
-        authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
-        
-        if not authorized_candidates:
-            refusal = "I could not find sufficient authoritative evidence in the applicable policies."
-            yield {"type": "token", "token": refusal}
+        # 4. Level 3: Version Comparison Path (F3 shared helper)
+        comp_res = self._run_version_comparison(normalized_query, meta, temporal_context, scope, q_emb=q_emb)
+        if comp_res:
+            diff_summary, cits, comp_conf, p_versions = comp_res
+            words = diff_summary.split(" ")
+            for i, word in enumerate(words):
+                chunk = word if i == len(words) - 1 else word + " "
+                yield {"type": "token", "token": chunk}
             yield {
                 "type": "done",
                 "result": {
-                    "answer": refusal,
+                    "answer": diff_summary,
+                    "citations": cits,
+                    "confidence": comp_conf,
+                    "route": "TEMPORAL_COMPARISON",
+                    "llm_used": False,
+                    "latency_ms": (time.time() - t_start) * 1000,
+                    "fallback": False,
+                    "model": "diff-engine"
+                }
+            }
+            return
+
+        # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering (F3 shared helper)
+        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff)
+        if filters is None:
+            yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
+            yield {
+                "type": "done",
+                "result": {
+                    "answer": DEFAULT_REFUSAL_MESSAGE,
                     "citations": [],
-                    "confidence": 0,
+                    "confidence": 0.0,
                     "route": "REFUSAL",
                     "llm_used": False,
                     "latency_ms": (time.time() - t_start) * 1000,
@@ -726,36 +716,32 @@ class QueryEngine:
             }
             return
 
-        # 7. CrossEncoder Precision Reranking
-        if self.config.use_rerank:
-            with metrics.RERANK_LATENCY.time():
-                ranked = self.reranker.rank(normalized_query, authorized_candidates, top_k=min(len(authorized_candidates), self.config.rerank_top_k))
-            score_type = "rerank_prob"
-        else:
-            ranked = authorized_candidates[:min(len(authorized_candidates), self.config.rerank_top_k)]
-            score_type = "rrf"
-
-        if not ranked:
-            ranked = authorized_candidates[:8]
-            score_type = "rrf"
-
-        # 8. Multi-Factor Confidence Scoring
-        evidence = EvidencePack(
-            query=normalized_query,
-            route="HYBRID_RAG",
-            chunks=ranked,
-            scores=[c.get("rerank_score", c.get("hybrid_score", 0.5)) for c in ranked],
-            score_type=score_type
-        )
-        
-        conf = self.confidence_engine.score(normalized_query, evidence)
-        if self.config.use_confidence_gate and conf.abstain:
-            refusal = "I could not find sufficient authoritative evidence in the applicable policies."
-            yield {"type": "token", "token": refusal}
+        retrieval_pack = self._retrieve_and_rank(normalized_query, q_emb, scope, filters)
+        if not retrieval_pack:
+            yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
             yield {
                 "type": "done",
                 "result": {
-                    "answer": refusal,
+                    "answer": DEFAULT_REFUSAL_MESSAGE,
+                    "citations": [],
+                    "confidence": 0.0,
+                    "route": "REFUSAL",
+                    "llm_used": False,
+                    "latency_ms": (time.time() - t_start) * 1000,
+                    "fallback": True,
+                    "model": "retrieval-filter"
+                }
+            }
+            return
+
+        ranked, score_type, conf, citations = retrieval_pack
+
+        if self.config.use_confidence_gate and conf.abstain:
+            yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
+            yield {
+                "type": "done",
+                "result": {
+                    "answer": DEFAULT_REFUSAL_MESSAGE,
                     "citations": [],
                     "confidence": conf.value,
                     "route": "ABSTAIN",
@@ -767,39 +753,11 @@ class QueryEngine:
             }
             return
 
-        # Build clean citations deduplicated by (policy_id, section)
-        seen_cit_keys = set()
-        raw_cits = []
-        for c in ranked:
-            p_id = c.get("policy_id")
-            try:
-                p_id_int = int(p_id) if p_id is not None else None
-            except (ValueError, TypeError):
-                p_id_int = None
-            if not p_id_int or p_id_int <= 0:
-                continue
-            sec = c.get("section") or c.get("section_path") or "General"
-            cit_key = (p_id_int, sec)
-            if cit_key in seen_cit_keys:
-                continue
-            seen_cit_keys.add(cit_key)
-            raw_cits.append({
-                "chunk_id": c.get("chunk_id") or c.get("id"),
-                "policy_id": p_id_int,
-                "version_id": c.get("version_id"),
-                "policy_name": c.get("policy_name", "Policy"),
-                "version": c.get("version", "1.0"),
-                "section": sec,
-                "page": c.get("page", 1)
-            })
-            if len(raw_cits) >= 5:
-                break
-        citations = self.citation_validator.validate_and_enrich(raw_cits, scope=scope)
-
-        # 9. Real-time Streaming Generation
+        # 9. Real-time Streaming Generation (F2: buffer tokens until verified)
         ctx_nums = extract_grounding_numbers(ranked[:5])
         llm_used = False
         full_answer = ""
+        # F5: health_check called once in stream_answer
         llm_available = self.llm.health_check()
         
         if complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL and llm_available:
@@ -810,7 +768,12 @@ class QueryEngine:
                     if token:
                         token_buffer.append(token)
                 candidate_text = "".join(token_buffer).strip()
-                if candidate_text and verify_numeric_grounding(candidate_text, ctx_nums):
+                if (
+                    candidate_text
+                    and candidate_text != "INSUFFICIENT_EVIDENCE"
+                    and not candidate_text.startswith("INSUFFICIENT_EVIDENCE")
+                    and verify_numeric_grounding(candidate_text, ctx_nums)
+                ):
                     for token in token_buffer:
                         yield {"type": "token", "token": token}
                     full_answer = candidate_text
@@ -820,8 +783,10 @@ class QueryEngine:
                         metrics.GROUNDING_REJECTIONS.inc()
                     full_answer = ""
             except Exception as e:
+                logger.warning(f"Streaming LLM failure: {e}. Falling back to deterministic context.")
                 full_answer = ""
 
+        # Deterministic Grounded Fallback if LLM rejected or unavailable
         if not full_answer.strip():
             full_answer = _extract_best_evidence_context(normalized_query, ranked, citations)
             if full_answer:
@@ -830,12 +795,11 @@ class QueryEngine:
                     chunk = word if i == len(words) - 1 else word + " "
                     yield {"type": "token", "token": chunk}
             else:
-                refusal = "I could not find sufficient authoritative evidence to answer this specific question."
-                yield {"type": "token", "token": refusal}
+                yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
                 yield {
                     "type": "done",
                     "result": {
-                        "answer": refusal,
+                        "answer": DEFAULT_REFUSAL_MESSAGE,
                         "citations": [],
                         "confidence": conf.value,
                         "route": "ABSTAIN",
@@ -847,10 +811,11 @@ class QueryEngine:
                 }
                 return
 
-        # Cache successful verified answer preserving confidence score
+        # Cache successful verified answer (F8: always pass both query string and embedding)
         if self.config.use_cache:
             self.cache.put(q_emb, full_answer, citations, len(ranked), scope=scope, model="qwen3" if llm_used else "deterministic-rag", confidence=conf.value, is_diff_query=is_diff, query=normalized_query)
 
+        # F9: done event carries model field
         yield {
             "type": "done",
             "result": {
@@ -860,12 +825,13 @@ class QueryEngine:
                 "route": "HYBRID_RAG",
                 "llm_used": llm_used,
                 "latency_ms": (time.time() - t_start) * 1000,
-                "fallback": False,
+                "fallback": not llm_used,
                 "model": "qwen3" if llm_used else "deterministic-rag"
             }
         }
 
 _ENGINE = None
+
 def get_query_engine(config: Optional[EngineConfig] = None) -> QueryEngine:
     global _ENGINE
     if config is not None:

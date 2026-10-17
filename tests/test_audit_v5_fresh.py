@@ -27,8 +27,9 @@ def test_qwen_provider_singleton():
     p1 = get_qwen_provider()
     p2 = get_qwen_provider()
     assert p1 is p2
-    # Verify positive health check TTL is 30s
-    assert p1.negative_cache_window == 30
+    # Verify positive health check TTL is 60s and negative cache window is 45s
+    assert p1.negative_cache_window == 45.0
+    assert p1.positive_cache_window == 60.0
 
 def test_semantic_cache_no_defaultdict_mutation_on_miss():
     cache = get_cache()
@@ -106,3 +107,44 @@ def test_self_healing_safe_execution_no_crash():
     with app.app_context():
         # Call with nonexistent message ID - must gracefully exit without crash
         trigger_self_healing(99999999)
+
+def test_think_tag_state_machine():
+    from rag.generation.provider import _suppress_think_tags
+    stream = iter(["<th", "ink>internal reasoning</th", "ink>Actual answer"])
+    result = "".join(list(_suppress_think_tags(stream)))
+    assert result == "Actual answer"
+
+    stream2 = iter(["Hello <", "think>secret</think>World"])
+    result2 = "".join(list(_suppress_think_tags(stream2)))
+    assert result2 == "Hello World"
+
+def test_prompt_chunk_cap_and_diff_summary():
+    from rag.generation.prompts import build_grounded_qa_prompt, build_streaming_qa_prompt, build_comparison_prompt
+    long_text = "A" * 1500
+    p1 = build_grounded_qa_prompt("What is leave?", [{"text": long_text}])
+    assert len(long_text[:700]) == 700
+    assert "A" * 701 not in p1
+
+    p2 = build_streaming_qa_prompt("What is leave?", [{"text": long_text}])
+    assert "A" * 701 not in p2
+
+    p3 = build_comparison_prompt("Travel Policy", "1.0", "v1 content", "2.0", "v2 content", diff_summary="- Added 5 days")
+    assert "- Added 5 days" in p3
+    assert "pre-computed structural diff" in p3
+
+def test_abstained_refusal_single_preamble():
+    from rag.engine.query_result import QueryResult
+    res = QueryResult.abstained("I could not find sufficient authoritative evidence in the applicable policies.", 10.0)
+    assert res.answer == "I could not find sufficient authoritative evidence in the applicable policies."
+    assert "Reason: I could not" not in res.answer
+
+def test_ablation_safe_singleton():
+    from rag.engine.query_engine import get_query_engine, EngineConfig
+    e1 = get_query_engine()
+    e2 = get_query_engine()
+    assert e1 is e2
+    # Custom ablation config must return a fresh instance
+    cfg = EngineConfig(use_fact=False)
+    e3 = get_query_engine(config=cfg)
+    assert e3 is not e1
+    assert e3.config.use_fact is False

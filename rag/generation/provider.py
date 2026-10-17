@@ -5,9 +5,71 @@ Abstract LocalLLMProvider interface with unified factory.
 import os
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Iterator
 
 logger = logging.getLogger("rag.generation.provider")
+
+def _suppress_think_tags(token_stream: Iterator[str]) -> Iterator[str]:
+    """
+    Robust state machine that suppresses everything inside <think>...</think>,
+    carrying residual substrings across token boundaries.
+    """
+    in_think = False
+    buffer = ""
+    start_tag = "<think>"
+    end_tag = "</think>"
+
+    for token in token_stream:
+        buffer += token
+        while buffer:
+            if not in_think:
+                start_idx = buffer.find(start_tag)
+                if start_idx != -1:
+                    pre = buffer[:start_idx]
+                    if pre:
+                        yield pre
+                    buffer = buffer[start_idx + len(start_tag):]
+                    in_think = True
+                    continue
+
+                matched_prefix_len = 0
+                for plen in range(min(len(buffer), len(start_tag) - 1), 0, -1):
+                    if start_tag.startswith(buffer[-plen:]):
+                        matched_prefix_len = plen
+                        break
+
+                if matched_prefix_len > 0:
+                    emit = buffer[:-matched_prefix_len]
+                    if emit:
+                        yield emit
+                    buffer = buffer[-matched_prefix_len:]
+                    break
+                else:
+                    yield buffer
+                    buffer = ""
+                    break
+            else:
+                end_idx = buffer.find(end_tag)
+                if end_idx != -1:
+                    buffer = buffer[end_idx + len(end_tag):]
+                    in_think = False
+                    continue
+
+                matched_prefix_len = 0
+                for plen in range(min(len(buffer), len(end_tag) - 1), 0, -1):
+                    if end_tag.startswith(buffer[-plen:]):
+                        matched_prefix_len = plen
+                        break
+
+                if matched_prefix_len > 0:
+                    buffer = buffer[-matched_prefix_len:]
+                else:
+                    buffer = ""
+                break
+
+    if not in_think and buffer:
+        yield buffer
+
 
 class LocalLLMProvider(ABC):
     @abstractmethod
@@ -24,14 +86,26 @@ class LocalLLMProvider(ABC):
     def health_check(self) -> bool:
         pass
 
+
 class OllamaProvider(LocalLLMProvider):
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
         self.base_url = base_url or os.environ.get("LOCAL_LLM_BASE_URL", "http://localhost:11434")
         self.model = model or os.environ.get("LOCAL_LLM_MODEL", "qwen3:4b-q4_K_M")
         self.timeout = float(os.environ.get("LLM_TIMEOUT", "45.0"))
-        self.negative_cache_window = 30
+        self.positive_cache_window = 60.0
+        self.negative_cache_window = 45.0
         self._last_health_time = 0
         self._is_healthy = None
+
+    def _ollama_options(self) -> dict:
+        """Centralized Ollama runtime configuration options."""
+        return {
+            "temperature": 0.1,
+            "num_predict": int(os.environ.get("LLM_MAX_NEW_TOKENS", "512")),
+            "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096")),
+            "num_thread": int(os.environ.get("OLLAMA_NUM_THREADS", "0")),
+            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "10m"),
+        }
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
         import requests, time, re
@@ -43,13 +117,7 @@ class OllamaProvider(LocalLLMProvider):
                 "model": self.model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {
-                    "temperature": 0.1,
-                    "num_predict": int(os.environ.get("LLM_MAX_NEW_TOKENS", "512")),
-                    "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096")),
-                    "num_thread": int(os.environ.get("OLLAMA_NUM_THREADS", "0")),
-                    "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "10m"),
-                }
+                "options": self._ollama_options()
             }
             if system_prompt:
                 payload["system"] = system_prompt
@@ -60,7 +128,6 @@ class OllamaProvider(LocalLLMProvider):
             self._is_healthy = True
             self._last_health_time = time.time()
             raw_res = data.get("response", "")
-            # Strip reasoning / think tags if present (e.g. Qwen3)
             cleaned = re.sub(r"<think>.*?</think>", "", raw_res, flags=re.DOTALL).strip()
             return cleaned
         except Exception as e:
@@ -74,62 +141,43 @@ class OllamaProvider(LocalLLMProvider):
         if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
             return
 
-        try:
-            payload = {
-                "model": self.model,
-                "prompt": prompt,
-                "stream": True,
-                "options": {
-                    "temperature": 0.1,
-                    "num_predict": int(os.environ.get("LLM_MAX_NEW_TOKENS", "512")),
-                    "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096")),
-                    "num_thread": int(os.environ.get("OLLAMA_NUM_THREADS", "0")),
-                    "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "10m"),
+        def raw_token_generator():
+            try:
+                payload = {
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": True,
+                    "options": self._ollama_options()
                 }
-            }
-            if system_prompt:
-                payload["system"] = system_prompt
+                if system_prompt:
+                    payload["system"] = system_prompt
 
-            with requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(3.0, float(self.timeout)), stream=True) as resp:
-                if resp.status_code == 200:
-                    self._is_healthy = True
-                    self._last_health_time = time.time()
-                    in_think = False
-                    think_buffer = ""
-                    for line in resp.iter_lines():
-                        if line:
-                            try:
-                                chunk = json.loads(line.decode("utf-8"))
-                                token = chunk.get("response", "")
-                                if not token:
-                                    continue
-                                
-                                # Handle <think> tags dynamically
-                                if "<think>" in token or in_think:
-                                    think_buffer += token
-                                    if "<think>" in think_buffer and not in_think:
-                                        in_think = True
-                                    if "</think>" in think_buffer:
-                                        in_think = False
-                                        after_think = think_buffer.split("</think>", 1)[1]
-                                        think_buffer = ""
-                                        if after_think:
-                                            yield after_think
-                                    continue
+                with requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(3.0, float(self.timeout)), stream=True) as resp:
+                    if resp.status_code == 200:
+                        self._is_healthy = True
+                        self._last_health_time = time.time()
+                        for line in resp.iter_lines():
+                            if line:
+                                try:
+                                    chunk = json.loads(line.decode("utf-8"))
+                                    token = chunk.get("response", "")
+                                    if token:
+                                        yield token
+                                except Exception as parse_err:
+                                    logger.debug(f"Streaming chunk JSON parse error: {parse_err}")
+            except Exception as e:
+                self._is_healthy = False
+                self._last_health_time = time.time()
+                logger.warning(f"Ollama streaming failed: {e}")
 
-                                yield token
-                            except Exception as parse_err:
-                                logger.debug(f"Streaming chunk JSON parse error: {parse_err}")
-        except Exception as e:
-            self._is_healthy = False
-            self._last_health_time = time.time()
-            logger.warning(f"Ollama streaming failed: {e}")
+        for clean_token in _suppress_think_tags(raw_token_generator()):
+            yield clean_token
 
     def health_check(self) -> bool:
         import requests, time
         now = time.time()
-        # If recently confirmed healthy, skip round-trip (positive cache: 30s)
-        if self._is_healthy is True and (now - self._last_health_time < 30.0):
+        # If recently confirmed healthy, skip round-trip (positive cache: 60s)
+        if self._is_healthy is True and (now - self._last_health_time < self.positive_cache_window):
             return True
         if self._is_healthy is False and (now - self._last_health_time < self.negative_cache_window):
             return False
@@ -138,14 +186,17 @@ class OllamaProvider(LocalLLMProvider):
             if resp.status_code == 200:
                 data = resp.json()
                 models = [m.get("name", "") for m in data.get("models", [])]
+                if not models:
+                    logger.error(f"Ollama is running but no models are pulled. Run: ollama pull {self.model}")
+                    self._is_healthy = False
+                    self._last_health_time = time.time()
+                    return False
+
                 # Check if model is pulled with case-insensitive and hyphen/underscore normalization
                 model_base = self.model.split(":")[0].lower().replace("_", "-")
-                has_model = any(model_base in m.lower().replace("_", "-") for m in models) if models else False
+                has_model = any(model_base in m.lower().replace("_", "-") for m in models)
                 if not has_model:
-                    if models:
-                        logger.warning(f"Ollama running but model {self.model} not found in {models}")
-                    else:
-                        logger.error(f"Ollama is running but no models are pulled. Run: ollama pull {self.model}")
+                    logger.warning(f"Ollama running but model {self.model} not found in {models}")
                 self._is_healthy = has_model
                 self._last_health_time = time.time()
                 return has_model

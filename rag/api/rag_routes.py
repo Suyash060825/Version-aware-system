@@ -96,10 +96,11 @@ def api_chat_stream():
                                 "page": cit.get("page", 1)
                             })
 
+                        is_cache_hit = final_result_data.get("route") in ("CACHE_HIT", "L1_CACHE", "L2_CACHE") or bool(final_result_data.get("cache_hit"))
                         message_id = _save_message(
                             session_id, query, sanitized_answer, formatted_citations,
                             len(formatted_citations), model_name=final_result_data.get("model", "qwen3"),
-                            cache_hit=False
+                            cache_hit=is_cache_hit
                         )
 
                         _save_search_history(query, {
@@ -111,17 +112,20 @@ def api_chat_stream():
                             "type": "done",
                             "answer": sanitized_answer,
                             "citations": formatted_citations,
-                            "confidence": final_result_data.get("confidence", 100),
+                            "confidence": float(final_result_data.get("confidence", 1.0)),
                             "route": final_result_data.get("route", "HYBRID_RAG"),
                             "llm_used": final_result_data.get("llm_used", False),
                             "latency_ms": final_result_data.get("latency_ms", 0),
                             "session_id": session_id,
                             "message_id": message_id,
+                            "cache_hit": is_cache_hit,
                             "fallback": final_result_data.get("fallback", False)
                         }
                         yield f"data: {json.dumps(event_payload)}\n\n"
                 except GeneratorExit:
-                    return
+                    raise
+        except GeneratorExit:
+            raise
         except Exception as e:
             import logging
             logging.getLogger("rag.api").exception("Stream error in api_chat_stream")
@@ -191,10 +195,11 @@ def api_chat():
                 "page": cit.get("page", 1)
             })
 
+        is_cache_hit = result.route in ("CACHE_HIT", "L1_CACHE", "L2_CACHE")
         message_id = _save_message(
             session_id, query, sanitized_answer, citations,
             result.retrieval_count, model_name=result.model or "qwen3",
-            cache_hit=False
+            cache_hit=is_cache_hit
         )
         
         _save_search_history(query, {
@@ -210,8 +215,8 @@ def api_chat():
             "fallback": result.abstained,
             "model": result.model or "qwen3",
             "message_id": message_id,
-            "confidence": result.confidence * 100,  # Convert to 0-100 scale for UI check
-            "cache_hit": False,
+            "confidence": float(result.confidence),
+            "cache_hit": is_cache_hit,
             "route": result.route,
             "llm_used": result.llm_used,
             "latency_ms": result.latency_ms
@@ -609,8 +614,14 @@ def _save_message(session_id, query, answer, citations, chunks_used, model_name=
         db.session.add(msg_asst)
         db.session.commit()
         return msg_asst.id
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger("rag.api").warning(f"_save_message DB commit failed: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return None
 
 
 def _save_search_history(query, result):
