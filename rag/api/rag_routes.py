@@ -11,6 +11,8 @@ from models import (db, ChatSession, ChatMessage, SearchHistory, Feedback, Index
                     PolicyChunk, PolicyChunkV2, CompilationJob, Policy, PolicyVersion)
 from extensions import limiter
 from utils import rate_limit_key_user_or_ip
+from rag.engine.query_engine import get_query_engine
+from rag.guardrails import check_input_guardrails, apply_output_guardrails
 
 rag_bp = Blueprint("rag", __name__, url_prefix="/rag")
 
@@ -52,11 +54,22 @@ def api_chat_stream():
     if len(query) > 1000:
         return jsonify({"error": "Query too long (max 1000 chars)"}), 400
 
+    is_allowed, reason = check_input_guardrails(query)
+    if not is_allowed:
+        message_id = _save_message(
+            session_id, query, reason, [],
+            0, model_name="guardrail",
+            cache_hit=False
+        )
+        def stream_blocked():
+            yield f"data: {json.dumps({'type': 'token', 'token': reason})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'answer': reason, 'citations': [], 'confidence': 100, 'route': 'GUARDRAIL_BLOCKED', 'llm_used': False, 'latency_ms': 0, 'session_id': session_id, 'message_id': message_id, 'fallback': False})}\n\n"
+        return Response(stream_with_context(stream_blocked()), mimetype="text/event-stream")
+
     # User object and context for generator
     user_obj = current_user._get_current_object()
 
     def generate_events():
-        from rag.engine.query_engine import get_query_engine
         engine = get_query_engine()
         full_answer = ""
         final_result_data = None
@@ -69,6 +82,7 @@ def api_chat_stream():
                         yield f"data: {json.dumps(event)}\n\n"
                     elif event["type"] == "done":
                         final_result_data = event["result"]
+                        sanitized_answer = apply_output_guardrails(final_result_data.get("answer", full_answer))
                         
                         # Format citations
                         formatted_citations = []
@@ -83,7 +97,7 @@ def api_chat_stream():
                             })
 
                         message_id = _save_message(
-                            session_id, query, final_result_data["answer"], formatted_citations,
+                            session_id, query, sanitized_answer, formatted_citations,
                             len(formatted_citations), model_name=final_result_data.get("model", "qwen3"),
                             cache_hit=False
                         )
@@ -95,7 +109,7 @@ def api_chat_stream():
 
                         event_payload = {
                             "type": "done",
-                            "answer": final_result_data["answer"],
+                            "answer": sanitized_answer,
                             "citations": formatted_citations,
                             "confidence": final_result_data.get("confidence", 100),
                             "route": final_result_data.get("route", "HYBRID_RAG"),
@@ -138,11 +152,32 @@ def api_chat():
     if len(query) > 1000:
         return jsonify({"error": "Query too long (max 1000 chars)"}), 400
 
+    is_allowed, reason = check_input_guardrails(query)
+    if not is_allowed:
+        message_id = _save_message(
+            session_id, query, reason, [],
+            0, model_name="guardrail",
+            cache_hit=False
+        )
+        return jsonify({
+            "answer": reason,
+            "citations": [],
+            "chunks_used": 0,
+            "session_id": session_id,
+            "fallback": False,
+            "model": "guardrail",
+            "message_id": message_id,
+            "confidence": 100,
+            "cache_hit": False,
+            "route": "GUARDRAIL_BLOCKED",
+            "llm_used": False,
+            "latency_ms": 0
+        })
+
     try:
-        from rag.engine.query_engine import get_query_engine
         engine = get_query_engine()
-        
         result = engine.answer(query, user=current_user, session_id=session_id)
+        sanitized_answer = apply_output_guardrails(result.answer)
         
         # Format citations to match chat.html's expectation
         citations = []
@@ -157,7 +192,7 @@ def api_chat():
             })
 
         message_id = _save_message(
-            session_id, query, result.answer, citations,
+            session_id, query, sanitized_answer, citations,
             result.retrieval_count, model_name=result.model or "qwen3",
             cache_hit=False
         )
@@ -168,7 +203,7 @@ def api_chat():
         })
 
         return jsonify({
-            "answer": result.answer,
+            "answer": sanitized_answer,
             "citations": citations,
             "chunks_used": result.retrieval_count,
             "session_id": session_id,
@@ -213,6 +248,18 @@ def api_feedback():
     )
     db.session.add(fb)
     db.session.commit()
+
+    if vote == "down":
+        try:
+            from tasks import self_heal_message_task
+            self_heal_message_task.delay(msg_id)
+        except Exception:
+            try:
+                from rag.chatbot.self_healing import trigger_self_healing
+                trigger_self_healing(msg_id)
+            except Exception:
+                pass
+
     return jsonify({"ok": True})
 
 

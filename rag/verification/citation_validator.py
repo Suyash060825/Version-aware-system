@@ -59,9 +59,10 @@ class CitationValidator:
             # 3. Resolve via policy_name search if still not found
             if not policy and cit.get("policy_name") and cit.get("policy_name") not in ("Policy", "N/A", "Unknown"):
                 p_name = cit["policy_name"].strip()
-                policy = Policy.query.filter(Policy.title == p_name).first()
-                if not policy:
-                    policy = Policy.query.filter(Policy.title.ilike(p_name)).first()
+                if len(p_name) > 5 and p_name.lower() not in ("policy", "internal", "guidelines", "general", "company"):
+                    policy = Policy.query.filter(Policy.title == p_name).first()
+                    if not policy:
+                        policy = Policy.query.filter(Policy.title.ilike(p_name)).first()
 
             # 4. Resolve version
             if policy and not version:

@@ -81,3 +81,12 @@ def rebuild_knowledge_graph_task(self):
         depts = Department.query.count()
         logger.info(f"Rebuilt knowledge graph data with {policies} policies across {depts} departments.")
         return {"policies": policies, "departments": depts, "status": "synced"}
+
+@celery_app.task(name="tasks.self_heal_message_task", bind=True)
+def self_heal_message_task(self, msg_id: int):
+    """
+    Asynchronous self-healing task triggered by negative user feedback.
+    """
+    from rag.chatbot.self_healing import trigger_self_healing
+    trigger_self_healing(msg_id)
+    return {"msg_id": msg_id, "status": "processed"}

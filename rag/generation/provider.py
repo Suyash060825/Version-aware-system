@@ -128,8 +128,8 @@ class OllamaProvider(LocalLLMProvider):
     def health_check(self) -> bool:
         import requests, time
         now = time.time()
-        # If recently confirmed healthy, skip round-trip (positive cache: 10s)
-        if self._is_healthy is True and (now - self._last_health_time < 10.0):
+        # If recently confirmed healthy, skip round-trip (positive cache: 30s)
+        if self._is_healthy is True and (now - self._last_health_time < 30.0):
             return True
         if self._is_healthy is False and (now - self._last_health_time < self.negative_cache_window):
             return False

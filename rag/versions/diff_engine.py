@@ -3,9 +3,17 @@ rag/versions/diff_engine.py
 Deterministic structured diff engine comparing policy facts and text clauses across versions.
 """
 import difflib
-from typing import List, Dict, Any, Optional
+from collections import OrderedDict
+from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from models import PolicyFact
+
+_MAX_DIFF_CACHE = 128
+_DIFF_CACHE: OrderedDict = OrderedDict()
+
+def clear_diff_cache():
+    """Clear diff computation cache."""
+    _DIFF_CACHE.clear()
 
 @dataclass
 class FactDiff:
@@ -63,6 +71,17 @@ class PolicyDiffEngine:
 
     def compute_diff(self, text_a: str, text_b: str, version_a_id: Optional[int] = None, version_b_id: Optional[int] = None) -> Dict[str, Any]:
         """Compute structured diff comparing facts and clauses between two versions."""
+        cache_key = (version_a_id, version_b_id) if (version_a_id is not None and version_b_id is not None) else (hash(text_a), hash(text_b))
+        if cache_key in _DIFF_CACHE:
+            cached = _DIFF_CACHE[cache_key]
+            _DIFF_CACHE.move_to_end(cache_key)
+            return {
+                "added_clauses": list(cached["added_clauses"]),
+                "removed_clauses": list(cached["removed_clauses"]),
+                "changed_clauses": list(cached["changed_clauses"]),
+                "fact_diff": cached["fact_diff"]
+            }
+
         lines_a = [l.strip() for l in text_a.splitlines() if l.strip()]
         lines_b = [l.strip() for l in text_b.splitlines() if l.strip()]
 
@@ -81,11 +100,24 @@ class PolicyDiffEngine:
 
         fact_diff_obj = None
         if version_a_id and version_b_id:
-            fact_diff_obj = self.compute_fact_diff(version_a_id, version_b_id)
+            try:
+                fact_diff_obj = self.compute_fact_diff(version_a_id, version_b_id)
+            except Exception:
+                pass
 
-        return {
+        res = {
             "added_clauses": added_clauses,
             "removed_clauses": removed_clauses,
             "changed_clauses": changed_clauses,
+            "fact_diff": fact_diff_obj
+        }
+        if len(_DIFF_CACHE) >= _MAX_DIFF_CACHE:
+            _DIFF_CACHE.popitem(last=False)
+        _DIFF_CACHE[cache_key] = res
+
+        return {
+            "added_clauses": list(added_clauses),
+            "removed_clauses": list(removed_clauses),
+            "changed_clauses": list(changed_clauses),
             "fact_diff": fact_diff_obj
         }

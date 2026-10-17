@@ -3,6 +3,7 @@ rag/facts/fact_resolver.py
 Fast deterministic fact resolver with relevance scoring for Level 0 factual queries across 20+ policy domains.
 """
 import re
+import time
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from models import db, Policy, PolicyVersion, PolicyFact, PolicyChunkV2
@@ -70,6 +71,13 @@ class FactResolver:
     def __init__(self):
         self.store = FactStore()
         self._cached_db_predicates = None
+        self._predicate_cache_ts = 0.0
+        self._PREDICATE_TTL = 300.0
+
+    def invalidate(self):
+        """Invalidate cached predicate list so newly compiled facts are recognized immediately."""
+        self._cached_db_predicates = None
+        self._predicate_cache_ts = 0.0
 
     def try_resolve(self, query: str, scope: Optional[Any] = None, temporal: Optional[Any] = None, user: Optional[Any] = None) -> FactResolutionResult:
         auth_context = scope or user
@@ -97,10 +105,12 @@ class FactResolver:
 
         # Dynamic predicate matching from registered PolicyFact predicates
         try:
-            if self._cached_db_predicates is None:
+            now = time.time()
+            if self._cached_db_predicates is None or (now - self._predicate_cache_ts > self._PREDICATE_TTL):
                 self._cached_db_predicates = [
                     p[0] for p in PolicyFact.query.with_entities(PolicyFact.predicate).distinct().all() if p[0]
                 ]
+                self._predicate_cache_ts = now
             for pred in self._cached_db_predicates:
                 phrase = pred.replace("_", " ")
                 if re.search(rf"\b{re.escape(phrase)}\b", query_lower):

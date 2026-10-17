@@ -20,6 +20,19 @@ OUT_OF_SCOPE_PATTERNS = [
     re.compile(r"\b(hack|bypass|exploit|penetration test|breach)\b", re.IGNORECASE)
 ]
 
+# Explicit advisory/malicious intents that must always be blocked
+_STRICT_ADVISORY_PATTERNS = [
+    re.compile(r"\b(legal advice|sue (?:my|the|them)|file a lawsuit|hire (?:an? )?attorney|representation in court)\b", re.IGNORECASE),
+    re.compile(r"\b(medical advice|diagnose me|prescribe|treat my symptoms)\b", re.IGNORECASE),
+    re.compile(r"\b(how to hack|how to bypass|exploit vulnerability|breach security system)\b", re.IGNORECASE),
+]
+
+# Legitimate enterprise policy inquiry cues that permit policy exploration
+_POLICY_INQUIRY_RE = re.compile(
+    r"\b(policy|standard|guidelines?|clause|section|procedure|rule|requirement|what is|what does|how do we|are we allowed|entitled)\b",
+    re.IGNORECASE
+)
+
 TOXICITY_PATTERNS = [
     re.compile(r"\b(stupid|idiot|dumb|moron|crazy|insane|retarded|bastard)\b", re.IGNORECASE),
     re.compile(r"\b(kill|murder|suicide|die|harm)\b", re.IGNORECASE)
@@ -44,6 +57,14 @@ def check_input_guardrails(query: str) -> tuple[bool, str]:
     if not GUARDRAILS_CONFIG["INPUT_BLOCK_OUT_OF_SCOPE"]:
         return True, ""
         
+    for pattern in _STRICT_ADVISORY_PATTERNS:
+        if pattern.search(query):
+            return False, "This assistant can answer questions about company policy text but can't provide legal, medical, or security penetration advice — please consult the appropriate department directly."
+
+    # If asking about company policy/standards/guidelines, allow legitimate enterprise queries
+    if _POLICY_INQUIRY_RE.search(query):
+        return True, ""
+
     for pattern in OUT_OF_SCOPE_PATTERNS:
         if pattern.search(query):
             return False, "This assistant can answer questions about company policy text but can't provide legal/HR advice on individual cases — please contact HR directly."
@@ -65,11 +86,15 @@ def apply_output_guardrails(text: str, top_chunks: list[dict] = None) -> str:
             
     # 2. Citation check
     if GUARDRAILS_CONFIG["OUTPUT_CHECK_CITATIONS"] and top_chunks:
-        valid_policies = {(c.get("policy_name") or "").lower() for c in top_chunks}
+        valid_policies = {
+            (c.get("policy_name") or c.get("policy_title") or "").strip().lower()
+            for c in top_chunks
+        } - {""}
         # Find all citations e.g., [Policy: Name, Section: Sec]
         citations = re.findall(r"\[Policy:\s*(.*?)(?:,\s*Section:.*?)?\]", text)
         for cited_policy in citations:
-            if cited_policy.lower() not in valid_policies:
+            cited_clean = cited_policy.strip().lower()
+            if not any(cited_clean in vp or vp in cited_clean for vp in valid_policies):
                 # Flag hallucinated citation
                 return "The generated response was blocked because it contained a hallucinated citation."
                 

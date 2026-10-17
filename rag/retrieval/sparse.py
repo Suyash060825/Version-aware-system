@@ -20,6 +20,8 @@ class PersistentBM25Index:
         self._corpus: List[Dict[str, Any]] = []
         self._tokenized_corpus: List[List[str]] = []
         self._revision = 0
+        self._sub_bm25 = None
+        self._sub_bm25_cache_key = None
         self.load()
 
     def load(self):
@@ -257,9 +259,12 @@ class PersistentBM25Index:
 
         # Guard: only use subset scoring if len(self._corpus) > 2000 and len(allowed_indices) < len(self._corpus)
         if len(self._corpus) > 2000 and len(allowed_indices) < len(self._corpus) and self._tokenized_corpus:
-            allowed_tokenized = [self._tokenized_corpus[i] for i in allowed_indices]
-            sub_bm25 = BM25Okapi(allowed_tokenized)
-            scores = sub_bm25.get_scores(tokenized_query)
+            cache_key = (frozenset(allowed_indices), self._revision)
+            if cache_key != self._sub_bm25_cache_key or self._sub_bm25 is None:
+                allowed_tokenized = [self._tokenized_corpus[i] for i in allowed_indices]
+                self._sub_bm25 = BM25Okapi(allowed_tokenized)
+                self._sub_bm25_cache_key = cache_key
+            scores = self._sub_bm25.get_scores(tokenized_query)
             results = []
             for j, score in enumerate(scores):
                 if score > 0:

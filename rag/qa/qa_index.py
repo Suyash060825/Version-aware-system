@@ -181,6 +181,7 @@ class CanonicalQAIndex:
                     "answer_confidence": getattr(a, "confidence", None),
                     "policy_name": getattr(pol, "title", "Policy") if pol else "Policy",
                     "version_number": getattr(ver, "version_number", "1.0") if ver else "1.0",
+                    "is_active": getattr(ver, "is_active", True) if ver else True,
                     "section": chunk.section_path if chunk and chunk.section_path else "General",
                     "chunk_id": chunk.chunk_id if chunk else getattr(q, "source_chunk_id", None),
                     "page": chunk.page if chunk and chunk.page else 1
@@ -225,6 +226,7 @@ class CanonicalQAIndex:
                 "answer_confidence": getattr(a, "confidence", None),
                 "policy_name": getattr(pol, "title", "Policy") if pol else "Policy",
                 "version_number": getattr(ver, "version_number", "1.0") if ver else "1.0",
+                "is_active": getattr(ver, "is_active", True) if ver else True,
                 "section": getattr(a, "section", "General") if hasattr(a, "section") else "General",
                 "chunk_id": getattr(q, "source_chunk_id", None),
                 "page": 1

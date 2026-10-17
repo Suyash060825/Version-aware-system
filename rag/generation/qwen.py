@@ -42,3 +42,11 @@ class QwenLocalProvider(OllamaProvider):
             "used_evidence_ids": [c.get("chunk_id") for c in chunks if c.get("chunk_id")],
             "needs_clarification": False
         }
+
+_QWEN_PROVIDER = None
+
+def get_qwen_provider() -> QwenLocalProvider:
+    global _QWEN_PROVIDER
+    if _QWEN_PROVIDER is None:
+        _QWEN_PROVIDER = QwenLocalProvider()
+    return _QWEN_PROVIDER

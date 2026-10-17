@@ -20,11 +20,11 @@ class QueryRouter:
         q = re.sub(r"[?!.,;]+$", "", q)
         return q
 
-    def route(self, query: str) -> Tuple[Intent, ComplexityLevel, str, Dict[str, Any]]:
+    def route(self, query: str, pre_normalized: bool = False) -> Tuple[Intent, ComplexityLevel, str, Dict[str, Any]]:
         """
         Returns (intent, complexity_level, route_name, routing_metadata)
         """
-        normalized = self.normalize(query)
+        normalized = query if pre_normalized else self.normalize(query)
         intent, intent_conf = self.intent_classifier.classify(normalized)
         complexity, route_name = self.complexity_classifier.classify(normalized, intent)
         temporal_meta = self.temporal_router.route_temporal_query(normalized)

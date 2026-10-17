@@ -245,9 +245,19 @@ class KnowledgeCompilerPipeline:
         else:
             qa_index.delete_policy_version(job.policy_id, job.version_id)
 
-        # Invalidate affected cache entries
+        # Invalidate affected cache entries, fact predicates, and diff cache
         from rag.cache.semantic_cache import get_cache
         get_cache().invalidate_version(job.policy_id, job.version_id)
+        try:
+            from rag.facts.fact_resolver import FactResolver
+            FactResolver().invalidate()
+        except Exception:
+            pass
+        try:
+            from rag.versions.diff_engine import clear_diff_cache
+            clear_diff_cache()
+        except Exception:
+            pass
 
 
 def auto_compile_policy_version(policy_id: int, version_id: int):

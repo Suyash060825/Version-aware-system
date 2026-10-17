@@ -42,6 +42,7 @@ class MultiLevelCache:
         self._local_l1: Dict[str, dict] = {}
         self._local_l2: Dict[str, list] = defaultdict(list)
         self._max_local = 2000
+        self._global_l2_max = 5000
 
     def _hash_query(self, query: str, scope_key: str = "") -> str:
         clean = f"{query.strip().lower()}|{scope_key}"
@@ -98,12 +99,13 @@ class MultiLevelCache:
         self._local_l1[key] = item_data
 
     def get_l2(self, query_embedding: List[float], scope_key: str = "", threshold: float = 0.95) -> Optional[dict]:
-        if not query_embedding or not self._local_l2[scope_key]:
+        bucket = self._local_l2.get(scope_key)
+        if not query_embedding or not bucket:
             return None
         now = time.time()
         # Filter candidate items by non-expiration in reverse order
         candidates = [
-            item for item in reversed(self._local_l2[scope_key])
+            item for item in reversed(bucket)
             if item.get("expires_at", 0) >= now and item.get("embedding")
         ]
         if not candidates:
@@ -146,6 +148,24 @@ class MultiLevelCache:
     ):
         if not query_embedding:
             return
+
+        # Enforce global capacity cap across all scope buckets
+        total_l2 = sum(len(v) for v in self._local_l2.values())
+        if total_l2 >= self._global_l2_max:
+            now = time.time()
+            for sk in list(self._local_l2.keys()):
+                self._local_l2[sk] = [item for item in self._local_l2[sk] if item.get("expires_at", 0) >= now]
+                if not self._local_l2[sk]:
+                    del self._local_l2[sk]
+            total_l2 = sum(len(v) for v in self._local_l2.values())
+            if total_l2 >= self._global_l2_max:
+                for sk, bucket in sorted(self._local_l2.items(), key=lambda x: len(x[1]), reverse=True):
+                    if len(bucket) > 50:
+                        drop_count = max(1, int(len(bucket) * 0.3))
+                        self._local_l2[sk] = bucket[drop_count:]
+                    if sum(len(v) for v in self._local_l2.values()) < self._global_l2_max:
+                        break
+
         if len(self._local_l2[scope_key]) > self._max_local:
             now = time.time()
             self._local_l2[scope_key] = [item for item in self._local_l2[scope_key] if item.get("expires_at", 0) >= now][-500:]

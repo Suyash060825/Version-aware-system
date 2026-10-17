@@ -50,15 +50,22 @@ class QAMatcher:
 
         # Active version resolution: for non-historical queries, prefer active version of the same policy
         if not getattr(scope, "historical", False) and not getattr(scope, "target_date", None) and not getattr(scope, "requested_version", None):
-            best_ver = db.session.get(PolicyVersion, ver_id)
-            if best_ver and not best_ver.is_active:
+            is_active = meta.get("is_active")
+            if is_active is None and ver_id:
+                best_ver = db.session.get(PolicyVersion, ver_id)
+                is_active = best_ver.is_active if best_ver else True
+
+            if is_active is False:
                 found_in_results = False
                 for candidate in results[1:]:
                     c_score, c_ans_id, c_q_id = candidate[:3]
                     c_meta = candidate[3] if len(candidate) > 3 else {}
                     if c_meta.get("policy_id") == pol_id and (score - c_score) < 0.10:
-                        c_ver = db.session.get(PolicyVersion, c_meta.get("version_id"))
-                        if c_ver and c_ver.is_active:
+                        c_is_active = c_meta.get("is_active")
+                        if c_is_active is None and c_meta.get("version_id"):
+                            c_ver = db.session.get(PolicyVersion, c_meta.get("version_id"))
+                            c_is_active = c_ver.is_active if c_ver else True
+                        if c_is_active:
                             score, answer_id, question_id, meta = c_score, c_ans_id, c_q_id, c_meta
                             pol_id = meta.get("policy_id")
                             ver_id = meta.get("version_id")
