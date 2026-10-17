@@ -50,10 +50,26 @@ class FactResolver:
         (re.compile(r"\b(?:gift limit|gift policy|accept.*gift|corporate gift)\b", re.I), ["gift_limit"]),
         (re.compile(r"\b(?:incident report|report.*incident|security incident)\b", re.I), ["incident_reporting_deadline"]),
         (re.compile(r"\b(?:password change|password expiration|rotate password|password rotation)\b", re.I), ["password_rotation_period"]),
+        (re.compile(r"\b(?:probation|probationary period|probation duration)\b", re.I), ["probation_period"]),
+        (re.compile(r"\b(?:sabbatical|sabbatical leave|extended study leave)\b", re.I), ["sabbatical_limit"]),
+        (re.compile(r"\b(?:gym allowance|wellness allowance|fitness allowance|gym subsidy|wellness budget)\b", re.I), ["gym_monthly_allowance"]),
+        (re.compile(r"\b(?:home office|home office grant|wfh setup|remote setup grant)\b", re.I), ["home_office_setup_grant"]),
+        (re.compile(r"\b(?:meal coupon|meal subsidy|food voucher|lunch subsidy)\b", re.I), ["meal_coupon_subsidy"]),
+        (re.compile(r"\b(?:expense filing deadline|expense deadline|file expense)\b", re.I), ["expense_filing_deadline"]),
+        (re.compile(r"\b(?:critical patch|patch sla|security patch deadline)\b", re.I), ["critical_patch_sla"]),
+        (re.compile(r"\b(?:posh investigation|anti-harassment investigation|posh days)\b", re.I), ["posh_investigation_days"]),
+        (re.compile(r"\b(?:clean desk|clean desk audit)\b", re.I), ["clean_desk_audit_freq"]),
+        (re.compile(r"\b(?:whistleblower|whistleblower investigation)\b", re.I), ["whistleblower_investigation_days"]),
+        (re.compile(r"\b(?:overtime|overtime rate|ot allowance|overtime lead hours)\b", re.I), ["overtime_approval_lead_hours"]),
+        (re.compile(r"\b(?:parental cover|dependent cover|parental medical)\b", re.I), ["parental_cover_limit"]),
+        (re.compile(r"\b(?:vpn timeout|vpn session timeout)\b", re.I), ["vpn_session_timeout"]),
+        (re.compile(r"\b(?:screen lock|screen timeout|auto lock)\b", re.I), ["screen_lock_timeout"]),
+        (re.compile(r"\b(?:esop cliff|vesting cliff|esop vesting)\b", re.I), ["esop_vesting_cliff_months"]),
     ]
 
     def __init__(self):
         self.store = FactStore()
+        self._cached_db_predicates = None
 
     def try_resolve(self, query: str, scope: Optional[Any] = None, temporal: Optional[Any] = None, user: Optional[Any] = None) -> FactResolutionResult:
         auth_context = scope or user
@@ -64,24 +80,34 @@ class FactResolver:
         query_lower = query.lower().strip()
         query_words = set(re.findall(r"\b[a-z0-9]+\b", query_lower))
 
-        # Guard against section headings, policy titles, or non-factual queries
-        if re.match(r"^(?:\d+[\.\)]\s*)?[a-z\s&—\-]+(?:\bpolicy\b|\bguidelines\b|\bcode\b|\boverview\b)$", query_lower) or re.match(r"^\d+(\.\d+)*\s+[a-z\s]+$", query_lower):
-            return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
+        # Guard against section headings, policy titles, or non-factual queries (only if not an interrogative question)
+        is_question = bool(re.search(r"\b(?:what|how|who|when|where|which|can|could|is|are|does|do|state|tell|give)\b", query_lower))
+        if not is_question:
+            if re.match(r"^(?:\d+[\.\)]\s*)?[a-z\s&—\-]+(?:\bpolicy\b|\bguidelines\b|\bcode\b|\boverview\b)$", query_lower) or re.match(r"^\d+(?:[\.\)]\d*)*[\.\)]?\s+[a-z\s]+$", query_lower):
+                return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
-        # Require quantity, allowance, or value cues to prevent misrouting descriptive queries
-        has_quantity_cue = bool(re.search(
-            r"\b(?:how many|how much|what is the|limit|amount|allowance|entitlement|rate|duration|period|number|maximum|minimum|budget|"
-            r"number of|days of|per diem|daily allowance|grace period|notice period|pip duration|bonus|reimbursement|"
-            r"hours|days|weeks|months|years|payout|compensation|core hours)\b",
-            query_lower
-        ))
-        if not has_quantity_cue:
+        # Guard against broad explanatory/procedural queries that require full RAG retrieval
+        if re.search(r"\b(?:explain|summary|summarize|details of|overview|describe|procedure|process|steps to)\b", query_lower):
             return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
         target_predicates = []
         for pattern, preds in self.FACT_PATTERNS:
             if pattern.search(query_lower):
                 target_predicates.extend(preds)
+
+        # Dynamic predicate matching from registered PolicyFact predicates
+        try:
+            if self._cached_db_predicates is None:
+                self._cached_db_predicates = [
+                    p[0] for p in PolicyFact.query.with_entities(PolicyFact.predicate).distinct().all() if p[0]
+                ]
+            for pred in self._cached_db_predicates:
+                phrase = pred.replace("_", " ")
+                if re.search(rf"\b{re.escape(phrase)}\b", query_lower):
+                    if pred not in target_predicates:
+                        target_predicates.append(pred)
+        except Exception:
+            pass
 
         if not target_predicates:
             return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
@@ -146,7 +172,7 @@ class FactResolver:
 
             # Active version preference when not historical
             if version and version.is_active and not (temporal and temporal.is_historic):
-                score += 8
+                score += 25
 
             # Predicate match
             if pred in target_predicates:
@@ -176,17 +202,20 @@ class FactResolver:
 
         if len(scored_candidates) > 1:
             second_score, second_fact = scored_candidates[1]
-            # Check semantic divergence beyond just fact.value (subject, predicate, policy, version, value, unit)
-            semantic_divergence = (
-                second_fact.value != best_fact.value or
-                second_fact.subject != best_fact.subject or
-                second_fact.predicate != best_fact.predicate or
-                second_fact.policy_id != best_fact.policy_id or
-                second_fact.version_id != best_fact.version_id or
-                second_fact.unit != best_fact.unit
+            # Ambiguity applies across different policies OR conflicting facts within the same version.
+            # It does not conflict if one is the active version and the other is a superseded version of the same policy.
+            is_same_policy_diff_version = (
+                best_fact.policy_id == second_fact.policy_id and
+                best_fact.version_id != second_fact.version_id
             )
-            if semantic_divergence and (best_score - second_score) < 10:
-                return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
+            if not is_same_policy_diff_version:
+                semantic_divergence = (
+                    second_fact.value != best_fact.value or
+                    second_fact.unit != best_fact.unit or
+                    second_fact.subject != best_fact.subject
+                )
+                if semantic_divergence and (best_score - second_score) < 10:
+                    return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
         return self._format_fact_result(best_fact, policy=policies_map.get(best_fact.policy_id), version=versions_map.get(best_fact.version_id))
 

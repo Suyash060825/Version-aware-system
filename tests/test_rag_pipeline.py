@@ -1,79 +1,42 @@
 """
 tests/test_rag_pipeline.py
-Integration test for full RAG pipeline with stubbed ChromaDB and stub LLMProvider.
-Asserts role/department filtering and citation assembly.
+Integration test for full RAG pipeline compatibility facade.
+Asserts role/department proxy conversion, QueryEngine delegation, and response assembly.
 """
 import unittest
 from unittest.mock import patch, MagicMock
 from rag.chatbot.chat_service import answer
-from rag.llm_provider import LLMResponse, LLMProvider
-
-
-class StubLLMProvider(LLMProvider):
-    def generate(self, prompt, *, system=None, max_tokens=1024, temperature=0.2, stream=False, **kwargs):
-        return LLMResponse(
-            text="According to the Engineering Remote Work policy, engineers can work 3 days remotely.",
-            model="stub-model",
-            fallback=False
-        )
-
-    def embed(self, texts):
-        return [[0.1] * 384 for _ in texts]
-
-    def health_check(self):
-        return True
-
+from rag.engine.query_engine import QueryResult
 
 class TestRAGPipelineIntegration(unittest.TestCase):
 
-    @patch("rag.chatbot.chat_service.get_llm_provider")
-    @patch("rag.chatbot.chat_service.get_embedder")
-    @patch("rag.chatbot.chat_service.get_store")
-    @patch("rag.chatbot.chat_service.get_reranker")
-    @patch("rag.chatbot.chat_service.get_history")
-    @patch("rag.chatbot.chat_service.add_message")
-    @patch("rag.chatbot.chat_service.get_cache")
+    @patch("rag.chatbot.chat_service.get_query_engine")
     def test_rag_pipeline_department_filtering_and_citation(
         self,
-        mock_get_cache,
-        mock_add_msg,
-        mock_get_hist,
-        mock_reranker,
-        mock_store,
-        mock_embedder,
-        mock_get_provider
+        mock_get_engine
     ):
-        print("Starting test...")
-        # Setup mocks
-        mock_get_cache.return_value.get.return_value = None
-        mock_get_cache.return_value.use_redis = False
-        mock_get_provider.return_value = StubLLMProvider()
-
-        mock_embedder_inst = MagicMock()
-        mock_embedder_inst.embed_query.return_value = [0.1] * 384
-        mock_embedder.return_value = mock_embedder_inst
-
-        mock_store_inst = MagicMock()
-        mock_store_inst.search.return_value = [
-            {
-                "id": "chunk-1",
-                "text": "Engineering staff may request up to 3 remote days per week with manager approval.",
+        mock_engine = MagicMock()
+        mock_engine.answer.return_value = QueryResult(
+            answer="According to the Engineering Remote Work Policy (v1.0, 3.1 Remote Days):\nEngineering staff may request up to 3 remote days per week with manager approval.",
+            citations=[{
+                "chunk_id": "chunk-1",
                 "policy_id": 10,
                 "policy_name": "Engineering Remote Work Policy",
                 "version": "1.0",
                 "section": "3.1 Remote Days",
-                "page": 2,
-                "department": "Engineering",
-                "score": 0.85
-            }
-        ]
-        mock_store.return_value = mock_store_inst
-
-        mock_rerank_inst = MagicMock()
-        mock_rerank_inst.rerank.side_effect = lambda query, hits, top_k: hits[:top_k]
-        mock_reranker.return_value = mock_rerank_inst
-
-        mock_get_hist.return_value = []
+                "page": 2
+            }],
+            policy_versions=["1.0"],
+            latency_ms=12.5,
+            llm_used=False,
+            retrieval_count=1,
+            reranker_used=False,
+            abstained=False,
+            model="stub-model",
+            confidence=1.0,
+            route="HYBRID_RAG"
+        )
+        mock_get_engine.return_value = mock_engine
 
         # Execute RAG answer query with employee role in Engineering department
         res = answer(
@@ -83,19 +46,22 @@ class TestRAGPipelineIntegration(unittest.TestCase):
             user_department="Engineering"
         )
 
-        # Assert search was called with proper department restriction: ["Engineering", ""]
-        print("RESULT:", res)
-        mock_store_inst.search.assert_called_once()
-        _, kwargs = mock_store_inst.search.call_args
-        self.assertEqual(kwargs.get("allowed_departments"), ["Engineering", "", "Human Resources", "IT", "Legal"])
+        mock_engine.answer.assert_called_once()
+        call_args, call_kwargs = mock_engine.answer.call_args
+        self.assertEqual(call_args[0], "How many remote days are allowed for engineers?")
+        user_proxy = call_kwargs.get("user")
+        self.assertIsNotNone(user_proxy)
+        self.assertEqual(user_proxy.role, "employee")
+        self.assertEqual(user_proxy.department.name, "Engineering")
 
         # Assert response structure
         self.assertFalse(res["fallback"])
         self.assertEqual(res["chunks_used"], 1)
         self.assertEqual(res["model"], "stub-model")
-        self.assertIn("3 days remotely", res["answer"])
+        self.assertIn("3 remote days", res["answer"])
         self.assertEqual(len(res["citations"]), 1)
         self.assertEqual(res["citations"][0]["policy_name"], "Engineering Remote Work Policy")
+        self.assertEqual(res["confidence"], 100)
 
 
 if __name__ == "__main__":

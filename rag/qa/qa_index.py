@@ -18,8 +18,10 @@ class CanonicalQAIndex:
     INDEX_FILE = "data/canonical_qa_faiss.index"
     META_FILE = "data/canonical_qa_faiss.meta.pkl"
 
-    def __init__(self, dimension: int = 384):
-        self.dimension = dimension
+    def __init__(self, dimension: int = None):
+        from rag.embeddings.embedder import get_embedder
+        embedder = get_embedder()
+        self.dimension = dimension or getattr(embedder, "dimension", 384)
         self._base_index = None
         self._delta_index = None
         self._metadata: List[Dict[str, Any]] = []

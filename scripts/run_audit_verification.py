@@ -342,76 +342,10 @@ def step6_generate_paper_tables_and_figures():
     print("\n=======================================================")
     print("STEP 6: Generating Paper Figures (PNG) & Tables (CSV/MD)")
     print("=======================================================")
-    # 1. Generate standard Markdown tables
+    # 1. Generate standard Markdown and CSV tables dynamically from genuine benchmark measurements
     generate_paper_artifacts()
-    
-    # 2. Export CSV equivalents for paper tables
-    table_files = {
-        "table1_routing_summary": [
-            ["Operational Tier", "Primary Subsystem", "Complexity Class", "Traffic Share (%)", "Accuracy (%)", "P50 Latency (ms)", "P95 Latency (ms)", "LLM Call Invocation"],
-            ["Tier 0", "Deterministic Fact Engine", "Level 0", "41.8% (385/922)", "100.0% (385/385)", "0.95", "1.65", "0.0% (Bypassed)"],
-            ["Tier 1", "Canonical QA Index (FAISS)", "Level 1", "6.5% (60/922)", "98.3% (59/60)", "1.85", "3.10", "0.0% (Bypassed)"],
-            ["Tier 2", "Adaptive Hybrid RAG + Rerank", "Level 2", "36.6% (337/922)", "94.7% (319/337)", "22.40", "32.80", "100.0% (Selective)"],
-            ["Tier 3", "Deterministic Diff Engine", "Level 3", "6.5% (60/922)", "96.7% (58/60)", "2.10", "4.20", "0.0% (Bypassed)"],
-            ["Tier 4", "Safe Abstention / Refusal", "OOD / Unauth", "8.7% (80/922)", "100.0% (80/80)", "3.20", "4.80", "0.0% (Gated)"],
-            ["Overall", "Integrated Veritas System", "All Levels", "100.0% (922/922)", "97.6% (900/922)", "4.50", "29.80", "36.6% (63.4% Saved)"]
-        ],
-        "table2_retrieval_metrics": [
-            ["Retrieval Subsystem", "Recall@1 (%)", "Recall@5 (%)", "Recall@10 (%)", "MRR", "NDCG@10", "Mean Latency (ms)", "Rank 1 Inversions"],
-            ["BM25 Inverted Index Alone", "72.4% (668/922)", "85.1% (785/922)", "90.2% (832/922)", "0.785", "0.812", "1.25", "254"],
-            ["Dense Vector (Chroma) Alone", "78.6% (725/922)", "89.4% (824/922)", "93.8% (865/922)", "0.832", "0.856", "4.80", "197"],
-            ["Reciprocal Rank Fusion (RRF)", "88.2% (813/922)", "96.1% (886/922)", "98.5% (908/922)", "0.915", "0.934", "6.10", "109"],
-            ["FlashRank ONNX CrossEncoder", "94.5% (871/922)", "98.8% (911/922)", "99.4% (916/922)", "0.962", "0.978", "12.40", "51"]
-        ],
-        "table3_compiler_sweeps": [
-            ["Corpus Size (Chunks)", "Mutation Delta (%)", "Mutated Chunks", "Reused Chunks", "Re-embedded Chunks", "Re-Embedding Avoidance", "Total Compile Time (s)", "Cold Rebuild Time (s)", "Speedup Factor"],
-            ["100 Chunks", "0.0% (No-op)", "0", "100", "0", "100.0% (100/100)", "0.012", "1.85", "154.2x"],
-            ["100 Chunks", "5.0%", "5", "95", "5", "95.0% (95/100)", "0.085", "1.85", "21.8x"],
-            ["500 Chunks", "5.0%", "25", "475", "25", "95.0% (475/500)", "0.420", "8.50", "20.2x"],
-            ["1,000 Chunks", "5.0%", "50", "950", "50", "95.0% (950/1000)", "0.780", "17.20", "22.1x"],
-            ["2,500 Chunks", "5.0%", "125", "2,375", "125", "95.0% (2375/2500)", "1.750", "43.50", "24.9x"],
-            ["3,000 Chunks", "1.0%", "30", "2,970", "30", "99.0% (2970/3000)", "0.650", "52.40", "80.6x"],
-            ["3,000 Chunks", "5.0%", "150", "2,850", "150", "95.0% (2850/3000)", "2.100", "52.40", "24.9x"],
-            ["3,000 Chunks", "10.0%", "300", "2,700", "300", "90.0% (2700/3000)", "4.800", "52.40", "10.9x"],
-            ["3,000 Chunks", "25.0%", "750", "2,250", "750", "75.0% (2250/3000)", "12.500", "52.40", "4.19x"],
-            ["3,000 Chunks", "50.0%", "1,500", "1,500", "1,500", "50.0% (1500/3000)", "25.800", "52.40", "2.03x"],
-            ["3,000 Chunks", "100.0%", "3,000", "0", "3,000", "0.0% (0/3000)", "52.400", "52.40", "1.00x"]
-        ],
-        "table4_ablation_study": [
-            ["Architecture Variant", "Accuracy (%)", "Mean Latency (ms)", "P95 Latency (ms)", "Hallucination Rate (%)", "Security Violations", "LLM Invocation Multiplier"],
-            ["Full Veritas (Baseline)", "94.8%", "14.2", "32.5", "0.5%", "0 (0.0%)", "1.00x (Baseline)"],
-            ["w/o Fact Resolver (Tier 0)", "91.2%", "26.4", "48.0", "0.9%", "0 (0.0%)", "1.45x (+45%)"],
-            ["w/o Canonical QA Index (Tier 1)", "92.0%", "24.1", "45.2", "0.8%", "0 (0.0%)", "1.35x (+35%)"],
-            ["w/o BM25 (Dense Only)", "86.4%", "13.8", "31.0", "1.2%", "0 (0.0%)", "1.08x (+8%)"],
-            ["w/o Dense Retriever (BM25 Only)", "82.1%", "11.5", "28.0", "1.8%", "0 (0.0%)", "1.15x (+15%)"],
-            ["w/o CrossEncoder Reranker", "88.5%", "8.2", "18.0", "1.4%", "0 (0.0%)", "1.00x"],
-            ["w/o DeBERTa NLI Verifier", "90.1%", "9.5", "22.0", "4.1%", "0 (0.0%)", "1.00x"],
-            ["w/o Isotonic Calibration", "92.5%", "14.1", "32.5", "0.6%", "0 (0.0%)", "1.00x"],
-            ["w/o Multi-Level Cache", "94.8%", "28.5", "52.0", "0.5%", "0 (0.0%)", "1.85x (+85%)"]
-        ],
-        "table5_failure_taxonomy": [
-            ["Failure Code", "Category Name", "Count", "Share (%)", "Severity", "Affected Subsystem", "Primary Root Cause"],
-            ["F1", "Wrong Policy Retrieved", "4", "0.43% (4/922)", "Low", "Hybrid Retriever", "Near-duplicate policy phrasing across adjacent departments."],
-            ["F2", "Wrong Version Selected", "6", "0.65% (6/922)", "Medium", "Temporal Resolver", "Ambiguous natural language date expressions (e.g. 'prior year')."],
-            ["F3", "Wrong Department Scope", "0", "0.00% (0/922)", "High", "Evidence Filter", "Blocked deterministically by QueryScope department filtering."],
-            ["F4", "Authorization Failure / Leak", "0", "0.00% (0/922)", "Critical", "Evidence Filter", "Zero unauthorized candidate chunks entered context (100% Defense)."],
-            ["F5", "Temporal Semantic Failure", "8", "0.87% (8/922)", "Medium", "Version Resolver", "Multi-year boundary date range parsing discrepancies."],
-            ["F6", "Retrieval Ranking Failure", "14", "1.52% (14/922)", "Medium", "Reranker / RRF", "Highly constrained multi-clause queries where passage ranked outside top-8."],
-            ["F7", "Reranking Inversion", "3", "0.33% (3/922)", "Low", "FlashRank ONNX", "Short clause with high keyword overlap suppressed over verbose section."],
-            ["F8", "Generation Hallucination", "2", "0.22% (2/922)", "High", "LLM Provider", "Extraneous ungrounded claims generated before NLI rejection."],
-            ["F9", "Citation Attribution Error", "1", "0.11% (1/922)", "Low", "Citation Validator", "Missing specific section title in newly amended chunk."],
-            ["F10", "NLI False Contradiction", "2", "0.22% (2/922)", "Low", "NLI Verifier", "Overly strict threshold on valid paraphrastic clause."]
-        ]
-    }
 
-    for tbl_name, rows in table_files.items():
-        csv_path = os.path.join(TABLES_DIR, f"{tbl_name}.csv")
-        with open(csv_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerows(rows)
-        print(f"Exported {csv_path}")
-
-    # 3. Generate all 24 publication figures
+    # 2. Generate all 24 publication figures
     generate_all_plots()
     print("All 24 publication figures updated in results/system_characterization/paper_figures/")
 

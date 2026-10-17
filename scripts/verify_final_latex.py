@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Final Comprehensive LaTeX Audit & Validation Script
 Performs strict checking according to IEEE manuscript requirements:
 1. No Markdown artifacts (**, standalone *, #, _, ```)

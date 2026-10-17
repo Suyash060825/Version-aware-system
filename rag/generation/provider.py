@@ -29,15 +29,14 @@ class OllamaProvider(LocalLLMProvider):
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
         self.base_url = base_url or os.environ.get("LOCAL_LLM_BASE_URL", "http://localhost:11434")
         self.model = model or os.environ.get("LOCAL_LLM_MODEL", "qwen3:4b-q4_K_M")
-        self.timeout = float(os.environ.get("LLM_TIMEOUT", "2.5"))
-        self.negative_cache_window = 60
+        self.timeout = float(os.environ.get("LLM_TIMEOUT", "45.0"))
+        self.negative_cache_window = 30
         self._last_health_time = 0
         self._is_healthy = None
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
         import requests, time
-        # Fast check if server is available
-        if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
+        if not self.health_check():
             return None
 
         try:
@@ -53,7 +52,7 @@ class OllamaProvider(LocalLLMProvider):
             if system_prompt:
                 payload["system"] = system_prompt
 
-            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(2.0, float(self.timeout)))
+            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(1.0, float(self.timeout)))
             resp.raise_for_status()
             data = resp.json()
             self._is_healthy = True
@@ -83,7 +82,7 @@ class OllamaProvider(LocalLLMProvider):
             if system_prompt:
                 payload["system"] = system_prompt
 
-            with requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(2.0, float(self.timeout)), stream=True) as resp:
+            with requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(3.0, float(self.timeout)), stream=True) as resp:
                 if resp.status_code == 200:
                     self._is_healthy = True
                     self._last_health_time = time.time()
@@ -103,16 +102,25 @@ class OllamaProvider(LocalLLMProvider):
 
     def health_check(self) -> bool:
         import requests, time
-        if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
+        now = time.time()
+        # If recently confirmed healthy, skip round-trip (positive cache: 10s)
+        if self._is_healthy is True and (now - self._last_health_time < 10.0):
+            return True
+        if self._is_healthy is False and (now - self._last_health_time < self.negative_cache_window):
             return False
         try:
             resp = requests.get(f"{self.base_url}/api/tags", timeout=(0.3, 0.5))
             if resp.status_code == 200:
                 data = resp.json()
                 models = [m.get("name", "") for m in data.get("models", [])]
-                # Check if model is pulled or if any model exists
-                model_base = self.model.split(":")[0].lower()
-                has_model = any(model_base in m.lower() for m in models) if models else False
+                # Check if model is pulled with case-insensitive and hyphen/underscore normalization
+                model_base = self.model.split(":")[0].lower().replace("_", "-")
+                has_model = any(model_base in m.lower().replace("_", "-") for m in models) if models else False
+                if not has_model:
+                    if models:
+                        logger.warning(f"Ollama running but model {self.model} not found in {models}")
+                    else:
+                        logger.error(f"Ollama is running but no models are pulled. Run: ollama pull {self.model}")
                 self._is_healthy = has_model
                 self._last_health_time = time.time()
                 return has_model

@@ -83,6 +83,8 @@ class ComponentAblationBenchmark:
         results = []
         for v in variants:
             engine = QueryEngine(config=v["config"])
+            if hasattr(engine.cache, "clear"):
+                engine.cache.clear()
             # Warm up once
             _ = engine.answer("warmup policy query", user=self.users[0])
 
@@ -152,6 +154,8 @@ class ComponentAblationBenchmark:
             }
             results.append(res_row)
 
+        from rag.cache.semantic_cache import get_cache
+        get_cache().clear()
         return results
 
 if __name__ == "__main__":

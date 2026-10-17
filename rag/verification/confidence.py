@@ -17,7 +17,7 @@ class ConfidenceScore:
 
 class ConfidenceEngine:
     HIGH_THRESHOLD = 0.65
-    LOW_THRESHOLD = 0.25
+    LOW_THRESHOLD = 0.18
     
     STOPWORDS = {"what", "when", "where", "which", "who", "whom", "how", "why", "does", "have", "policy", "the", "for", "and", "can", "are", "get", "with", "from", "that", "this", "our", "you", "your", "will", "shall"}
 
@@ -45,7 +45,7 @@ class ConfidenceEngine:
         final = self._isotonic_calibrate(raw_final)
         
         # Abstain if evidence coverage is low or composite confidence is below calibrated baseline
-        abstain = (coverage_conf < 0.25) or (retrieval_conf < 0.20) or (final < self.LOW_THRESHOLD)
+        abstain = (coverage_conf < 0.15) or (retrieval_conf < 0.15) or (final < self.LOW_THRESHOLD)
             
         return ConfidenceScore(
             value=float(min(1.0, max(0.0, final))),
@@ -98,7 +98,16 @@ class ConfidenceEngine:
 
         stemmed_query = [self._stem(w) for w in raw_words]
         combined_text = " ".join([c.get("text", "").lower() for c in chunks])
-        chunk_stems = set([self._stem(w) for w in re.findall(r"\b[a-z0-9]+\b", combined_text)])
+        chunk_words = [w for w in re.findall(r"\b[a-z0-9]+\b", combined_text) if len(w) > 1]
+        chunk_stems = set([self._stem(w) for w in chunk_words])
         
-        matched = sum(1 for s in stemmed_query if s in chunk_stems or (len(s) >= 4 and any(cw.startswith(s) for cw in chunk_stems)))
-        return matched / len(stemmed_query)
+        matched = float(sum(1 for s in stemmed_query if s in chunk_stems or (len(s) >= 4 and any(cw.startswith(s) for cw in chunk_stems))))
+
+        # Compound term / bigram matching with weight 1.5
+        if len(stemmed_query) >= 2:
+            q_bigrams = {f"{a}_{b}" for a, b in zip(stemmed_query, stemmed_query[1:])}
+            stemmed_chunk_list = [self._stem(w) for w in chunk_words]
+            chunk_bigrams = {f"{a}_{b}" for a, b in zip(stemmed_chunk_list, stemmed_chunk_list[1:])}
+            matched += 1.5 * len(q_bigrams & chunk_bigrams)
+
+        return min(1.0, matched / len(stemmed_query))

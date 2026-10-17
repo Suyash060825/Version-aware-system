@@ -159,6 +159,29 @@ def _heuristic_review(content: str) -> dict:
         "suggestions": ["Configure an LLM provider for deeper compliance analysis."],
         "risk_score": risk,
     }
+def _extract_json(raw: str) -> dict:
+    """Extract first JSON object from LLM output, stripping markdown fences."""
+    import json, re
+    if not raw:
+        return {}
+    cleaned = raw.strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[7:]
+    if cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    cleaned = cleaned.strip()
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        m = re.search(r'\{.*\}', cleaned, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group())
+            except Exception:
+                pass
+    return {}
 
 
 def review_policy(content: str) -> dict:

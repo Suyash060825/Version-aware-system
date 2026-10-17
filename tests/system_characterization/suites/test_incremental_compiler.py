@@ -15,23 +15,34 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 from rag.compiler.incremental import IncrementalCompiler, compute_chunk_hash
 from rag.compiler.document_ir import ChunkIR
 from tests.system_characterization.corpus.ground_truth_ledger import GroundTruthLedger
+from rag.embeddings.embedder import get_embedder
 
 class IncrementalCompilerBenchmark:
     def __init__(self, ledger: GroundTruthLedger):
         self.ledger = ledger
         self.compiler = IncrementalCompiler()
+        self.embedder = get_embedder()
 
     def run_mutation_sweeps(self) -> List[Dict[str, Any]]:
         results = []
         all_chunks = list(self.ledger.chunks.values())
         
-        # Test across multiple chunk set sizes
-        corpus_sizes = [100, 250, 500, 1000, 2500, min(3000, len(all_chunks))]
+        # Test across multiple chunk set sizes (capped at total available chunks)
+        unique_sizes = sorted(list({s for s in [100, 250, 500, 1000, len(all_chunks)] if s <= len(all_chunks)}))
         mutation_percentages = [0.0, 0.01, 0.05, 0.10, 0.25, 0.50, 1.00]
 
-        for size in corpus_sizes:
+        for size in unique_sizes:
             base_subset = all_chunks[:size]
             
+            # Benchmark cold embedding rate for this corpus size
+            bench_sample_size = min(size, 128)
+            sample_texts = [c.text for c in base_subset[:bench_sample_size]]
+            t_cold_sample_start = time.perf_counter()
+            _ = self.embedder.embed(sample_texts)
+            sample_embed_ms = (time.perf_counter() - t_cold_sample_start) * 1000
+            ms_per_chunk = sample_embed_ms / max(1, bench_sample_size)
+            cold_embedding_time_ms = size * ms_per_chunk
+
             # Create base ChunkIR list
             base_irs = [
                 ChunkIR(
@@ -87,10 +98,10 @@ class IncrementalCompilerBenchmark:
                         ))
 
                 # Measure Diff and Hashing latency
-                t_hash_start = time.time()
+                t_hash_start = time.perf_counter()
                 for c in new_version_chunks:
                     _ = compute_chunk_hash(c.text)
-                hashing_time_ms = (time.time() - t_hash_start) * 1000
+                hashing_time_ms = (time.perf_counter() - t_hash_start) * 1000
 
                 # Simulated old chunk lookup by hash and ID
                 old_by_hash = {c.text_hash: c for c in base_irs}
@@ -105,7 +116,18 @@ class IncrementalCompilerBenchmark:
                 new_embed_count = len(changed) + len(added)
                 reuse_ratio = (reused_count / size) if size > 0 else 1.0
 
-                total_compilation_time_ms = (time.time() - t0) * 1000
+                # Real embedding of newly added or modified chunks
+                delta_chunks = changed + added
+                if delta_chunks:
+                    t_inc_embed_start = time.perf_counter()
+                    _ = self.embedder.embed([c.text for c in delta_chunks])
+                    incremental_embedding_time_ms = (time.perf_counter() - t_inc_embed_start) * 1000
+                else:
+                    incremental_embedding_time_ms = 0.0
+
+                total_incremental_time_ms = hashing_time_ms + incremental_embedding_time_ms
+                total_cold_time_ms = hashing_time_ms + cold_embedding_time_ms
+                speedup = total_cold_time_ms / max(0.001, total_incremental_time_ms)
 
                 res_entry = {
                     "corpus_size": size,
@@ -115,7 +137,11 @@ class IncrementalCompilerBenchmark:
                     "new_chunks_embedded": new_embed_count,
                     "reuse_ratio": reuse_ratio,
                     "hashing_time_ms": hashing_time_ms,
-                    "total_compilation_time_ms": total_compilation_time_ms,
+                    "incremental_embedding_time_ms": incremental_embedding_time_ms,
+                    "cold_embedding_time_ms": cold_embedding_time_ms,
+                    "total_compilation_time_ms": total_incremental_time_ms,
+                    "cold_rebuild_time_ms": total_cold_time_ms,
+                    "empirical_speedup": speedup,
                     "reembedding_avoidance_pct": (1.0 - (new_embed_count / size)) * 100.0 if size > 0 else 100.0,
                     "correctness_verified": (reused_count + new_embed_count == size)
                 }

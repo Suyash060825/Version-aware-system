@@ -8,13 +8,8 @@ Answer the user's question using ONLY the provided authoritative policy evidence
 Do NOT fabricate rules, policies, numbers, or exceptions.
 If the evidence does not contain the answer, respond with "INSUFFICIENT_EVIDENCE".
 
-Always output your response as valid JSON with the following structure:
-{
-  "answer": "Clear, concise direct answer based only on the evidence.",
-  "reasoning_summary": "Brief summary of how the policy supports the answer.",
-  "used_evidence_ids": ["list of chunk_id strings used"],
-  "needs_clarification": false
-}
+Always output ONLY valid JSON. No markdown fences, no explanation outside the JSON.
+Example: {"answer": "Employees are entitled to 21 days of annual leave per year.", "reasoning_summary": "Section 3.1 states 21 days.", "used_evidence_ids": ["chunk-1"], "needs_clarification": false}
 """
 
 STREAMING_POLICY_GROUNDING_PROMPT = """You are an Enterprise Policy Assistant.
@@ -28,8 +23,11 @@ def build_grounded_qa_prompt(query: str, evidence_chunks: list) -> str:
     for i, c in enumerate(evidence_chunks):
         cid = c.get("chunk_id") or c.get("id") or f"chunk-{i+1}"
         sec = c.get("section") or c.get("section_path") or "Policy Section"
+        pname = c.get("policy_name") or "Policy"
+        ver = str(c.get("version") or "1.0").lstrip("v")
+        status = "Active" if c.get("is_active", True) else "Superseded"
         text = c.get("text", "").strip()
-        context_blocks.append(f"[{cid}] ({sec}):\n{text}")
+        context_blocks.append(f"[{cid}] [Policy: {pname} | Version: v{ver} ({status}) | Section: {sec}]:\n{text}")
 
     context_str = "\n\n".join(context_blocks)
     

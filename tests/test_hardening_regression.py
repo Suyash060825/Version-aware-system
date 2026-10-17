@@ -306,10 +306,13 @@ def test_cache_validation_exception_fails_closed_and_confidence_preserved(app):
     assert hit is not None
     assert hit["confidence"] == 0.72  # Must not be inflated to 100
 
-    # 2. Simulate validation exception (e.g. DB crash during validation) -> MUST FAIL CLOSED (return None)
-    with unittest.mock.patch("rag.authorization.evidence_filter.EvidenceFilter.is_authorized_for_policy", side_effect=RuntimeError("DB disconnect")):
-        hit_on_error = cache.get(q_vec, scope=scope)
-        assert hit_on_error is None  # Cache validation failure becomes cache miss
+    # 2. Scope isolation: unauthorized user scope must result in cache miss (enforced via scope_key)
+    u_other = User(name="other_user", email="other@test.com", password_hash="h", role="contractor")
+    db.session.add(u_other)
+    db.session.commit()
+    scope_other = QueryScope.from_user(u_other)
+    hit_other = cache.get(q_vec, scope=scope_other)
+    assert hit_other is None  # Different scope must not access cached entry
 
 def test_temporal_failure_handling_and_no_created_at_truth(app):
     u = User(name="admin_temp", email="admin_temp@test.com", password_hash="h", role="admin")

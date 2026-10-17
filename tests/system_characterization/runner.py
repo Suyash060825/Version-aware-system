@@ -110,6 +110,8 @@ def run_master_characterization():
     app = create_app("default")
     with app.app_context():
         engine = get_query_engine()
+        if hasattr(engine.cache, "clear"):
+            engine.cache.clear()
         # Warmup
         _ = engine.answer("warmup query", user=users[0])
 

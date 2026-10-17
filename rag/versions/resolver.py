@@ -234,8 +234,9 @@ class VersionResolver:
                 if v.is_valid_for_date(target_date):
                     return v
             # If target date is before all versions, return the earliest version
-            if target_date < versions[-1].effective_from:
-                return versions[-1]
+            earliest = versions[-1]
+            if earliest.effective_from is not None and target_date < earliest.effective_from:
+                return earliest
             return versions[0]
 
         active = PolicyVersion.query.filter_by(policy_id=policy_id, is_active=True).first()

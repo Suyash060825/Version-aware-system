@@ -203,4 +203,68 @@ class FactExtractor:
                     source_chunk_id=chunk.chunk_id, confidence=1.0, created_at=now_utc()
                 ))
 
+            # 12. Probation Period & Sabbatical Limit
+            for m in re.finditer(r"(?:probation(?:ary)?\s*period|probation)\s*(?:is|of|for)?\s*(\d+)\s*(month|week|day)s?", text, re.I):
+                facts.append(PolicyFact(
+                    policy_id=chunk.policy_id, version_id=chunk.version_id,
+                    subject="Probation Period", predicate="probation_period",
+                    value=m.group(1), unit=m.group(2) + "s", scope="employment confirmation",
+                    source_chunk_id=chunk.chunk_id, confidence=1.0, created_at=now_utc()
+                ))
+            for m in re.finditer(r"(?:sabbatical|extended\s*study\s*leave)\s*(?:limit|duration)?\s*(?:is|of|up to)?\s*(\d+)\s*(month|week|year)s?", text, re.I):
+                facts.append(PolicyFact(
+                    policy_id=chunk.policy_id, version_id=chunk.version_id,
+                    subject="Sabbatical Limit", predicate="sabbatical_limit",
+                    value=m.group(1), unit=m.group(2) + "s", scope="extended leave policy",
+                    source_chunk_id=chunk.chunk_id, confidence=1.0, created_at=now_utc()
+                ))
+
+            # 13. Expense Filing Deadline & Wellness/Gym Allowance
+            for m in re.finditer(r"(?:expense\s*filing\s*deadline|submit\s*expense[^\.\n]*within)\s*(\d+)\s*days?", text, re.I):
+                facts.append(PolicyFact(
+                    policy_id=chunk.policy_id, version_id=chunk.version_id,
+                    subject="Expense Filing Deadline", predicate="expense_filing_deadline",
+                    value=m.group(1), unit="days", scope="expense reimbursement timeline",
+                    source_chunk_id=chunk.chunk_id, confidence=1.0, created_at=now_utc()
+                ))
+            for m in re.finditer(r"(?:gym|wellness|fitness)\s*(?:allowance|subsidy|budget)\s*(?:of|is)?\s*(?:rs\.?|inr|₹)?\s*([\d,]+)", text, re.I):
+                facts.append(PolicyFact(
+                    policy_id=chunk.policy_id, version_id=chunk.version_id,
+                    subject="Gym & Wellness Allowance", predicate="gym_monthly_allowance",
+                    value=f"Rs. {m.group(1)}", unit="INR per month", scope="wellness benefit",
+                    source_chunk_id=chunk.chunk_id, confidence=1.0, created_at=now_utc()
+                ))
+
+            # 14. Critical Patch SLA & POSH Investigation SLA
+            for m in re.finditer(r"(?:critical\s*patch\s*sla|critical\s*vulnerabilit[a-z\s]*within)\s*(\d+)\s*(hour|day)s?", text, re.I):
+                facts.append(PolicyFact(
+                    policy_id=chunk.policy_id, version_id=chunk.version_id,
+                    subject="Critical Patch SLA", predicate="critical_patch_sla",
+                    value=m.group(1), unit=m.group(2) + "s", scope="security remediation SLA",
+                    source_chunk_id=chunk.chunk_id, confidence=1.0, created_at=now_utc()
+                ))
+            for m in re.finditer(r"(?:posh|anti-harassment)\s*investigation[^\.\n]*within\s*(\d+)\s*days?", text, re.I):
+                facts.append(PolicyFact(
+                    policy_id=chunk.policy_id, version_id=chunk.version_id,
+                    subject="POSH Investigation Timeline", predicate="posh_investigation_days",
+                    value=m.group(1), unit="days", scope="statutory compliance",
+                    source_chunk_id=chunk.chunk_id, confidence=1.0, created_at=now_utc()
+                ))
+
+            # 15. Security & Session Timeouts
+            for m in re.finditer(r"vpn\s*session\s*(?:timeout|duration)?\s*(?:of|is)?\s*(\d+)\s*(hour|minute)s?", text, re.I):
+                facts.append(PolicyFact(
+                    policy_id=chunk.policy_id, version_id=chunk.version_id,
+                    subject="VPN Session Timeout", predicate="vpn_session_timeout",
+                    value=m.group(1), unit=m.group(2) + "s", scope="network security",
+                    source_chunk_id=chunk.chunk_id, confidence=1.0, created_at=now_utc()
+                ))
+            for m in re.finditer(r"(?:screen\s*lock|auto\s*lock)\s*(?:timeout|after)?\s*(\d+)\s*(minute|min)s?", text, re.I):
+                facts.append(PolicyFact(
+                    policy_id=chunk.policy_id, version_id=chunk.version_id,
+                    subject="Screen Lock Timeout", predicate="screen_lock_timeout",
+                    value=m.group(1), unit="minutes", scope="workstation security",
+                    source_chunk_id=chunk.chunk_id, confidence=1.0, created_at=now_utc()
+                ))
+
         return facts

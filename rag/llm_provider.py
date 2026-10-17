@@ -73,6 +73,7 @@ class OllamaProvider(LLMProvider):
         self,
         base_url: Optional[str] = None,
         model: Optional[str] = None,
+        api_key: Optional[str] = None,
         timeout: Optional[int] = None
     ):
         raw_url = (
@@ -95,7 +96,7 @@ class OllamaProvider(LLMProvider):
             or os.environ.get("LOCAL_LLM_MODEL")
             or os.environ.get("OLLAMA_MODEL", "qwen3:4b-q4_K_M")
         )
-        self.api_key = os.environ.get("OLLAMA_API_KEY", "")
+        self.api_key = api_key or os.environ.get("OLLAMA_API_KEY", "")
         self.timeout = timeout if timeout is not None else (2.0, 3.5)
         import requests
         self._session = requests.Session()

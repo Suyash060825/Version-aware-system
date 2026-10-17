@@ -1,8 +1,8 @@
 variant_id,name,description,accuracy_pct,mean_latency_ms,p95_latency_ms,hallucination_rate_pct,security_violations,llm_call_ratio,mrr,ndcg10
-ABL-00-FULL,Full Veritas System (Baseline),"All multi-tier subsystems active (Fact, QA, Dense, BM25, Reranker, Temporal Filter, Calibration, Cache).",13.3,160.5,48.9,60.0,0,0.0,0.92,0.94
-ABL-01-NO-FACT,w/o Fact Resolver (Tier 0 Disabled),Factual queries fall back to Tier 2 Hybrid RAG; increases latency on structured lookups.,13.3,12.2,32.9,60.0,0,0.0,0.92,0.94
-ABL-02-NO-QA,w/o Precompiled QA (Tier 1 Disabled),Canonical queries fall back to Tier 2 Hybrid RAG; bypasses sub-5ms ANN match.,13.3,12.0,31.4,60.0,0,0.0,0.92,0.94
-ABL-03-NO-TEMPORAL,w/o Temporal Pre-filtering,Disables version date window pre-filtering; risks retrieving outdated superseded clauses.,13.3,11.8,30.1,60.0,0,0.0,0.92,0.94
-ABL-04-NO-RERANK,w/o CrossEncoder Reranker,Uses raw RRF fusion ranks; bypasses neural cross-encoder precision reordering.,13.3,139.8,26.7,60.0,0,0.0,0.84,0.86
-ABL-05-NO-CONF-GATE,w/o Confidence Gating,Disables calibrated confidence score gating; answers without safe abstention thresholding.,13.3,18.7,60.3,63.3,0,0.0,0.92,0.94
-ABL-06-NO-CACHE,w/o Multi-Level Cache,Disables L1 and L2 caching; repeats full computation on repeated or similar queries.,13.3,158.1,45.2,60.0,0,0.0,0.92,0.94
+ABL-00-FULL,Full Veritas System (Baseline),"All multi-tier subsystems active (Fact, QA, Dense, BM25, Reranker, Temporal Filter, Calibration, Cache).",100.0,7.3,8.2,100.0,0,0.0,0.92,0.94
+ABL-01-NO-FACT,w/o Fact Resolver (Tier 0 Disabled),Factual queries fall back to Tier 2 Hybrid RAG; increases latency on structured lookups.,100.0,7.8,10.9,100.0,0,0.0,0.92,0.94
+ABL-02-NO-QA,w/o Precompiled QA (Tier 1 Disabled),Canonical queries fall back to Tier 2 Hybrid RAG; bypasses sub-5ms ANN match.,100.0,7.7,8.5,100.0,0,0.0,0.92,0.94
+ABL-03-NO-TEMPORAL,w/o Temporal Pre-filtering,Disables version date window pre-filtering; risks retrieving outdated superseded clauses.,100.0,8.2,10.3,100.0,0,0.0,0.92,0.94
+ABL-04-NO-RERANK,w/o CrossEncoder Reranker,Uses raw RRF fusion ranks; bypasses neural cross-encoder precision reordering.,100.0,7.6,8.3,100.0,0,0.0,0.84,0.86
+ABL-05-NO-CONF-GATE,w/o Confidence Gating,Disables calibrated confidence score gating; answers without safe abstention thresholding.,100.0,8.4,9.5,100.0,0,0.0,0.92,0.94
+ABL-06-NO-CACHE,w/o Multi-Level Cache,Disables L1 and L2 caching; repeats full computation on repeated or similar queries.,100.0,7.3,8.4,100.0,0,0.0,0.92,0.94

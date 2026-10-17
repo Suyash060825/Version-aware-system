@@ -124,14 +124,20 @@ def get_reranker():
         engine = os.environ.get("RERANKER_ENGINE", "flashrank").lower()
         model = os.environ.get("RERANKER_MODEL", "ms-marco-TinyBERT-L-2-v2")
         if mode == "mock":
+            logger.info("Initializing reranker in MOCK mode (pass-through).")
             _RERANKER = MockReranker()
         elif engine in ("flashrank", "auto"):
             try:
                 _RERANKER = FlashRankReranker(os.environ.get("FLASHRANK_MODEL", model))
                 if _RERANKER._ranker is None:
-                    _RERANKER = Qwen3Reranker()
-            except Exception:
-                _RERANKER = Qwen3Reranker()
+                    logger.warning("FlashRank ONNX ranker failed to initialize. Falling back to pass-through MockReranker.")
+                    _RERANKER = MockReranker()
+                else:
+                    logger.info(f"FlashRank ONNX reranker successfully initialized with model {model}.")
+            except Exception as e:
+                logger.warning(f"FlashRank load exception: {e}. Falling back to pass-through MockReranker.")
+                _RERANKER = MockReranker()
         else:
             _RERANKER = Qwen3Reranker()
+            logger.info(f"Qwen3 CrossEncoder reranker initialized on device {_RERANKER.device}.")
     return _RERANKER

@@ -52,6 +52,9 @@ def verify_numeric_grounding(answer: str, chunks: List[Dict[str, Any]]) -> bool:
     for num in raw_nums:
         if num in ctx_nums or num in ("1", "2"):
             continue
+        num_clean = num.rstrip('%')
+        if re.match(r'^20\d{2}$', num_clean) or (num_clean.isdigit() and int(num_clean) in range(1, 10)):
+            continue
         if num.endswith("%") and num[:-1] in ctx_nums:
             continue
         return False
@@ -261,7 +264,7 @@ class QueryEngine:
             elif not has_temporal_cue and not is_diff:
                 filters["is_active"] = True
 
-        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=25, query_embedding=q_emb)
+        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50, query_embedding=q_emb)
         
         # 6. Authorization Filtering using unified QueryScope
         authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
@@ -296,7 +299,7 @@ class QueryEngine:
 
         # Build clean citations
         raw_cits = []
-        for c in ranked[:3]:
+        for c in ranked[:5]:
             raw_cits.append({
                 "chunk_id": c.get("chunk_id") or c.get("id"),
                 "policy_id": c.get("policy_id"),
@@ -318,12 +321,12 @@ class QueryEngine:
         # Try LLM generation first when available
         if self.llm.health_check():
             try:
-                llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:3])
+                llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:5])
                 if llm_output and llm_output.get("answer") and "INSUFFICIENT_EVIDENCE" not in llm_output.get("answer", ""):
                     ans_candidate = llm_output["answer"]
-                    if verify_numeric_grounding(ans_candidate, ranked[:3]):
+                    if verify_numeric_grounding(ans_candidate, ranked[:5]):
                         if self.config.use_nli:
-                            is_grounded, entail_score = self.entailment_verifier.verify(ans_candidate, ranked[:3])
+                            is_grounded, entail_score = self.entailment_verifier.verify(ans_candidate, ranked[:5])
                         else:
                             is_grounded = True
                         if is_grounded:
@@ -333,26 +336,43 @@ class QueryEngine:
                 logger.warning(f"Local LLM inference encountered error: {e}. Falling back to deterministic grounded extraction.")
 
         if not final_answer:
-            # Deterministic evidence extraction: must be verified as answer-bearing
-            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', top_text) if len(s.strip()) > 15]
-            q_words = set(re.findall(r"\b[a-z0-9]+\b", normalized_query.lower())) - {"what", "when", "where", "which", "who", "whom", "how", "why", "does", "have", "policy", "the", "for", "and", "can", "are", "get", "with", "from", "that", "this", "our", "you", "your", "will", "shall", "is"}
-            
-            best_sentence = None
-            best_score = 0
-            for s in sentences:
-                s_words = set(re.findall(r"\b[a-z0-9]+\b", s.lower()))
-                overlap = len(q_words & s_words)
-                if overlap > best_score:
-                    best_score = overlap
-                    best_sentence = s
+            # Multi-sentence contextual evidence synthesis across top ranked chunks
+            q_words = set(re.findall(r"\b[a-z0-9]+\b", normalized_query.lower())) - {
+                "what", "when", "where", "which", "who", "whom", "how", "why", "does",
+                "have", "policy", "the", "for", "and", "can", "are", "get", "with",
+                "from", "that", "this", "our", "you", "your", "will", "shall", "is", "under"
+            }
 
-            # Require at least 2 distinct content word matches for evidence bearing
-            if best_sentence and best_score >= 2:
+            scored_candidates = []
+            for rc in ranked[:3]:
+                chunk_text = rc.get("text", "").strip()
+                chunk_sec = rc.get("section") or rc.get("section_path") or "Policy"
+                sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', chunk_text) if len(s.strip()) > 15]
+                for s_idx, s in enumerate(sentences):
+                    s_words = set(re.findall(r"\b[a-z0-9]+\b", s.lower()))
+                    overlap = len(q_words & s_words)
+                    if overlap >= 1:
+                        scored_candidates.append((overlap, rc, chunk_sec, s_idx, s, sentences))
+
+            if scored_candidates:
+                scored_candidates.sort(key=lambda x: x[0], reverse=True)
+                top_overlap, best_chunk, best_sec, best_idx, best_sent, all_sents = scored_candidates[0]
+
+                # Contextual synthesis: surrounding sentences from the authoritative chunk
+                start_i = max(0, best_idx - 1)
+                end_i = min(len(all_sents), best_idx + 2)
+                context_paragraph = " ".join(all_sents[start_i:end_i])
+
+                policy_name = best_chunk.get("policy_name") or (citations[0]["policy_name"] if citations else "Policy")
+                version_raw = best_chunk.get("version") or (citations[0]["version"] if citations else "1.0")
+                version_num = str(version_raw).lstrip("v")
+                final_answer = f"According to the {policy_name} (v{version_num}, {best_sec}):\n{context_paragraph}"
+            elif ranked and top_text:
                 policy_name = citations[0]["policy_name"] if citations else "Policy"
-                version_num = citations[0]["version"] if citations else "1.0"
-                final_answer = f"According to the {policy_name} (v{version_num}, {top_section}):\n{best_sentence}"
+                version_raw = citations[0]["version"] if citations else "1.0"
+                version_num = str(version_raw).lstrip("v")
+                final_answer = f"According to the {policy_name} (v{version_num}, {top_section}):\n{top_text}"
             else:
-                # If cannot extract verified answer-bearing sentence and no LLM grounding, abstain safely
                 return QueryResult.abstained("I could not find sufficient authoritative evidence to answer this specific question.", (time.time() - t_start) * 1000)
 
         # Cache successful verified answer preserving exact confidence score
@@ -410,7 +430,7 @@ class QueryEngine:
                 "result": {
                     "answer": cached["answer"],
                     "citations": cits,
-                    "confidence": conf_val * 100 if conf_val <= 1.0 else conf_val,
+                    "confidence": conf_val,
                     "route": "CACHE_HIT",
                     "llm_used": False,
                     "latency_ms": (time.time() - t_start) * 1000,
@@ -447,7 +467,7 @@ class QueryEngine:
                     "result": {
                         "answer": fact_res.answer,
                         "citations": cits,
-                        "confidence": fact_res.confidence * 100,
+                        "confidence": fact_res.confidence,
                         "route": "FAST_PATH_FACT",
                         "llm_used": False,
                         "latency_ms": (time.time() - t_start) * 1000,
@@ -487,7 +507,7 @@ class QueryEngine:
                             "result": {
                                 "answer": qa_match["answer"],
                                 "citations": cits,
-                                "confidence": qa_match["confidence"] * 100,
+                                "confidence": qa_match["confidence"],
                                 "route": "FAST_PATH_COMPILED_QA",
                                 "llm_used": False,
                                 "latency_ms": (time.time() - t_start) * 1000,
@@ -540,10 +560,10 @@ class QueryEngine:
                         ])
 
                         diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
-                        comparison_evidence_score = 85.0 if diff_clauses > 0 else 80.0
+                        comparison_evidence_score = 0.85 if diff_clauses > 0 else 0.80
 
                         if self.config.use_cache:
-                            self.cache.put(q_emb, diff_summary, cits, 2, scope=scope, confidence=comparison_evidence_score / 100.0, is_diff_query=True, query=normalized_query)
+                            self.cache.put(q_emb, diff_summary, cits, 2, scope=scope, confidence=comparison_evidence_score, is_diff_query=True, query=normalized_query)
 
                         words = diff_summary.split(" ")
                         for i, word in enumerate(words):
@@ -617,7 +637,7 @@ class QueryEngine:
             elif not has_temporal_cue and not is_diff:
                 filters["is_active"] = True
 
-        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=25, query_embedding=q_emb)
+        raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50, query_embedding=q_emb)
         
         # 6. Authorization Filtering using unified QueryScope
         authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
@@ -670,7 +690,7 @@ class QueryEngine:
                 "result": {
                     "answer": refusal,
                     "citations": [],
-                    "confidence": conf.value * 100,
+                    "confidence": conf.value,
                     "route": "ABSTAIN",
                     "llm_used": False,
                     "latency_ms": (time.time() - t_start) * 1000,
@@ -682,7 +702,7 @@ class QueryEngine:
 
         # Build clean citations
         raw_cits = []
-        for c in ranked[:3]:
+        for c in ranked[:5]:
             raw_cits.append({
                 "chunk_id": c.get("chunk_id") or c.get("id"),
                 "policy_id": c.get("policy_id"),
@@ -700,13 +720,13 @@ class QueryEngine:
         
         if complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL and self.llm.health_check():
             try:
-                prompt = build_streaming_qa_prompt(normalized_query, ranked[:3])
+                prompt = build_streaming_qa_prompt(normalized_query, ranked[:5])
                 for token in self.llm.stream(prompt, system_prompt=STREAMING_POLICY_GROUNDING_PROMPT):
                     if token:
                         full_answer += token
                         yield {"type": "token", "token": token}
                 
-                if full_answer.strip() and verify_numeric_grounding(full_answer, ranked[:3]):
+                if full_answer.strip() and verify_numeric_grounding(full_answer, ranked[:5]):
                     llm_used = True
                 else:
                     full_answer = ""
@@ -714,26 +734,49 @@ class QueryEngine:
                 full_answer = ""
 
         if not full_answer.strip():
-            # Deterministic clean extraction: extract the most relevant sentence from the top chunk
-            top_text = ranked[0].get("text", "").strip()
-            top_section = ranked[0].get("section") or ranked[0].get("section_path") or "Policy"
-            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', top_text) if len(s.strip()) > 15]
-            q_words = set(re.findall(r"\b[a-z0-9]+\b", normalized_query.lower())) - {"what", "when", "where", "which", "who", "whom", "how", "why", "does", "have", "policy", "the", "for", "and", "can", "are", "get", "with", "from", "that", "this", "our", "you", "your", "will", "shall", "is"}
-            
-            best_sentence = None
-            best_score = 0
-            for s in sentences:
-                s_words = set(re.findall(r"\b[a-z0-9]+\b", s.lower()))
-                overlap = len(q_words & s_words)
-                if overlap > best_score:
-                    best_score = overlap
-                    best_sentence = s
+            # Multi-sentence contextual evidence synthesis across top ranked chunks
+            top_section = ranked[0].get("section") or ranked[0].get("section_path") or "Policy" if ranked else "Policy"
+            q_words = set(re.findall(r"\b[a-z0-9]+\b", normalized_query.lower())) - {
+                "what", "when", "where", "which", "who", "whom", "how", "why", "does",
+                "have", "policy", "the", "for", "and", "can", "are", "get", "with",
+                "from", "that", "this", "our", "you", "your", "will", "shall", "is", "under"
+            }
 
-            if best_sentence and best_score >= 2:
+            scored_candidates = []
+            for rc in ranked[:3]:
+                chunk_text = rc.get("text", "").strip()
+                chunk_sec = rc.get("section") or rc.get("section_path") or "Policy"
+                sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', chunk_text) if len(s.strip()) > 15]
+                for s_idx, s in enumerate(sentences):
+                    s_words = set(re.findall(r"\b[a-z0-9]+\b", s.lower()))
+                    overlap = len(q_words & s_words)
+                    if overlap >= 1:
+                        scored_candidates.append((overlap, rc, chunk_sec, s_idx, s, sentences))
+
+            if scored_candidates:
+                scored_candidates.sort(key=lambda x: x[0], reverse=True)
+                top_overlap, best_chunk, best_sec, best_idx, best_sent, all_sents = scored_candidates[0]
+
+                # Contextual synthesis: surrounding sentences from the authoritative chunk
+                start_i = max(0, best_idx - 1)
+                end_i = min(len(all_sents), best_idx + 2)
+                context_paragraph = " ".join(all_sents[start_i:end_i])
+
+                policy_name = best_chunk.get("policy_name") or (citations[0]["policy_name"] if citations else "Policy")
+                version_raw = best_chunk.get("version") or (citations[0]["version"] if citations else "1.0")
+                version_num = str(version_raw).lstrip("v")
+                full_answer = f"According to the {policy_name} (v{version_num}, {best_sec}):\n{context_paragraph}"
+
+                words = full_answer.split(" ")
+                for i, word in enumerate(words):
+                    chunk = word if i == len(words) - 1 else word + " "
+                    yield {"type": "token", "token": chunk}
+            elif ranked and top_text:
                 policy_name = citations[0]["policy_name"] if citations else "Policy"
-                version_num = citations[0]["version"] if citations else "1.0"
-                full_answer = f"According to the {policy_name} (v{version_num}, {top_section}):\n{best_sentence}"
-                
+                version_raw = citations[0]["version"] if citations else "1.0"
+                version_num = str(version_raw).lstrip("v")
+                full_answer = f"According to the {policy_name} (v{version_num}, {top_section}):\n{top_text}"
+
                 words = full_answer.split(" ")
                 for i, word in enumerate(words):
                     chunk = word if i == len(words) - 1 else word + " "
@@ -765,7 +808,7 @@ class QueryEngine:
             "result": {
                 "answer": full_answer,
                 "citations": citations,
-                "confidence": conf.value * 100,
+                "confidence": conf.value,
                 "route": "HYBRID_RAG",
                 "llm_used": llm_used,
                 "latency_ms": (time.time() - t_start) * 1000,

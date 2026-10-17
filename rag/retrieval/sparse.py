@@ -55,6 +55,19 @@ class PersistentBM25Index:
             logger.error(f"Failed to save BM25 index: {e}")
 
     def rebuild_from_db(self):
+        from flask import has_app_context
+        if not has_app_context():
+            try:
+                from app import create_app
+                app = create_app("default")
+                with app.app_context():
+                    return self._do_rebuild_from_db()
+            except Exception as e:
+                logger.warning(f"rebuild_from_db invoked outside Flask context and auto-context creation failed: {e}")
+                return
+        return self._do_rebuild_from_db()
+
+    def _do_rebuild_from_db(self):
         try:
             chunks = PolicyChunkV2.query.all()
             if not chunks:

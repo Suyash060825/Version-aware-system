@@ -1,6 +1,6 @@
 | Retrieval Subsystem | Recall@1 (%) | Recall@5 (%) | Recall@10 (%) | MRR | NDCG@10 | Mean Latency (ms) | Rank 1 Inversions |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **BM25 Inverted Index Alone** | 72.4% (668/922) | 85.1% (785/922) | 90.2% (832/922) | 0.785 | 0.812 | 1.25 ms | 254 |
-| **Dense Vector (Chroma) Alone** | 78.6% (725/922) | 89.4% (824/922) | 93.8% (865/922) | 0.832 | 0.856 | 4.80 ms | 197 |
-| **Reciprocal Rank Fusion (RRF)** | 88.2% (813/922) | 96.1% (886/922) | 98.5% (908/922) | 0.915 | 0.934 | 6.10 ms | 109 |
-| **FlashRank ONNX CrossEncoder** | **94.5% (871/922)** | **98.8% (911/922)** | **99.4% (916/922)** | **0.962** | **0.978** | **12.4 ms** | **51** |
+| BM25 Inverted Index Alone | 12.6% | 65.0% | 89.4% | 0.330 | 0.445 | 2.95 | 87 |
+| Dense Vector (Chroma) Alone | 10.2% | 63.0% | 96.0% | 0.314 | 0.410 | 23.56 | 33 |
+| Reciprocal Rank Fusion (RRF) | 12.2% | 64.0% | 94.0% | 0.326 | 0.373 | 0.07 | 49 |
+| FlashRank ONNX CrossEncoder | 16.2% | 67.0% | 93.4% | 0.353 | 0.494 | 4.19 | 54 |

@@ -6,7 +6,6 @@ load_dotenv()
 app.py  —  Policy Ledger v2 (Production Hardened)
 Run: python app.py
 """
-import os
 import logging
 from flask import Flask, redirect, url_for, Response, jsonify, render_template
 from flask_login import current_user, login_required

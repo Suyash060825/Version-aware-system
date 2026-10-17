@@ -139,6 +139,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: policy_ledger_ollama
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 3 && ollama pull ${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M} && wait"]
     restart: unless-stopped
     ports:
       - "127.0.0.1:11434:11434"
@@ -154,11 +155,11 @@ services:
               count: all
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: ["CMD-SHELL", "ollama list | grep -q ${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M} || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 10
+      start_period: 30s
 
 volumes:
   postgres_data:

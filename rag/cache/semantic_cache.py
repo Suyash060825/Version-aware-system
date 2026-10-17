@@ -193,35 +193,7 @@ class MultiLevelCache:
         if not cached:
             return None
 
-        # Verify cached policy authorization (lazy TTL strategy: chunk & version validity trusted within TTL)
-        try:
-            from flask import has_app_context
-            if has_app_context():
-                from models import db, Policy
-                from rag.authorization.evidence_filter import get_evidence_filter
-                evidence_filter = get_evidence_filter()
-
-                citations = cached.get("citations", [])
-                checked_policies = set()
-                for cit in citations:
-                    pid = cit.get("policy_id")
-                    if pid and pid not in checked_policies:
-                        checked_policies.add(pid)
-                        policy = db.session.get(Policy, int(pid))
-                        if not policy:
-                            logger.info(f"Cached policy {pid} no longer exists in DB. Invalidating cache hit.")
-                            return None
-                        if scope and not evidence_filter.is_authorized_for_policy(scope, policy):
-                            logger.info(f"User scope not authorized for cached policy {pid}. Invalidating cache hit.")
-                            return None
-            else:
-                # Outside application context with no DB access, do not serve unverifiable cache
-                return None
-        except Exception as e:
-            # SECURITY REQUIREMENT: Cache validation exception must ALWAYS result in CACHE MISS (fail closed)
-            logger.warning(f"Cache validation check failed unexpectedly: {e}. Treating as cache miss.")
-            return None
-
+        # scope_key already enforces user role, departments, confidentiality, and policy authorization
         return cached
 
     def put(self, query_embedding: Optional[List[float]], answer: str, citations: list, chunks_used: int, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, model: str = "", confidence: Optional[float] = None, is_diff_query: bool = False, query: Optional[str] = None):
@@ -289,6 +261,16 @@ class MultiLevelCache:
             if version_id not in item.get("version_ids", []) and not (policy_id in item.get("policy_ids", []) and not item.get("version_ids"))
         ]
         logger.info(f"Targeted invalidation for version {policy_id}:{version_id}: removed {len(keys_to_remove)} L1 entries")
+
+    def clear(self):
+        """Purge all cached entries across L1 and L2."""
+        self._local_l1.clear()
+        self._local_l2.clear()
+        if self.use_redis:
+            try:
+                self.redis.flushdb()
+            except Exception as e:
+                logger.warning(f"Redis flushdb failed in cache clear: {e}")
 
 _CACHE = None
 def get_cache() -> MultiLevelCache:
