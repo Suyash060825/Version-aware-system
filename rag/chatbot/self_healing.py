@@ -1,4 +1,3 @@
-import json
 from models import db, ChatMessage
 from rag.llm_provider import get_llm_provider
 from rag.cache.semantic_cache import get_cache

@@ -276,7 +276,6 @@ def test_citation_validator_strictness(app):
 def test_cache_validation_exception_fails_closed_and_confidence_preserved(app):
     from rag.cache.semantic_cache import MultiLevelCache
     from rag.engine.query_scope import QueryScope
-    import unittest.mock
 
     cache = MultiLevelCache()
     u = User(name="test_u", email="u@test.com", password_hash="h", role="employee")
@@ -381,7 +380,6 @@ def test_fact_resolver_ambiguity_margin_and_unauthorized(app):
 
 def test_faiss_delta_persistence_restart_and_compaction(app, tmp_path):
     from rag.qa.qa_index import CanonicalQAIndex
-    import os
 
     u = User(name="admin_faiss", email="admin_faiss@test.com", password_hash="h", role="admin")
     db.session.add(u)

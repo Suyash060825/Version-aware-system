@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from whatif_ai import evaluate_scenario, _heuristic_verdict
+from whatif_ai import evaluate_scenario
 from utils import extract_json
 
 class StubLLMResponse:

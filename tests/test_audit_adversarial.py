@@ -4,15 +4,12 @@ Independent Audit Test Suite for Phase 5 (Temporal & Authorization) and Phase 6 
 Executes all mandated edge cases without modifying production code.
 """
 import pytest
-import os
-import json
 import time
-from datetime import date, timedelta
+from datetime import date
 from app import create_app
 from models import (db, Policy, PolicyVersion, PolicyChunkV2, PolicyFact, 
-                    CanonicalQuestion, CompiledAnswer, User, UserRole, 
-                    PolicyStatus, ConfidentialityLevel, Department)
-from rag.engine.query_engine import get_query_engine, QueryEngine
+                    User, UserRole, PolicyStatus, ConfidentialityLevel, Department)
+from rag.engine.query_engine import get_query_engine
 from rag.versions.resolver import VersionResolver
 from rag.authorization.evidence_filter import EvidenceFilter
 from rag.engine.query_scope import QueryScope
@@ -177,24 +174,24 @@ class TestPhase5AuthorizationCorrectness:
     def test_authorized_user_access(self, audit_app):
         """Admin is authorized for restricted cybersecurity plan."""
         filter_eng = EvidenceFilter()
-        p_sec = Policy.query.get(2)
-        u_admin = User.query.get(1)
+        p_sec = db.session.get(Policy, 2)
+        u_admin = db.session.get(User, 1)
         scope_admin = QueryScope.from_user(u_admin)
         assert filter_eng.is_authorized_for_policy(scope_admin, p_sec) is True
 
     def test_unauthorized_user_access_blocked(self, audit_app):
         """Employee in Engineering is NOT authorized for restricted cybersecurity plan."""
         filter_eng = EvidenceFilter()
-        p_sec = Policy.query.get(2)
-        u_eng = User.query.get(3)
+        p_sec = db.session.get(Policy, 2)
+        u_eng = db.session.get(User, 3)
         scope_eng = QueryScope.from_user(u_eng)
         assert filter_eng.is_authorized_for_policy(scope_eng, p_sec) is False
 
     def test_two_roles_identical_question(self, audit_app):
         """Identical query evaluated under Admin vs Employee yields different authorization scopes."""
-        p_sec = Policy.query.get(2)
-        scope_admin = QueryScope.from_user(User.query.get(1))
-        scope_eng = QueryScope.from_user(User.query.get(3))
+        p_sec = db.session.get(Policy, 2)
+        scope_admin = QueryScope.from_user(db.session.get(User, 1))
+        scope_eng = QueryScope.from_user(db.session.get(User, 3))
         filter_eng = EvidenceFilter()
         auth_admin = filter_eng.is_authorized_for_policy(scope_admin, p_sec)
         auth_eng = filter_eng.is_authorized_for_policy(scope_eng, p_sec)
@@ -206,8 +203,8 @@ class TestPhase5AuthorizationCorrectness:
         SECURITY REQUIREMENT: Cache warm-up by authorized user must NOT leak to unauthorized user.
         """
         cache = get_cache()
-        scope_admin = QueryScope.from_user(User.query.get(1))
-        scope_eng = QueryScope.from_user(User.query.get(3))
+        scope_admin = QueryScope.from_user(db.session.get(User, 1))
+        scope_eng = QueryScope.from_user(db.session.get(User, 3))
 
         dummy_emb = [0.1] * 384
         # Admin caches answer using put()
@@ -226,7 +223,7 @@ class TestPhase5AuthorizationCorrectness:
         t_2022 = resolver.resolve_temporal_context("in 2022")
         t_2024 = resolver.resolve_temporal_context("in 2024")
 
-        u = User.query.get(3)
+        u = db.session.get(User, 3)
         scope_2022 = QueryScope.from_user(u, t_2022)
         scope_2024 = QueryScope.from_user(u, t_2024)
 
@@ -273,7 +270,7 @@ class TestPhase6GroundingAndAbstention:
     def test_safe_abstention_on_empty_authorized_evidence(self, audit_app):
         """When candidate evidence is filtered to empty, engine abstains."""
         filter_eng = EvidenceFilter()
-        scope_eng = QueryScope.from_user(User.query.get(3))
+        scope_eng = QueryScope.from_user(db.session.get(User, 3))
         # Only restricted chunk available
         raw_candidates = [{"chunk_id": "c3", "policy_id": 2, "confidentiality": "restricted", "department_id": 3}]
         filtered = filter_eng.filter_chunks(raw_candidates, scope_eng)

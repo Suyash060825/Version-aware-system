@@ -353,6 +353,10 @@ class PolicyVersion(db.Model):
         ),
     )
 
+    __mapper_args__ = {
+        "confirm_deleted_rows": False
+    }
+
     def __repr__(self):
         return f"<PolicyVersion {self.version_label} of policy {self.policy_id}>"
 

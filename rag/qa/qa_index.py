@@ -9,8 +9,8 @@ import pickle
 import logging
 import threading
 import numpy as np
-from typing import List, Tuple, Optional, Dict, Any, Set
-from models import db, CanonicalQuestion, CompiledAnswer
+from typing import List, Tuple, Dict, Any, Set
+from models import CanonicalQuestion, CompiledAnswer
 
 logger = logging.getLogger("rag.qa.qa_index")
 

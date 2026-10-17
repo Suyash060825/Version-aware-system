@@ -11,7 +11,7 @@ Covers:
   - not_compliant verdict sets flagged_for_hr=True
 """
 import unittest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 from whatif_ai import evaluate_scenario, _heuristic_verdict
 from utils import extract_json

@@ -6,10 +6,10 @@ Supports date intervals (e.g., 'during June 2024', 'before July 2025', 'after Ja
 """
 import re
 import calendar
-from datetime import datetime, date
-from typing import Optional, Tuple, List
+from datetime import date
+from typing import Optional, Tuple
 from dataclasses import dataclass
-from models import PolicyVersion, Policy
+from models import PolicyVersion
 
 @dataclass
 class TemporalQuery:

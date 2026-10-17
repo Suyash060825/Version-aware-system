@@ -17,7 +17,6 @@ If the configured LLM can't produce valid structured JSON (e.g. no API key is
 set and the extractive fallback is active), a rule-based heuristic parser is
 used instead so the feature still works out of the box.
 """
-import json
 import re
 from datetime import datetime, timedelta, date
 

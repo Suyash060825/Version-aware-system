@@ -4,6 +4,7 @@ import logging
 import hashlib
 import time
 import math
+from collections import defaultdict
 from typing import List, Dict, Optional, Any
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ class MultiLevelCache:
                 logger.warning(f"Redis not available: {e}. Falling back to in-memory.")
 
         self._local_l1: Dict[str, dict] = {}
-        self._local_l2: List[dict] = []
+        self._local_l2: Dict[str, list] = defaultdict(list)
         self._max_local = 2000
 
     def _hash_query(self, query: str, scope_key: str = "") -> str:
@@ -87,17 +88,23 @@ class MultiLevelCache:
             except Exception as e:
                 logger.warning(f"Redis setex failed in cache put_l1: {e}")
         if len(self._local_l1) > self._max_local:
-            self._local_l1.clear()
+            # Evict oldest 20% by expiry time (LRU approximation)
+            sorted_keys = sorted(
+                self._local_l1.keys(),
+                key=lambda k: self._local_l1[k].get("expires_at", 0)
+            )
+            for k in sorted_keys[:self._max_local // 5]:
+                self._local_l1.pop(k, None)
         self._local_l1[key] = item_data
 
     def get_l2(self, query_embedding: List[float], scope_key: str = "", threshold: float = 0.95) -> Optional[dict]:
-        if not query_embedding or not self._local_l2:
+        if not query_embedding or not self._local_l2[scope_key]:
             return None
         now = time.time()
-        # Filter candidate items by scope_key and non-expiration in reverse order
+        # Filter candidate items by non-expiration in reverse order
         candidates = [
-            item for item in reversed(self._local_l2)
-            if item.get("expires_at", 0) >= now and item.get("scope_key") == scope_key and item.get("embedding")
+            item for item in reversed(self._local_l2[scope_key])
+            if item.get("expires_at", 0) >= now and item.get("embedding")
         ]
         if not candidates:
             return None
@@ -139,10 +146,10 @@ class MultiLevelCache:
     ):
         if not query_embedding:
             return
-        if len(self._local_l2) > self._max_local:
+        if len(self._local_l2[scope_key]) > self._max_local:
             now = time.time()
-            self._local_l2 = [item for item in self._local_l2 if item.get("expires_at", 0) >= now][-500:]
-        self._local_l2.append({
+            self._local_l2[scope_key] = [item for item in self._local_l2[scope_key] if item.get("expires_at", 0) >= now][-500:]
+        self._local_l2[scope_key].append({
             "embedding": query_embedding,
             "scope_key": scope_key,
             "data": result,
@@ -241,10 +248,11 @@ class MultiLevelCache:
         for key in keys_to_remove:
             self._local_l1.pop(key, None)
 
-        self._local_l2 = [
-            item for item in self._local_l2
-            if policy_id not in item.get("policy_ids", [])
-        ]
+        for sk in list(self._local_l2.keys()):
+            self._local_l2[sk] = [
+                item for item in self._local_l2[sk]
+                if policy_id not in item.get("policy_ids", [])
+            ]
         logger.info(f"Targeted invalidation for policy {policy_id}: removed {len(keys_to_remove)} L1 entries")
 
     def invalidate_version(self, policy_id: int, version_id: int):
@@ -256,10 +264,11 @@ class MultiLevelCache:
         for key in keys_to_remove:
             self._local_l1.pop(key, None)
 
-        self._local_l2 = [
-            item for item in self._local_l2
-            if version_id not in item.get("version_ids", []) and not (policy_id in item.get("policy_ids", []) and not item.get("version_ids"))
-        ]
+        for sk in list(self._local_l2.keys()):
+            self._local_l2[sk] = [
+                item for item in self._local_l2[sk]
+                if version_id not in item.get("version_ids", []) and not (policy_id in item.get("policy_ids", []) and not item.get("version_ids"))
+            ]
         logger.info(f"Targeted invalidation for version {policy_id}:{version_id}: removed {len(keys_to_remove)} L1 entries")
 
     def clear(self):

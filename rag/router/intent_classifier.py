@@ -43,6 +43,10 @@ class IntentClassifier:
         re.compile(r"\b(?:both|and also|across policies|travel and expense.*leave|security.*conduct)\b", re.IGNORECASE)
     ]
 
+    OPEN_ENDED_PATTERNS = [
+        re.compile(r"\b(?:explain|describe|tell me about|give me an overview|overview of|summary of|summarize)\b", re.IGNORECASE)
+    ]
+
     def classify(self, query: str) -> Tuple[Intent, float]:
         q = query.lower()
         
@@ -65,6 +69,11 @@ class IntentClassifier:
         for pattern in self.MULTI_POLICY_PATTERNS:
             if pattern.search(q):
                 return Intent.MULTI_POLICY, 0.80
+
+        # Open-ended exploratory questions pre-routed to Search before Fact matching
+        for pattern in self.OPEN_ENDED_PATTERNS:
+            if pattern.search(q):
+                return Intent.SEARCH, 0.85
 
         # 5. Direct Fact
         for pattern in self.FACT_PATTERNS:

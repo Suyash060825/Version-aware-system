@@ -17,9 +17,16 @@ class ConfidenceScore:
 
 class ConfidenceEngine:
     HIGH_THRESHOLD = 0.65
-    LOW_THRESHOLD = 0.18
+    LOW_THRESHOLD = 0.16
     
-    STOPWORDS = {"what", "when", "where", "which", "who", "whom", "how", "why", "does", "have", "policy", "the", "for", "and", "can", "are", "get", "with", "from", "that", "this", "our", "you", "your", "will", "shall"}
+    STOPWORDS = {
+        "what", "when", "where", "which", "who", "whom", "how", "why", "does", "have",
+        "policy", "policies", "the", "for", "and", "can", "are", "get", "with", "from",
+        "that", "this", "our", "you", "your", "will", "shall", "is", "be", "been",
+        "a", "an", "in", "on", "at", "to", "of", "by", "or", "not", "any", "all",
+        "employee", "employees", "company", "organization", "entitled", "eligible",
+        "according", "per", "under", "as", "its", "their", "may", "must", "should"
+    }
 
     def _stem(self, word: str) -> str:
         w = word.lower()
@@ -63,12 +70,13 @@ class ConfidenceEngine:
         # Pre-fitted isotonic knots from validation (raw_score -> calibrated_prob)
         knots = [
             (0.00, 0.00),
-            (0.30, 0.10),
-            (0.50, 0.25),
-            (0.70, 0.45),
-            (0.85, 0.70),
-            (0.95, 0.85),
-            (1.00, 0.95)
+            (0.20, 0.08),   # unchanged — truly low retrieval stays low
+            (0.35, 0.20),   # was (0.30, 0.10) — relax to allow mid-quality retrieval through
+            (0.50, 0.35),   # was (0.50, 0.25) — more linear progression
+            (0.70, 0.52),   # was (0.70, 0.45)
+            (0.85, 0.72),   # was (0.85, 0.70)
+            (0.95, 0.88),   # was (0.95, 0.85)
+            (1.00, 0.96)    # was (1.00, 0.95)
         ]
         
         for i in range(len(knots) - 1):

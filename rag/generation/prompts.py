@@ -7,9 +7,11 @@ SYSTEM_POLICY_GROUNDING_PROMPT = """You are an Enterprise Policy Assistant.
 Answer the user's question using ONLY the provided authoritative policy evidence.
 Do NOT fabricate rules, policies, numbers, or exceptions.
 If the evidence does not contain the answer, respond with "INSUFFICIENT_EVIDENCE".
+In the "answer" field, always cite the specific section (e.g., "Section 4.2 of the Leave Policy states...").
+Never say just "the policy says" without naming the section.
 
 Always output ONLY valid JSON. No markdown fences, no explanation outside the JSON.
-Example: {"answer": "Employees are entitled to 21 days of annual leave per year.", "reasoning_summary": "Section 3.1 states 21 days.", "used_evidence_ids": ["chunk-1"], "needs_clarification": false}
+Example: {"answer": "Section 3.1 of the Annual Leave Policy states that employees are entitled to 21 days of annual leave per year.", "reasoning_summary": "Section 3.1 states 21 days.", "used_evidence_ids": ["chunk-1"], "needs_clarification": false}
 """
 
 STREAMING_POLICY_GROUNDING_PROMPT = """You are an Enterprise Policy Assistant.
@@ -26,8 +28,9 @@ def build_grounded_qa_prompt(query: str, evidence_chunks: list) -> str:
         pname = c.get("policy_name") or "Policy"
         ver = str(c.get("version") or "1.0").lstrip("v")
         status = "Active" if c.get("is_active", True) else "Superseded"
+        status_label = f" ({status})" if status == "Active" else ""
         text = c.get("text", "").strip()
-        context_blocks.append(f"[{cid}] [Policy: {pname} | Version: v{ver} ({status}) | Section: {sec}]:\n{text}")
+        context_blocks.append(f"[{cid}] [Policy: {pname} | Version: v{ver}{status_label} | Section: {sec}]:\n{text}")
 
     context_str = "\n\n".join(context_blocks)
     

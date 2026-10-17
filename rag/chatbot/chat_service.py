@@ -25,13 +25,14 @@ def answer(
     # Resolve or create user proxy representation if raw role/dept strings passed
     if user is None:
         user = type('UserProxy', (), {
-            'id': 1,
+            'id': session_id or 0,
             'role': user_role,
-            'department': type('DeptProxy', (), {'name': user_department})() if user_department else None,
+            'department': type('DeptProxy', (), {'name': user_department, 'id': None})() if user_department else None,
             'department_id': None,
-            'is_admin': lambda self: user_role.lower() in ("admin", "hr"),
-            'is_hr': lambda self: user_role.lower() in ("admin", "hr"),
-            'can_manage_policies': lambda self: user_role.lower() in ("admin", "hr", "manager")
+            'is_admin': lambda self: self.role.lower() in ("admin", "hr"),
+            'is_hr': lambda self: self.role.lower() in ("admin", "hr"),
+            'can_manage_policies': lambda self: self.role.lower() in ("admin", "hr", "manager"),
+            'allowed_policy_ids': None,
         })()
 
     if stream:

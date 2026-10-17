@@ -3,10 +3,9 @@ rag/generation/provider.py
 Abstract LocalLLMProvider interface with unified factory.
 """
 import os
-import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Optional
 
 logger = logging.getLogger("rag.generation.provider")
 
@@ -35,7 +34,7 @@ class OllamaProvider(LocalLLMProvider):
         self._is_healthy = None
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
-        import requests, time
+        import requests, time, re
         if not self.health_check():
             return None
 
@@ -46,18 +45,24 @@ class OllamaProvider(LocalLLMProvider):
                 "stream": False,
                 "options": {
                     "temperature": 0.1,
-                    "num_predict": int(os.environ.get("LLM_MAX_NEW_TOKENS", "256"))
+                    "num_predict": int(os.environ.get("LLM_MAX_NEW_TOKENS", "512")),
+                    "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096")),
+                    "num_thread": int(os.environ.get("OLLAMA_NUM_THREADS", "0")),
+                    "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "10m"),
                 }
             }
             if system_prompt:
                 payload["system"] = system_prompt
 
-            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(1.0, float(self.timeout)))
+            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(3.0, float(self.timeout)))
             resp.raise_for_status()
             data = resp.json()
             self._is_healthy = True
             self._last_health_time = time.time()
-            return data.get("response", "").strip()
+            raw_res = data.get("response", "")
+            # Strip reasoning / think tags if present (e.g. Qwen3)
+            cleaned = re.sub(r"<think>.*?</think>", "", raw_res, flags=re.DOTALL).strip()
+            return cleaned
         except Exception as e:
             self._is_healthy = False
             self._last_health_time = time.time()
@@ -76,7 +81,10 @@ class OllamaProvider(LocalLLMProvider):
                 "stream": True,
                 "options": {
                     "temperature": 0.1,
-                    "num_predict": int(os.environ.get("LLM_MAX_NEW_TOKENS", "256"))
+                    "num_predict": int(os.environ.get("LLM_MAX_NEW_TOKENS", "512")),
+                    "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096")),
+                    "num_thread": int(os.environ.get("OLLAMA_NUM_THREADS", "0")),
+                    "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "10m"),
                 }
             }
             if system_prompt:
@@ -86,13 +94,30 @@ class OllamaProvider(LocalLLMProvider):
                 if resp.status_code == 200:
                     self._is_healthy = True
                     self._last_health_time = time.time()
+                    in_think = False
+                    think_buffer = ""
                     for line in resp.iter_lines():
                         if line:
                             try:
                                 chunk = json.loads(line.decode("utf-8"))
                                 token = chunk.get("response", "")
-                                if token:
-                                    yield token
+                                if not token:
+                                    continue
+                                
+                                # Handle <think> tags dynamically
+                                if "<think>" in token or in_think:
+                                    think_buffer += token
+                                    if "<think>" in think_buffer and not in_think:
+                                        in_think = True
+                                    if "</think>" in think_buffer:
+                                        in_think = False
+                                        after_think = think_buffer.split("</think>", 1)[1]
+                                        think_buffer = ""
+                                        if after_think:
+                                            yield after_think
+                                    continue
+
+                                yield token
                             except Exception as parse_err:
                                 logger.debug(f"Streaming chunk JSON parse error: {parse_err}")
         except Exception as e:

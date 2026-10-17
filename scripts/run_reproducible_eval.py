@@ -17,14 +17,13 @@ from datetime import datetime, timezone
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from app import create_app
-from models import db, Policy, PolicyVersion, PolicyChunkV2, PolicyFact, CanonicalQuestion, CompiledAnswer, User, UserRole, ConfidentialityLevel
-from rag.engine.query_engine import get_query_engine, QueryEngine, QueryResult
+from models import db, Policy, PolicyVersion, PolicyChunkV2
+from rag.engine.query_engine import get_query_engine, QueryResult
 from rag.retrieval.hybrid import HybridRetriever
 from rag.retrieval.dense import DenseRetriever
 from rag.retrieval.sparse import PersistentBM25Index
 from rag.retrieval.reranker import get_reranker
 from rag.cache.semantic_cache import get_cache
-from rag.engine.query_scope import QueryScope
 from rag.compiler.incremental import IncrementalCompiler
 
 def normalize_text(text: str) -> str:

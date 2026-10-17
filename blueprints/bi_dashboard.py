@@ -15,7 +15,7 @@ from flask import Blueprint, render_template
 from flask_login import login_required
 from sqlalchemy import func
 
-from models import (db, db, Policy, PolicyVersion, PolicyStatus, PolicyCategory, Priority,
+from models import (db, Policy, PolicyVersion, PolicyStatus, PolicyCategory, Priority,
                     Department, User, UserRole, PolicyAcknowledgement, AuditLog,
                     SearchHistory, Meeting, WorkflowStageInstance)
 from utils import role_required
@@ -54,7 +54,7 @@ def _count_by_month(rows_with_dates, n_months=12):
 
 def _generate_insight(stats: dict) -> str:
     """Short natural-language callout with Redis caching and deterministic fallback."""
-    import os, json
+    import os
     # Check cache first
     redis_client = None
     cache_key = "bi_dashboard:insight"

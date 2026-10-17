@@ -2,7 +2,7 @@
 rag/engine/query_scope.py
 Structured immutable QueryScope object propagating authorization, tenant, department, and temporal version constraints across all RAG pipeline stages.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from typing import Optional, Tuple, List, Any
 

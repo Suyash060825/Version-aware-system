@@ -4,10 +4,8 @@ Master Knowledge Compiler Pipeline orchestrating end-to-end offline policy compi
 """
 import json
 import logging
-from typing import Callable, Any, List
-from datetime import datetime
+from typing import Callable
 from models import db, CompilationJob, CompilationStage, Policy, PolicyVersion, PolicyChunkV2, PolicyFact, CanonicalQuestion, CompiledAnswer, now_utc
-from rag.compiler.document_ir import DocumentIR, ChunkIR
 from rag.compiler.document_normalizer import DocumentNormalizer
 from rag.compiler.structure_extractor import StructureExtractor
 from rag.compiler.fact_extractor import FactExtractor
@@ -17,7 +15,6 @@ from rag.compiler.answer_validator import AnswerValidator
 from rag.compiler.metadata_extractor import MetadataExtractor
 from rag.compiler.entity_extractor import EntityExtractor
 from rag.compiler.temporal_extractor import TemporalExtractor
-from rag.compiler.compilation_manifest import CompilationManifest
 
 logger = logging.getLogger("rag.compiler.pipeline")
 

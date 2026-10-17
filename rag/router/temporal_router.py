@@ -3,9 +3,7 @@ rag/router/temporal_router.py
 Routes temporal and version comparison queries by identifying target dates and version numbers.
 """
 import re
-from datetime import datetime, date
-from typing import Optional, Tuple, List, Dict, Any
-from models import Policy, PolicyVersion
+from typing import Dict, Any
 
 class TemporalRouter:
     VERSION_DIFF_PATTERN = re.compile(r"\bv(\d+)\s*(?:and|vs|versus|to|\-)\s*v(\d+)\b", re.I)

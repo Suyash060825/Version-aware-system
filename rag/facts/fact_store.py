@@ -2,8 +2,8 @@
 rag/facts/fact_store.py
 Persistent, indexed store and query interface for extracted policy facts.
 """
-from typing import List, Optional, Dict
-from models import db, PolicyFact, Policy, PolicyVersion
+from typing import List, Optional
+from models import db, PolicyFact
 
 class FactStore:
     def __init__(self):

@@ -4,7 +4,7 @@ Enforces strict policy and chunk authorization before context construction.
 """
 import time
 from typing import List, Dict, Any, Optional, Tuple
-from models import db, Policy, PolicyVersion, User, UserRole, PolicyStatus, ConfidentialityLevel
+from models import db, Policy, PolicyVersion, PolicyStatus, ConfidentialityLevel
 
 class EvidenceFilter:
     def __init__(self):

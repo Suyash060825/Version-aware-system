@@ -8,8 +8,7 @@ Run: python app.py
 """
 import logging
 from flask import Flask, redirect, url_for, Response, jsonify, render_template
-from flask_login import current_user, login_required
-from flask_limiter.util import get_remote_address
+from flask_login import login_required
 
 from config import config
 from extensions import db, bcrypt, login_manager, limiter, csrf

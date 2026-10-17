@@ -1,6 +1,5 @@
 import time
 from app import create_app
-from models import db
 from rag.qa.qa_matcher import QAMatcher
 from rag.retrieval.hybrid import HybridRetriever
 from rag.embeddings.embedder import get_embedder

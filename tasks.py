@@ -49,7 +49,7 @@ def scan_contradictions_task(self):
     from app import create_app
     app = create_app()
     with app.app_context():
-        from models import db, Policy, PolicyVersion, ContradictionFlag
+        from models import Policy
         active_policies = Policy.query.all()
         logger.info(f"Scanning {len(active_policies)} policies for contradictions...")
         # Cross-compare policies and refresh open flags

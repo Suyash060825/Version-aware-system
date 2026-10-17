@@ -20,9 +20,6 @@ Reuses the existing embedder / vector store / reranker (same stack as
 rag/chatbot/chat_service.py) so no new indexing pipeline is needed —
 only the final prompt and output shape differ.
 """
-import json
-import re
-
 from rag.embeddings.embedder import get_embedder
 from rag.vectordb.chroma import get_store
 from rag.reranker.reranker import get_reranker

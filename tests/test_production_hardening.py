@@ -73,7 +73,6 @@ class TestProductionHardening(unittest.TestCase):
         """T-NEW-03: Incremental compiler skips unchanged chunks in delta diff."""
         compiler = IncrementalCompiler()
         from rag.compiler.document_ir import ChunkIR
-        from models import PolicyChunkV2
         
         existing_chunk = PolicyChunkV2.query.first()
         self.assertIsNotNone(existing_chunk)

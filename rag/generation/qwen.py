@@ -2,11 +2,10 @@
 rag/generation/qwen.py
 Qwen local provider connecting to Ollama with structured JSON response extraction.
 """
-import os
 import json
 import logging
 from typing import Optional, Dict, Any
-from rag.generation.provider import LocalLLMProvider, OllamaProvider
+from rag.generation.provider import OllamaProvider
 from rag.generation.prompts import SYSTEM_POLICY_GROUNDING_PROMPT, build_grounded_qa_prompt
 
 logger = logging.getLogger("rag.generation.qwen")

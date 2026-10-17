@@ -26,9 +26,9 @@ from rag.facts.fact_resolver import FactResolver
 from rag.qa.qa_matcher import QAMatcher
 from rag.retrieval.hybrid import HybridRetriever
 from rag.retrieval.reranker import get_reranker
-from rag.authorization.evidence_filter import EvidenceFilter, get_evidence_filter
+from rag.authorization.evidence_filter import get_evidence_filter
 from rag.verification.confidence import ConfidenceEngine
-from rag.verification.entailment import EntailmentVerifier, get_entailment_verifier
+from rag.verification.entailment import get_entailment_verifier
 from rag.verification.citation_validator import CitationValidator
 from rag.versions.resolver import VersionResolver
 from rag.versions.diff_engine import PolicyDiffEngine
@@ -297,18 +297,27 @@ class QueryEngine:
         if self.config.use_confidence_gate and conf.abstain:
             return QueryResult.abstained("I could not find sufficient authoritative evidence in the applicable policies.", (time.time() - t_start) * 1000)
 
-        # Build clean citations
+        # Build clean citations deduplicated by (policy_id, section)
+        seen_cit_keys = set()
         raw_cits = []
-        for c in ranked[:5]:
+        for c in ranked:
+            p_id = c.get("policy_id")
+            sec = c.get("section") or c.get("section_path") or "General"
+            cit_key = (p_id, sec)
+            if cit_key in seen_cit_keys:
+                continue
+            seen_cit_keys.add(cit_key)
             raw_cits.append({
                 "chunk_id": c.get("chunk_id") or c.get("id"),
-                "policy_id": c.get("policy_id"),
+                "policy_id": p_id,
                 "version_id": c.get("version_id"),
                 "policy_name": c.get("policy_name", "Policy"),
                 "version": c.get("version", "1.0"),
-                "section": c.get("section") or c.get("section_path") or "General",
+                "section": sec,
                 "page": c.get("page", 1)
             })
+            if len(raw_cits) >= 5:
+                break
         citations = self.citation_validator.validate_and_enrich(raw_cits, scope=scope)
 
         # 9. Answer Generation: Grounded Evidence Extraction vs Local LLM
@@ -322,8 +331,9 @@ class QueryEngine:
         if self.llm.health_check():
             try:
                 llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:5])
-                if llm_output and llm_output.get("answer") and "INSUFFICIENT_EVIDENCE" not in llm_output.get("answer", ""):
-                    ans_candidate = llm_output["answer"]
+                ans_text = llm_output.get("answer", "").strip() if llm_output else ""
+                if llm_output and ans_text and ans_text != "INSUFFICIENT_EVIDENCE" and not ans_text.startswith("INSUFFICIENT_EVIDENCE"):
+                    ans_candidate = ans_text
                     if verify_numeric_grounding(ans_candidate, ranked[:5]):
                         if self.config.use_nli:
                             is_grounded, entail_score = self.entailment_verifier.verify(ans_candidate, ranked[:5])
@@ -344,7 +354,7 @@ class QueryEngine:
             }
 
             scored_candidates = []
-            for rc in ranked[:3]:
+            for rc in ranked[:5]:
                 chunk_text = rc.get("text", "").strip()
                 chunk_sec = rc.get("section") or rc.get("section_path") or "Policy"
                 sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', chunk_text) if len(s.strip()) > 15]
@@ -700,25 +710,35 @@ class QueryEngine:
             }
             return
 
-        # Build clean citations
+        # Build clean citations deduplicated by (policy_id, section)
+        seen_cit_keys = set()
         raw_cits = []
-        for c in ranked[:5]:
+        for c in ranked:
+            p_id = c.get("policy_id")
+            sec = c.get("section") or c.get("section_path") or "General"
+            cit_key = (p_id, sec)
+            if cit_key in seen_cit_keys:
+                continue
+            seen_cit_keys.add(cit_key)
             raw_cits.append({
                 "chunk_id": c.get("chunk_id") or c.get("id"),
-                "policy_id": c.get("policy_id"),
+                "policy_id": p_id,
                 "version_id": c.get("version_id"),
                 "policy_name": c.get("policy_name", "Policy"),
                 "version": c.get("version", "1.0"),
-                "section": c.get("section") or c.get("section_path") or "General",
+                "section": sec,
                 "page": c.get("page", 1)
             })
+            if len(raw_cits) >= 5:
+                break
         citations = self.citation_validator.validate_and_enrich(raw_cits, scope=scope)
 
         # 9. Real-time Streaming Generation
         llm_used = False
         full_answer = ""
+        llm_available = self.llm.health_check()
         
-        if complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL and self.llm.health_check():
+        if complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL and llm_available:
             try:
                 prompt = build_streaming_qa_prompt(normalized_query, ranked[:5])
                 for token in self.llm.stream(prompt, system_prompt=STREAMING_POLICY_GROUNDING_PROMPT):
@@ -726,7 +746,13 @@ class QueryEngine:
                         full_answer += token
                         yield {"type": "token", "token": token}
                 
-                if full_answer.strip() and verify_numeric_grounding(full_answer, ranked[:5]):
+                if full_answer.strip() and not verify_numeric_grounding(full_answer, ranked[:5]):
+                    # Retract: stream a correction notice
+                    correction = "\n\n[Note: The above answer could not be fully verified against the source policy. Please refer to the original document.]"
+                    yield {"type": "token", "token": correction}
+                    full_answer += correction
+                    llm_used = False  # treat as fallback for cache purposes
+                elif full_answer.strip():
                     llm_used = True
                 else:
                     full_answer = ""
@@ -736,6 +762,7 @@ class QueryEngine:
         if not full_answer.strip():
             # Multi-sentence contextual evidence synthesis across top ranked chunks
             top_section = ranked[0].get("section") or ranked[0].get("section_path") or "Policy" if ranked else "Policy"
+            top_text = ranked[0].get("text", "").strip() if ranked else ""
             q_words = set(re.findall(r"\b[a-z0-9]+\b", normalized_query.lower())) - {
                 "what", "when", "where", "which", "who", "whom", "how", "why", "does",
                 "have", "policy", "the", "for", "and", "can", "are", "get", "with",
@@ -743,7 +770,7 @@ class QueryEngine:
             }
 
             scored_candidates = []
-            for rc in ranked[:3]:
+            for rc in ranked[:5]:
                 chunk_text = rc.get("text", "").strip()
                 chunk_sec = rc.get("section") or rc.get("section_path") or "Policy"
                 sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', chunk_text) if len(s.strip()) > 15]

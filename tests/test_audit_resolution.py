@@ -9,9 +9,8 @@ Comprehensive verification test suite for Veritas Audit Findings:
 - L1-L11 & Section 5: EngineConfig ablation matrix toggles
 """
 import pytest
-from datetime import datetime, date
 from app import create_app
-from models import db, Policy, PolicyVersion, PolicyChunkV2, PolicyFact, CanonicalQuestion, CompiledAnswer, User, PolicyStatus
+from models import db, Policy, PolicyVersion, PolicyChunkV2, PolicyFact, User, PolicyStatus
 from rag.engine.engine_config import EngineConfig
 from rag.engine.query_engine import QueryEngine, verify_numeric_grounding
 from rag.facts.fact_resolver import FactResolver

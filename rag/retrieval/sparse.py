@@ -197,6 +197,37 @@ class PersistentBM25Index:
         self._revision += 1
         self.save()
 
+    def _matches_filters(self, doc: dict, filters: dict) -> bool:
+        for k, v in filters.items():
+            if k in ("is_active", "is_current"):
+                doc_val = doc.get("is_active")
+                if doc_val is None:
+                    doc_val = doc.get("is_current", True)
+                if bool(doc_val) != bool(v):
+                    return False
+                continue
+            doc_val = doc.get(k)
+            if isinstance(v, dict):
+                for op, op_val in v.items():
+                    if op == "$lte" and not (doc_val is not None and doc_val <= op_val):
+                        return False
+                    elif op == "$gte" and not (doc_val is not None and doc_val >= op_val):
+                        return False
+                    elif op == "$lt" and not (doc_val is not None and doc_val < op_val):
+                        return False
+                    elif op == "$gt" and not (doc_val is not None and doc_val > op_val):
+                        return False
+                    elif op == "$in" and not (doc_val in op_val or str(doc_val) in [str(x) for x in op_val]):
+                        return False
+                    elif op == "$eq" and not (doc_val == op_val or str(doc_val) == str(op_val)):
+                        return False
+            elif isinstance(v, (list, tuple, set)):
+                if doc_val not in v and str(doc_val) not in [str(x) for x in v]:
+                    return False
+            elif str(doc_val) != str(v):
+                return False
+        return True
+
     def get_scores(self, query: str, filters: dict = None, scope: Any = None) -> List[Tuple[str, float, dict]]:
         if not self._bm25 or not self._corpus:
             self.load()
@@ -206,63 +237,43 @@ class PersistentBM25Index:
         tokenized_query = re.findall(r"\b\w+\b", query.lower())
         if not tokenized_query:
             return []
+
+        # Build allowed indices set BEFORE scoring (pre-filter for O(k) not O(N))
+        allowed_indices = []
+        for i, doc in enumerate(self._corpus):
+            if scope:
+                if getattr(scope, "allowed_policy_ids", None) is not None:
+                    if doc.get("policy_id") not in scope.allowed_policy_ids:
+                        continue
+                if getattr(scope, "allowed_version_ids", None) is not None:
+                    if doc.get("version_id") not in scope.allowed_version_ids:
+                        continue
+            if filters and not self._matches_filters(doc, filters):
+                continue
+            allowed_indices.append(i)
+
+        if not allowed_indices:
+            return []
+
+        # Guard: only use subset scoring if len(self._corpus) > 2000 and len(allowed_indices) < len(self._corpus)
+        if len(self._corpus) > 2000 and len(allowed_indices) < len(self._corpus) and self._tokenized_corpus:
+            allowed_tokenized = [self._tokenized_corpus[i] for i in allowed_indices]
+            sub_bm25 = BM25Okapi(allowed_tokenized)
+            scores = sub_bm25.get_scores(tokenized_query)
+            results = []
+            for j, score in enumerate(scores):
+                if score > 0:
+                    doc = self._corpus[allowed_indices[j]]
+                    results.append((doc["id"], float(score), doc))
+            return sorted(results, key=lambda x: x[1], reverse=True)
+
         doc_scores = self._bm25.get_scores(tokenized_query)
-        
         results = []
-        for i, score in enumerate(doc_scores):
+        for i in allowed_indices:
+            score = doc_scores[i]
             if score > 0:
                 doc = self._corpus[i]
-                
-                # Scope-based pre-filtering
-                if scope:
-                    if getattr(scope, "allowed_policy_ids", None) is not None:
-                        if doc.get("policy_id") not in scope.allowed_policy_ids:
-                            continue
-                    if getattr(scope, "allowed_version_ids", None) is not None:
-                        if doc.get("version_id") not in scope.allowed_version_ids:
-                            continue
-
-                # Pre-filtered partition matching (supports exact, list, and operator dicts)
-                if filters:
-                    match = True
-                    for k, v in filters.items():
-                        if k in ("is_active", "is_current"):
-                            doc_val = doc.get("is_active")
-                            if doc_val is None:
-                                doc_val = doc.get("is_current", True)
-                            if bool(doc_val) != bool(v):
-                                match = False
-                                break
-                            continue
-                        doc_val = doc.get(k)
-                        if isinstance(v, dict):
-                            for op, op_val in v.items():
-                                if op == "$lte" and not (doc_val is not None and doc_val <= op_val):
-                                    match = False; break
-                                elif op == "$gte" and not (doc_val is not None and doc_val >= op_val):
-                                    match = False; break
-                                elif op == "$lt" and not (doc_val is not None and doc_val < op_val):
-                                    match = False; break
-                                elif op == "$gt" and not (doc_val is not None and doc_val > op_val):
-                                    match = False; break
-                                elif op == "$in" and not (doc_val in op_val or str(doc_val) in [str(x) for x in op_val]):
-                                    match = False; break
-                                elif op == "$eq" and not (doc_val == op_val or str(doc_val) == str(op_val)):
-                                    match = False; break
-                            if not match:
-                                break
-                        elif isinstance(v, (list, tuple, set)):
-                            if doc_val not in v and str(doc_val) not in [str(x) for x in v]:
-                                match = False
-                                break
-                        elif str(doc_val) != str(v):
-                            match = False
-                            break
-                    if not match:
-                        continue
-                        
                 results.append((doc["id"], float(score), doc))
-                
         return sorted(results, key=lambda x: x[1], reverse=True)
         
     @property
