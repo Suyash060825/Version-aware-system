@@ -250,6 +250,14 @@ async function sendQuery() {
               const citations = payload.citations || [];
               const latency = payload.latency_ms ? Math.round(payload.latency_ms) : 0;
               const route = payload.route || 'RAG';
+              const model = payload.model || '';
+
+              if (payload.answer) {
+                answerEl.textContent = payload.answer;
+              }
+              if (payload.fallback) {
+                answerEl.classList.add('refused');
+              }
 
               if (citations.length > 0) {
                 citationsEl.style.display = 'flex';
@@ -271,6 +279,7 @@ async function sendQuery() {
                 <div class="meta-tag">
                   <span>⚡ ${latency}ms</span>
                   <span>[${esc(route)}]</span>
+                  ${model ? `<span>⚙️ ${esc(model)}</span>` : ''}
                 </div>`;
               scrollBottom();
             }

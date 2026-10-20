@@ -114,6 +114,7 @@ def api_chat_stream():
                             "citations": formatted_citations,
                             "confidence": float(final_result_data.get("confidence", 1.0)),
                             "route": final_result_data.get("route", "HYBRID_RAG"),
+                            "model": final_result_data.get("model", "qwen3"),
                             "llm_used": final_result_data.get("llm_used", False),
                             "latency_ms": final_result_data.get("latency_ms", 0),
                             "session_id": session_id,

@@ -21,11 +21,11 @@ HEADING_PATTERNS = [
     re.compile(r"^\d+\.\s+[A-Z].{2,80}$", re.MULTILINE),       # 1. Purpose
     re.compile(r"^\d+\.\d+\s+[A-Z].{2,60}$", re.MULTILINE),    # 1.1 Eligibility
     re.compile(r"^[A-Z][A-Z\s]{5,60}$", re.MULTILINE),          # ALL CAPS HEADING
-    re.compile(r"^\[Page \d+\]$", re.MULTILINE),                 # Page markers from parser
+    re.compile(r"^\[Page \d+[^\]]*\]$", re.MULTILINE),                 # Page markers from parser (including OCR)
 ]
 
 # Chunk size limits (in characters, not tokens — simpler, no tokenizer needed)
-MIN_CHUNK_CHARS = 40
+MIN_CHUNK_CHARS = 15
 MAX_CHUNK_CHARS = 1200
 OVERLAP_CHARS = 150
 
@@ -67,7 +67,7 @@ def chunk_policy(
 
     for section_title, section_text in sections:
         # Track page numbers from parser markers
-        page_match = re.search(r"\[Page (\d+)\]", section_text)
+        page_match = re.search(r"\[Page (\d+)[^\]]*\]", section_text)
         if page_match:
             current_page = int(page_match.group(1))
             section_text = re.sub(r"\[Page \d+[^\]]*\]\n?", "", section_text)

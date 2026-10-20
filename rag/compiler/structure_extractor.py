@@ -7,12 +7,34 @@ class StructureExtractor:
         chunks = []
         
         for section in document_ir.sections:
-            # Simple paragraph splitting
-            paragraphs = section.content.split('\n\n')
+            # Paragraph splitting on double newlines
+            raw_paragraphs = [p.strip() for p in section.content.split('\n\n') if p.strip()]
             
-            for i, para in enumerate(paragraphs):
+            # Normalize and sub-split oversized paragraphs (>1200 chars)
+            final_paragraphs = []
+            for raw_p in raw_paragraphs:
+                if len(raw_p) <= 1200:
+                    final_paragraphs.append(raw_p)
+                else:
+                    # Sub-split by sentences
+                    sentences = [s.strip() for s in raw_p.replace('.\n', '. ').split('. ') if s.strip()]
+                    cur_chunk = []
+                    cur_len = 0
+                    for s in sentences:
+                        s_text = s if s.endswith('.') else s + '.'
+                        if cur_len + len(s_text) > 1000 and cur_chunk:
+                            final_paragraphs.append(" ".join(cur_chunk))
+                            cur_chunk = [s_text]
+                            cur_len = len(s_text)
+                        else:
+                            cur_chunk.append(s_text)
+                            cur_len += len(s_text) + 1
+                    if cur_chunk:
+                        final_paragraphs.append(" ".join(cur_chunk))
+
+            for i, para in enumerate(final_paragraphs):
                 para = para.strip()
-                if not para or len(para) < 20: # skip very short chunks
+                if not para or len(para) < 15: # skip negligible chunks (<15 chars)
                     continue
                     
                 text_hash = hashlib.sha256(para.encode()).hexdigest()

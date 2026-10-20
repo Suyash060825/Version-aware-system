@@ -209,6 +209,20 @@ class OllamaProvider(LLMProvider):
                 self._last_health_time = time.time()
                 return self._is_healthy
         except Exception as e:
+            # Fallback for host execution if Docker hostname was configured
+            for docker_host in ("ollama:11434", "host.docker.internal"):
+                if docker_host in self.base_url:
+                    alt_url = self.base_url.replace(docker_host, "localhost:11434" if "ollama" in docker_host else "localhost")
+                    try:
+                        alt_req = urllib.request.Request(f"{alt_url}/api/version" if "ollama" in docker_host else f"{alt_url}/models", headers=headers)
+                        with urllib.request.urlopen(alt_req, timeout=1.0) as resp:
+                            if resp.status == 200:
+                                self.base_url = alt_url
+                                self._is_healthy = True
+                                self._last_health_time = time.time()
+                                return True
+                    except Exception:
+                        pass
             self._is_healthy = False
             self._last_health_time = time.time()
             logger.debug(f"[OllamaProvider] Health check failed: {e}")
@@ -541,9 +555,44 @@ class CascadeProvider(LLMProvider):
             res = self.secondary.embed(texts)
         return res
 
+    def stream(self, prompt: str | List[Dict[str, str]], **kwargs):
+        resp = self.generate(prompt, **kwargs)
+        if resp and resp.text:
+            words = resp.text.split(" ")
+            for i, w in enumerate(words):
+                yield w if i == len(words) - 1 else w + " "
+
     def health_check(self) -> bool:
         return self.primary.health_check() or self.secondary.health_check()
 
+
+
+class MockLLMProvider(LLMProvider):
+    def __init__(self, default_text: str = "Mock verified LLM response for policy audit."):
+        self.default_text = default_text
+        self.model = "mock-llm"
+
+    def generate(
+        self,
+        prompt: str | List[Dict[str, str]],
+        *,
+        system: Optional[str] = None,
+        max_tokens: int = 1024,
+        temperature: float = 0.2,
+        stream: bool = False,
+        **kwargs
+    ) -> LLMResponse:
+        return LLMResponse(
+            text=self.default_text,
+            model=self.model,
+            fallback=False
+        )
+
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        return [[0.0] * 384 for _ in texts]
+
+    def health_check(self) -> bool:
+        return True
 
 
 # Cache provider instance
@@ -553,7 +602,7 @@ _provider_instance: Optional[LLMProvider] = None
 def get_llm_provider(force_reload: bool = False) -> LLMProvider:
     """
     Factory function returning the configured LLMProvider instance.
-    Checks environment variable LLM_BACKEND ('ollama', 'vllm', 'gemini', 'extractive').
+    Checks environment variable LLM_BACKEND ('ollama', 'vllm', 'gemini', 'extractive', 'mock').
     """
     global _provider_instance
     if _provider_instance and not force_reload:
@@ -561,7 +610,10 @@ def get_llm_provider(force_reload: bool = False) -> LLMProvider:
 
     backend = os.environ.get("LLM_BACKEND", os.environ.get("LLM_PROVIDER", "cascade")).lower().strip()
 
-    if backend == "cascade":
+    if backend in ("mock", "stub", "test"):
+        logger.info("[LLMProvider] Initializing MockLLMProvider")
+        _provider_instance = MockLLMProvider()
+    elif backend == "cascade":
         logger.info("[LLMProvider] Initializing CascadeProvider (LMStudio -> Gemini)")
         primary = LMStudioProvider()
         secondary = GeminiProvider()

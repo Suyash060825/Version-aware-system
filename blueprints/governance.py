@@ -39,9 +39,15 @@ def _policy_risk_map():
     return {r.policy_id: r for r in PolicyAIReview.query.all()}
 
 
-def _compute_governance_data():
+def _compute_governance_data(user=None):
     today = date.today()
-    active_policies = Policy.query.filter_by(status=PolicyStatus.ACTIVE).all()
+    query = Policy.query.filter_by(status=PolicyStatus.ACTIVE)
+    if user and getattr(user, "role", None) != UserRole.ADMIN:
+        from rag.authorization.evidence_filter import get_evidence_filter
+        allowed_pids = get_evidence_filter().get_allowed_policy_ids(user)
+        if allowed_pids is not None:
+            query = query.filter(Policy.id.in_(allowed_pids))
+    active_policies = query.all()
     risk_map = _policy_risk_map()
     n = len(active_policies)
 
@@ -153,5 +159,6 @@ def _compute_governance_data():
 @login_required
 @role_required(UserRole.ADMIN, UserRole.HR)
 def dashboard():
-    data = _compute_governance_data()
+    from flask_login import current_user
+    data = _compute_governance_data(user=current_user)
     return render_template("admin/governance.html", **data)

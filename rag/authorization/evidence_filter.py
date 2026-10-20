@@ -99,6 +99,27 @@ class EvidenceFilter:
         user_role = user.role.value if hasattr(user.role, "value") else str(user.role)
         user_role = user_role.lower()
 
+        # Enforce allowed_confidentiality / clearance levels strictly
+        if hasattr(user, "allowed_confidentiality"):
+            allowed_conf = user.allowed_confidentiality
+        else:
+            user_clearance = getattr(user, "clearance", None)
+            if user_clearance == "public_only":
+                allowed_conf = ["public"]
+            elif user_clearance == "confidential":
+                allowed_conf = ["public", "internal", "confidential"]
+            elif user_clearance == "restricted":
+                allowed_conf = ["public", "internal", "confidential", "restricted"]
+            else:
+                allowed_conf = ["public", "internal"]
+                if user_role in ("admin", "executive", "legal"):
+                    allowed_conf.extend(["confidential", "restricted"])
+                elif user_role in ("hr", "manager"):
+                    allowed_conf.append("confidential")
+
+        if conf_str not in allowed_conf:
+            return False
+
         if conf_str == "restricted":
             user_clearance = getattr(user, "clearance", None)
             if user_clearance != "restricted" and user_role not in ("admin", "executive", "legal"):

@@ -204,18 +204,66 @@ class OllamaProvider(LocalLLMProvider):
             self._last_health_time = time.time()
             return False
         except Exception as conn_err:
+            if "ollama:11434" in self.base_url:
+                try:
+                    alt_url = self.base_url.replace("ollama:11434", "localhost:11434")
+                    alt_resp = requests.get(f"{alt_url}/api/tags", timeout=(0.3, 0.5))
+                    if alt_resp.status_code == 200:
+                        self.base_url = alt_url
+                        self._is_healthy = True
+                        self._last_health_time = time.time()
+                        return True
+                except Exception:
+                    pass
             logger.debug(f"LLM health check connection failed: {conn_err}")
             self._is_healthy = False
             self._last_health_time = time.time()
             return False
 
+
+class MockProvider(LocalLLMProvider):
+    def __init__(self, response: str = "Mock verified policy answer."):
+        self.response = response
+        self.model = "mock-llm"
+
+    def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
+        return self.response
+
+    def stream(self, prompt: str, system_prompt: Optional[str] = None):
+        words = self.response.split(" ")
+        for i, w in enumerate(words):
+            yield w if i == len(words) - 1 else w + " "
+
+    def health_check(self) -> bool:
+        return True
+
+
+class ExtractiveGenerationProvider(LocalLLMProvider):
+    def __init__(self):
+        self.model = "extractive"
+
+    def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
+        return None
+
+    def stream(self, prompt: str, system_prompt: Optional[str] = None):
+        return
+        yield
+
+    def health_check(self) -> bool:
+        return True
+
+
 _PROVIDER = None
 
-def get_llm_provider() -> LocalLLMProvider:
+def get_llm_provider(force_reload: bool = False) -> LocalLLMProvider:
     global _PROVIDER
-    if _PROVIDER is None:
-        backend = os.environ.get("LLM_BACKEND", "ollama").lower()
-        if backend == "ollama":
+    if _PROVIDER is None or force_reload:
+        backend = os.environ.get("LLM_BACKEND", "ollama").lower().strip()
+        if backend in ("mock", "stub", "test"):
+            _PROVIDER = MockProvider()
+        elif backend in ("extractive", "offline"):
+            _PROVIDER = ExtractiveGenerationProvider()
+        elif backend == "ollama":
             _PROVIDER = OllamaProvider()
         else:
             _PROVIDER = OllamaProvider()

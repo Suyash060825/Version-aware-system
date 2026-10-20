@@ -90,7 +90,13 @@ def _streak(dates):
 
 def _mandatory_ack_rate(user):
     """% of currently-active mandatory policies this user has acknowledged."""
-    mandatory = Policy.query.filter_by(status="active", is_mandatory=True).all()
+    query = Policy.query.filter_by(status="active", is_mandatory=True)
+    if user and getattr(user, "role", None) != UserRole.ADMIN:
+        from rag.authorization.evidence_filter import get_evidence_filter
+        allowed_ids = get_evidence_filter().get_allowed_policy_ids(user)
+        if allowed_ids is not None:
+            query = query.filter(Policy.id.in_(allowed_ids))
+    mandatory = query.all()
     if not mandatory:
         return 100.0
     acked_ids = {a.policy_id for a in PolicyAcknowledgement.query.filter_by(

@@ -38,7 +38,20 @@ from rag.generation.prompts import STREAMING_POLICY_GROUNDING_PROMPT, build_stre
 
 logger = logging.getLogger("rag.engine.query_engine")
 
-_IS_DIFF_RE = re.compile(r"\bv\d+\s*(?:and|vs|versus|to|\-)\s*v\d+\b", re.I)
+_IS_DIFF_RE = re.compile(
+    r"\b(?:version\s+|v)?(\d+(?:\.\d+)?)\s*(?:and|vs|versus|to|\-)\s*(?:version\s+|v)?(\d+(?:\.\d+)?)\b",
+    re.I
+)
+
+def _is_valid_diff_query(query: str) -> bool:
+    for m in _IS_DIFF_RE.finditer(query):
+        v1_raw = m.group(1)
+        v2_raw = m.group(2)
+        full = m.group(0).lower()
+        if len(v1_raw) == 4 and len(v2_raw) == 4 and not ("v" in full or "version" in full):
+            continue
+        return True
+    return False
 _HAS_TEMPORAL_CUE_RE = re.compile(
     r"\b(?:in\s+20\d\d|as\s+of|before\s+|after\s+|between\s+|since\s+|until\s+|during\s+|historical|previous|prior|old\s+version|v\d+)\b",
     re.I
@@ -85,6 +98,11 @@ def verify_numeric_grounding(answer: str, chunks_or_ctx_nums: Any) -> bool:
         return False
     return True
 
+_GENERIC_WORDS = {
+    "limit", "policy", "rules", "guidelines", "procedure", "allowed", "permitted",
+    "employee", "company", "days", "year", "time", "standard", "work", "general"
+}
+
 def _extract_best_evidence_context(
     normalized_query: str,
     ranked: List[Dict[str, Any]],
@@ -100,20 +118,45 @@ def _extract_best_evidence_context(
     top_text = ranked[0].get("text", "").strip()
     q_words = set(re.findall(r"\b[a-z0-9]+\b", normalized_query.lower())) - _STOPWORDS
 
+    if not q_words:
+        return None
+
+    # Guard against ungrounded / underspecified queries (F16 Safe Abstention)
+    substantive_q_words = q_words - _GENERIC_WORDS
+    if not substantive_q_words:
+        return None
+
     scored_candidates = []
     for rc in ranked[:5]:
         chunk_text = rc.get("text", "").strip()
         chunk_sec = rc.get("section") or rc.get("section_path") or "Policy"
+        policy_title_words = set(re.findall(r"\b[a-z0-9]+\b", str(rc.get("policy_name", "")).lower())) - _STOPWORDS
         sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', chunk_text) if len(s.strip()) > 15]
         for s_idx, s in enumerate(sentences):
             s_words = set(re.findall(r"\b[a-z0-9]+\b", s.lower()))
             overlap = len(q_words & s_words)
             if overlap >= 1:
-                scored_candidates.append((overlap, rc, chunk_sec, s_idx, s, sentences))
+                # Substantive scoring: weight question words not in the policy title higher than title word repetition
+                substantive_overlap = len(substantive_q_words & s_words)
+                total_score = substantive_overlap * 3 + overlap
+                scored_candidates.append((total_score, substantive_overlap, rc, chunk_sec, s_idx, s, sentences))
 
     if scored_candidates:
-        scored_candidates.sort(key=lambda x: x[0], reverse=True)
-        top_overlap, best_chunk, best_sec, best_idx, best_sent, all_sents = scored_candidates[0]
+        scored_candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
+        top_score, top_sub, best_chunk, best_sec, best_idx, best_sent, all_sents = scored_candidates[0]
+
+        # If question had substantive keywords, require at least one substantive keyword match
+        if substantive_q_words and top_sub == 0 and len(q_words) > 1:
+            return None
+
+        # Reorder citations so winning chunk citation is first
+        winning_pid = best_chunk.get("policy_id")
+        winning_sec = best_chunk.get("section") or best_chunk.get("section_path")
+        for idx, cit in enumerate(citations):
+            if cit.get("policy_id") == winning_pid and (cit.get("section") == winning_sec or not winning_sec):
+                if idx > 0:
+                    citations.insert(0, citations.pop(idx))
+                break
 
         start_i = max(0, best_idx - 1)
         end_i = min(len(all_sents), best_idx + 2)
@@ -128,7 +171,7 @@ def _extract_best_evidence_context(
         uncovered = q_words - top_chunk_words
         if len(uncovered) >= 2:
             for cand in scored_candidates[1:]:
-                cand_chunk, cand_sec, cand_idx, cand_sent, cand_sents = cand[1], cand[2], cand[3], cand[4], cand[5]
+                cand_chunk, cand_sec, cand_idx, cand_sent, cand_sents = cand[2], cand[3], cand[4], cand[5], cand[6]
                 cand_sent_words = set(re.findall(r"\b[a-z0-9]+\b", cand_sent.lower()))
                 if cand_chunk != best_chunk and len(uncovered & cand_sent_words) >= 1:
                     s_i = max(0, cand_idx - 1)
@@ -140,9 +183,9 @@ def _extract_best_evidence_context(
                     return f"According to the {policy_name} (v{version_num}, {best_sec}):\n{context_paragraph}\n\nAdditionally, according to {sec_pname} (v{sec_vnum}, {cand_sec}):\n{sec_context}"
 
         return f"According to the {policy_name} (v{version_num}, {best_sec}):\n{context_paragraph}"
-    elif top_text and q_words:
+    elif top_text and q_words and substantive_q_words:
         top_words = set(re.findall(r"\b[a-z0-9]+\b", top_text.lower()))
-        if len(q_words & top_words) >= 1:
+        if len(substantive_q_words & top_words) >= 1:
             policy_name = citations[0]["policy_name"] if citations else "Policy"
             version_raw = citations[0]["version"] if citations else "1.0"
             version_num = str(version_raw).lstrip("v")
@@ -173,7 +216,8 @@ class QueryEngine:
         scope: QueryScope,
         temporal_context: Any,
         has_temporal_cue: bool,
-        is_diff: bool
+        is_diff: bool,
+        normalized_query: str = ""
     ) -> Optional[Dict[str, Any]]:
         """
         Builds authorization and temporal pre-filters for hybrid retrieval.
@@ -188,9 +232,32 @@ class QueryEngine:
                     return None
                 filters["policy_id"] = temporal_context.policy_id
             else:
-                filters["policy_id"] = list(scope.allowed_policy_ids)
+                # If query explicitly mentions an authorized policy by title, anchor to that policy
+                matched_pid = None
+                if normalized_query:
+                    q_lower = normalized_query.lower()
+                    active_policies = Policy.query.all()
+                    active_policies.sort(key=lambda p: len(p.title), reverse=True)
+                    for p in active_policies:
+                        if len(p.title) > 3 and p.title.lower() in q_lower:
+                            if p.id not in scope.allowed_policy_ids:
+                                return None  # Explicit request for unauthorized policy -> fail closed
+                            matched_pid = p.id
+                            break
+                if matched_pid is not None:
+                    filters["policy_id"] = matched_pid
+                else:
+                    filters["policy_id"] = list(scope.allowed_policy_ids)
         elif temporal_context and temporal_context.policy_id:
             filters["policy_id"] = temporal_context.policy_id
+        elif normalized_query:
+            q_lower = normalized_query.lower()
+            active_policies = Policy.query.all()
+            active_policies.sort(key=lambda p: len(p.title), reverse=True)
+            for p in active_policies:
+                if len(p.title) > 3 and p.title.lower() in q_lower:
+                    filters["policy_id"] = p.id
+                    break
 
         if self.config.use_temporal_filter:
             if scope.target_date:
@@ -287,11 +354,25 @@ class QueryEngine:
         Returns (diff_summary, citations, confidence_score, policy_versions) or None.
         """
         temporal_meta = meta.get("temporal", {})
-        if not (temporal_meta.get("is_comparison") and temporal_meta.get("version_v1") and temporal_meta.get("version_v2")):
-            return None
+        v1_num = temporal_meta.get("version_v1")
+        v2_num = temporal_meta.get("version_v2")
 
-        v1_num = temporal_meta["version_v1"]
-        v2_num = temporal_meta["version_v2"]
+        if not (v1_num and v2_num):
+            t_query = getattr(temporal_context, "temporal_query", None)
+            if t_query and getattr(t_query, "comparison_versions", None) and len(t_query.comparison_versions) >= 2:
+                v1_num = t_query.comparison_versions[0]
+                v2_num = t_query.comparison_versions[1]
+            else:
+                for m in _IS_DIFF_RE.finditer(normalized_query):
+                    c1, c2 = m.group(1), m.group(2)
+                    full = m.group(0).lower()
+                    if len(c1) == 4 and len(c2) == 4 and not ("v" in full or "version" in full):
+                        continue
+                    v1_num, v2_num = c1, c2
+                    break
+
+        if not (v1_num and v2_num):
+            return None
 
         if temporal_context and temporal_context.policy_id:
             p_query = Policy.query.filter(Policy.id == temporal_context.policy_id)
@@ -302,49 +383,69 @@ class QueryEngine:
 
         candidate_policies = p_query.all()
         q_lower = normalized_query.lower()
-        q_words_long = [w for w in q_lower.split() if len(w) > 3]
+        q_words = set(re.findall(r"\b[a-z0-9]+\b", q_lower)) - _STOPWORDS
 
+        scored_policies = []
         for p in candidate_policies:
             p_title_lower = p.title.lower()
-            if p_title_lower in q_lower or any(w in p_title_lower for w in q_words_long):
-                if not self.evidence_filter.is_authorized_for_policy(scope, p):
-                    continue
+            p_title_words = set(re.findall(r"\b[a-z0-9]+\b", p_title_lower)) - _STOPWORDS
+            overlap = len(q_words & p_title_words)
+            if p_title_lower in q_lower:
+                overlap += 10
+            if overlap > 0:
+                scored_policies.append((overlap, p))
 
-                v1 = PolicyVersion.query.filter(
-                    PolicyVersion.policy_id == p.id,
-                    (PolicyVersion.version_num == float(v1_num)) | (PolicyVersion.version_label.ilike(f"%{v1_num}%"))
-                ).first()
-                v2 = PolicyVersion.query.filter(
-                    PolicyVersion.policy_id == p.id,
-                    (PolicyVersion.version_num == float(v2_num)) | (PolicyVersion.version_label.ilike(f"%{v2_num}%"))
-                ).first()
+        scored_policies.sort(key=lambda x: x[0], reverse=True)
 
-                if v1 and v2:
-                    diff_res = self.diff_engine.compute_diff(v1.content or "", v2.content or "", version_a_id=v1.id, version_b_id=v2.id)
-                    v1_label = v1.version_label or f"v{v1.version_num}"
-                    v2_label = v2.version_label or f"v{v2.version_num}"
-                    diff_summary = f"Comparison of {p.title} {v1_label} vs {v2_label}:\n"
-                    if diff_res.get("added_clauses"):
-                        diff_summary += f"\n- Added ({len(diff_res['added_clauses'])} clauses): " + "; ".join(diff_res['added_clauses'][:3])
-                    if diff_res.get("removed_clauses"):
-                        diff_summary += f"\n- Removed ({len(diff_res['removed_clauses'])} clauses): " + "; ".join(diff_res['removed_clauses'][:3])
-                    if diff_res.get("changed_clauses"):
-                        diff_summary += f"\n- Modified ({len(diff_res['changed_clauses'])} clauses): " + "; ".join(diff_res['changed_clauses'][:3])
-                    if not diff_res.get("added_clauses") and not diff_res.get("removed_clauses") and not diff_res.get("changed_clauses"):
-                        diff_summary += "\nNo structural text differences detected between these two versions."
+        for _, p in scored_policies:
+            if not self.evidence_filter.is_authorized_for_policy(scope, p):
+                continue
 
-                    cits = self.citation_validator.enrich_only([
-                        {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1},
-                        {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
-                    ])
+            try:
+                v1_float = float(v1_num)
+            except (ValueError, TypeError):
+                v1_float = None
+            try:
+                v2_float = float(v2_num)
+            except (ValueError, TypeError):
+                v2_float = None
 
-                    diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
-                    comparison_evidence_score = 0.85 if diff_clauses > 0 else 0.80
+            v1_cond = PolicyVersion.version_label.ilike(f"%{v1_num}%")
+            if v1_float is not None:
+                v1_cond = (PolicyVersion.version_num == v1_float) | v1_cond
+            v1 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, v1_cond).first()
 
-                    if self.config.use_cache:
-                        self.cache.put(q_emb, diff_summary, cits, 2, scope=scope, confidence=comparison_evidence_score, is_diff_query=True, query=normalized_query)
+            v2_cond = PolicyVersion.version_label.ilike(f"%{v2_num}%")
+            if v2_float is not None:
+                v2_cond = (PolicyVersion.version_num == v2_float) | v2_cond
+            v2 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, v2_cond).first()
 
-                    return diff_summary, cits, comparison_evidence_score, [str(v1.version_num), str(v2.version_num)]
+            if v1 and v2:
+                diff_res = self.diff_engine.compute_diff(v1.content or "", v2.content or "", version_a_id=v1.id, version_b_id=v2.id)
+                v1_label = v1.version_label or f"v{v1.version_num}"
+                v2_label = v2.version_label or f"v{v2.version_num}"
+                diff_summary = f"Comparison of {p.title} {v1_label} vs {v2_label}:\n"
+                if diff_res.get("added_clauses"):
+                    diff_summary += f"\n- Added ({len(diff_res['added_clauses'])} clauses): " + "; ".join(diff_res['added_clauses'][:3])
+                if diff_res.get("removed_clauses"):
+                    diff_summary += f"\n- Removed ({len(diff_res['removed_clauses'])} clauses): " + "; ".join(diff_res['removed_clauses'][:3])
+                if diff_res.get("changed_clauses"):
+                    diff_summary += f"\n- Modified ({len(diff_res['changed_clauses'])} clauses): " + "; ".join(diff_res['changed_clauses'][:3])
+                if not diff_res.get("added_clauses") and not diff_res.get("removed_clauses") and not diff_res.get("changed_clauses"):
+                    diff_summary += "\nNo structural text differences detected between these two versions."
+
+                cits = self.citation_validator.enrich_only([
+                    {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1},
+                    {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
+                ])
+
+                diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
+                comparison_evidence_score = 0.85 if diff_clauses > 0 else 0.80
+
+                if self.config.use_cache:
+                    self.cache.put(q_emb, diff_summary, cits, 2, scope=scope, confidence=comparison_evidence_score, is_diff_query=True, query=normalized_query)
+
+                return diff_summary, cits, comparison_evidence_score, [str(v1.version_num), str(v2.version_num)]
 
         return None
 
@@ -356,7 +457,7 @@ class QueryEngine:
         allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
 
         # Fast temporal cues check
-        is_diff = bool(_IS_DIFF_RE.search(normalized_query))
+        is_diff = _is_valid_diff_query(normalized_query)
         has_temporal_cue = is_diff or bool(_HAS_TEMPORAL_CUE_RE.search(normalized_query))
 
         temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user) if has_temporal_cue else None
@@ -487,7 +588,7 @@ class QueryEngine:
             )
 
         # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering (F3 shared helper)
-        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff)
+        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff, normalized_query=normalized_query)
         if filters is None:
             return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000)
 
@@ -560,7 +661,7 @@ class QueryEngine:
         allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
 
         # Fast temporal cues check
-        is_diff = bool(_IS_DIFF_RE.search(normalized_query))
+        is_diff = _is_valid_diff_query(normalized_query)
         has_temporal_cue = is_diff or bool(_HAS_TEMPORAL_CUE_RE.search(normalized_query))
 
         temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user) if has_temporal_cue else None
@@ -718,7 +819,7 @@ class QueryEngine:
             return
 
         # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering (F3 shared helper)
-        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff)
+        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff, normalized_query=normalized_query)
         if filters is None:
             yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
             yield {

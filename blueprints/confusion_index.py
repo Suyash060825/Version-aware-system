@@ -128,8 +128,14 @@ def _search_keyword_hits(policies):
     return counts
 
 
-def _compute():
-    policies = Policy.query.filter_by(status=PolicyStatus.ACTIVE).all()
+def _compute(user=None):
+    query = Policy.query.filter_by(status=PolicyStatus.ACTIVE)
+    if user and getattr(user, "role", None) != UserRole.ADMIN:
+        from rag.authorization.evidence_filter import get_evidence_filter
+        allowed_pids = get_evidence_filter().get_allowed_policy_ids(user)
+        if allowed_pids is not None:
+            query = query.filter(Policy.id.in_(allowed_pids))
+    policies = query.all()
     if not policies:
         return {"rows": [], "policy_count": 0, "signal_totals": {}}
 
@@ -194,5 +200,6 @@ def _compute():
 @login_required
 @role_required(UserRole.ADMIN, UserRole.HR)
 def dashboard():
-    data = _compute()
+    from flask_login import current_user
+    data = _compute(user=current_user)
     return render_template("admin/confusion_index.html", **data)

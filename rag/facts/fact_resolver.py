@@ -195,7 +195,9 @@ class FactResolver:
             else:
                 continue
 
-            # Title overlap
+            # Title overlap and exact match
+            if p_title and p_title in query_lower:
+                score += 40
             title_words = set(re.findall(r"\b[a-z0-9]+\b", p_title))
             score += len(query_words & title_words) * 5
 
@@ -210,7 +212,14 @@ class FactResolver:
             return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
         # PRECISION & AMBIGUITY REQUIREMENTS 8 & 9: Multi-attribute semantic ambiguity comparison
-        scored_candidates.sort(key=lambda x: x[0], reverse=True)
+        # Tie-breaker: sort by score descending, then version_num descending (most recent applicable version)
+        scored_candidates.sort(
+            key=lambda x: (
+                x[0],
+                float(getattr(versions_map.get(x[1].version_id), "version_num", 1.0) or 1.0)
+            ),
+            reverse=True
+        )
         best_score, best_fact = scored_candidates[0]
 
         if len(scored_candidates) > 1:

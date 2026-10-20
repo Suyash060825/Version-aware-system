@@ -24,6 +24,19 @@ def _get_target_device(env_var: str = "RERANKER_DEVICE") -> str:
             return "cpu"
     return "cpu"
 
+def _format_candidate_for_rerank(c: Dict[str, Any]) -> str:
+    p_name = c.get("policy_name")
+    sec = c.get("section") or c.get("section_path")
+    text = c.get("text", "")
+    prefix_parts = []
+    if p_name and str(p_name) not in ("Policy", "None", "Unknown", ""):
+        prefix_parts.append(f"Policy: {p_name}")
+    if sec and str(sec) not in ("General", "None", ""):
+        prefix_parts.append(f"Section: {sec}")
+    if prefix_parts:
+        return f"[{' | '.join(prefix_parts)}]\n{text}"
+    return text
+
 class Qwen3Reranker:
     MODEL_NAME = "Qwen/Qwen3-Reranker-0.6B"
     
@@ -53,7 +66,7 @@ class Qwen3Reranker:
         try:
             # Score top candidates to keep CPU latency low
             eval_candidates = candidates[:min(len(candidates), 16)]
-            pairs = [(query, c.get("text", "")) for c in eval_candidates]
+            pairs = [(query, _format_candidate_for_rerank(c)) for c in eval_candidates]
             scores = self._model.predict(pairs)
             
             ranked = sorted(zip(scores, eval_candidates), reverse=True, key=lambda x: x[0])
@@ -90,7 +103,7 @@ class FlashRankReranker:
             return candidates[:top_k]
         try:
             eval_candidates = candidates[:min(len(candidates), 15)]
-            passages = [{"id": i, "text": c.get("text", "")} for i, c in enumerate(eval_candidates)]
+            passages = [{"id": i, "text": _format_candidate_for_rerank(c)} for i, c in enumerate(eval_candidates)]
             req = self._rerank_request_cls(query=query, passages=passages)
             ranked_passages = self._ranker.rerank(req)
             

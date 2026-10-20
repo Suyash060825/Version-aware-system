@@ -118,7 +118,7 @@ def _ai_accuracy():
     }
 
 
-def _popular_policies(limit=10):
+def _popular_policies(limit=10, user=None):
     counts = defaultdict(int)
     for m in ChatMessage.query.filter_by(role="assistant").all():
         try:
@@ -134,12 +134,21 @@ def _popular_policies(limit=10):
             seen.add(pid)
         for pid in seen:
             counts[pid] += 1
-    ranked = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:limit]
+    ranked = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
     out = []
+    allowed_ids = None
+    if user and getattr(user, "role", None) != UserRole.ADMIN:
+        from rag.authorization.evidence_filter import get_evidence_filter
+        allowed_ids = get_evidence_filter().get_allowed_policy_ids(user)
+
     for pid, cnt in ranked:
+        if allowed_ids is not None and pid not in allowed_ids:
+            continue
         p = db.session.get(Policy, pid)
         if p:
             out.append({"policy": p, "citation_count": cnt})
+        if len(out) >= limit:
+            break
     return out
 
 
@@ -193,12 +202,13 @@ def _token_usage():
 @login_required
 @role_required(UserRole.HR, UserRole.ADMIN)
 def dashboard():
+    from flask_login import current_user
     top_questions = _top_questions()
     unknown_top, unknown_all = _unknown_questions()
     gaps = _knowledge_gaps(unknown_all)
     failed, failed_total = _failed_answers()
     accuracy = _ai_accuracy()
-    popular = _popular_policies()
+    popular = _popular_policies(user=current_user)
     sentiment = _sentiment()
     tokens = _token_usage()
 

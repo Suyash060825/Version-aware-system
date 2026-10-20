@@ -66,7 +66,7 @@ NODE_KIND_INFO = {
 }
 
 
-def _build_graph(limit_policies: int = 60) -> dict:
+def _build_graph(limit_policies: int = 60, user=None) -> dict:
     nodes, edges = [], []
     seen = set()
 
@@ -89,7 +89,14 @@ def _build_graph(limit_policies: int = 60) -> dict:
     for d in Department.query.all():
         add_node(f"dept-{d.id}", d.name, "department")
 
-    policies = Policy.query.order_by(Policy.updated_at.desc()).limit(limit_policies).all()
+    policies_query = Policy.query
+    if user and getattr(user, "role", None) != UserRole.ADMIN:
+        from rag.authorization.evidence_filter import get_evidence_filter
+        allowed_pids = get_evidence_filter().get_allowed_policy_ids(user)
+        if allowed_pids is not None:
+            policies_query = policies_query.filter(Policy.id.in_(allowed_pids))
+
+    policies = policies_query.order_by(Policy.updated_at.desc()).limit(limit_policies).all()
     for p in policies:
         pid = f"policy-{p.id}"
         add_node(pid, p.title, "policy", policy_id=p.id, url=f"/policies/{p.id}")
@@ -141,5 +148,6 @@ def graph_page():
 @login_required
 @role_required(UserRole.ADMIN, UserRole.HR)
 def graph_data():
+    from flask_login import current_user
     limit = request.args.get("limit", 60, type=int)
-    return jsonify(_build_graph(limit_policies=limit))
+    return jsonify(_build_graph(limit_policies=limit, user=current_user))
