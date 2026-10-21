@@ -1,0 +1,155 @@
+{
+  "total_queries_evaluated": 1000,
+  "overall_answer_accuracy_pct": 53.6,
+  "mean_token_f1": 0.3542,
+  "expected_calibration_error": 0.637,
+  "latency_percentiles_ms": {
+    "p50": 57.78,
+    "p90": 83.38,
+    "p95": 93.33,
+    "p99": 111.27,
+    "mean": 56.13
+  },
+  "category_breakdown": {
+    "CAT_01_FACTUAL_LOOKUP": {
+      "total": 30,
+      "correct": 13,
+      "accuracy_pct": 43.3,
+      "mean_token_f1": 0.0317,
+      "p50_latency_ms": 60.74
+    },
+    "CAT_02_VERSION_LOOKUP": {
+      "total": 57,
+      "correct": 11,
+      "accuracy_pct": 19.3,
+      "mean_token_f1": 0.044,
+      "p50_latency_ms": 6.5
+    },
+    "CAT_03_SEMANTIC_PARAPHRASE": {
+      "total": 30,
+      "correct": 17,
+      "accuracy_pct": 56.7,
+      "mean_token_f1": 0.0075,
+      "p50_latency_ms": 58.03
+    },
+    "CAT_04_SYNONYMS": {
+      "total": 30,
+      "correct": 18,
+      "accuracy_pct": 60.0,
+      "mean_token_f1": 0.0213,
+      "p50_latency_ms": 64.55
+    },
+    "CAT_05_MULTI_CONDITION": {
+      "total": 30,
+      "correct": 22,
+      "accuracy_pct": 73.3,
+      "mean_token_f1": 0.0265,
+      "p50_latency_ms": 65.42
+    },
+    "CAT_06_MULTI_SECTION": {
+      "total": 30,
+      "correct": 28,
+      "accuracy_pct": 93.3,
+      "mean_token_f1": 0.0248,
+      "p50_latency_ms": 63.82
+    },
+    "CAT_07_CROSS_POLICY": {
+      "total": 15,
+      "correct": 2,
+      "accuracy_pct": 13.3,
+      "mean_token_f1": 0.0053,
+      "p50_latency_ms": 55.32
+    },
+    "CAT_09_HISTORICAL_VS_CURRENT": {
+      "total": 27,
+      "correct": 2,
+      "accuracy_pct": 7.4,
+      "mean_token_f1": 0.0092,
+      "p50_latency_ms": 56.97
+    },
+    "CAT_10_TIME_TRAVEL": {
+      "total": 57,
+      "correct": 46,
+      "accuracy_pct": 80.7,
+      "mean_token_f1": 0.0394,
+      "p50_latency_ms": 84.08
+    },
+    "CAT_11_EXCEPTIONS": {
+      "total": 30,
+      "correct": 0,
+      "accuracy_pct": 0.0,
+      "mean_token_f1": 0.0156,
+      "p50_latency_ms": 73.52
+    },
+    "CAT_12_ABSENT_ANSWER_OOD": {
+      "total": 5,
+      "correct": 5,
+      "accuracy_pct": 100.0,
+      "mean_token_f1": 0.1538,
+      "p50_latency_ms": 67.98
+    },
+    "CAT_14_PRE_DATING_ABSTENTION": {
+      "total": 20,
+      "correct": 19,
+      "accuracy_pct": 95.0,
+      "mean_token_f1": 0.95,
+      "p50_latency_ms": 67.2
+    },
+    "CAT_16_TYPO_NOISE": {
+      "total": 25,
+      "correct": 5,
+      "accuracy_pct": 20.0,
+      "mean_token_f1": 0.0133,
+      "p50_latency_ms": 0.63
+    },
+    "CAT_18_EXACT_NUMERIC": {
+      "total": 30,
+      "correct": 17,
+      "accuracy_pct": 56.7,
+      "mean_token_f1": 0.0557,
+      "p50_latency_ms": 64.12
+    },
+    "CAT_22_DETERMINISTIC_FAST_PATH": {
+      "total": 186,
+      "correct": 121,
+      "accuracy_pct": 65.1,
+      "mean_token_f1": 0.6421,
+      "p50_latency_ms": 56.78
+    },
+    "CAT_23_HYBRID_RETRIEVAL": {
+      "total": 330,
+      "correct": 200,
+      "accuracy_pct": 60.6,
+      "mean_token_f1": 0.5911,
+      "p50_latency_ms": 56.14
+    },
+    "CAT_24_QWEN_GENERATION": {
+      "total": 40,
+      "correct": 2,
+      "accuracy_pct": 5.0,
+      "mean_token_f1": 0.0249,
+      "p50_latency_ms": 72.76
+    },
+    "CAT_29_UNAUTHORIZED_REFUSAL": {
+      "total": 3,
+      "correct": 3,
+      "accuracy_pct": 100.0,
+      "mean_token_f1": 1.0,
+      "p50_latency_ms": 57.48
+    },
+    "CAT_31_MALFORMED": {
+      "total": 5,
+      "correct": 5,
+      "accuracy_pct": 100.0,
+      "mean_token_f1": 1.0,
+      "p50_latency_ms": 55.53
+    },
+    "CAT_33_CACHE_REPEATED": {
+      "total": 20,
+      "correct": 0,
+      "accuracy_pct": 0.0,
+      "mean_token_f1": 0.0,
+      "p50_latency_ms": 0.11
+    }
+  }
+}

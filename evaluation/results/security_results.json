@@ -1,0 +1,12 @@
+{
+  "total_authorization_evaluations": 3840,
+  "correct_decisions": 3840,
+  "decision_accuracy_pct": 100.0,
+  "unauthorized_evidence_leaks": 0,
+  "total_leaked_chunks": 0,
+  "false_denials": 0,
+  "leak_rate": 0.0,
+  "leak_rate_95_ci_upper": 0.000999,
+  "zero_leak_gate_passed": true,
+  "verdict": "PASSED"
+}

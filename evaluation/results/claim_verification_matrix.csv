@@ -1,0 +1,16 @@
+Claim_ID,Subsystem,Exact_Wording,Metric_Name,Observed_Value,Evaluated_N,Confidence_Interval_95,Status,Raw_Evidence_Artifact
+CLM-001,Temporal Retrieval,Veritas retrieves policy information according to requested date and version,Version Accuracy,94.7%,57 queries,"[85.4%, 98.9%]",VERIFIED,evaluation/results/query_level_results.jsonl
+CLM-002,Authorization & Scope,Retrieval respects user authorization with zero unauthorized leaks,Leakage Rate,0.00%,"3,840 evals","[0.00%, 0.08%]",VERIFIED,evaluation/results/security_results.json
+CLM-003,Incremental Compiler,Knowledge updates process only affected content (95% compute avoided),Compute Avoidance,95.0%,"3,000 chunks","[94.2%, 95.8%]",VERIFIED,evaluation/results/scalability_results.csv
+CLM-004,Incremental Compiler,Incremental compilation achieves a 24.95x end-to-end speedup on 5% deltas,End-to-End Speedup,19.32x,"3,000 chunks",N/A,UNSUPPORTED,evaluation/results/discrepancy_reconciliation.json
+CLM-005,Adaptive Query Router,63.4% of queries resolve through deterministic or refusal fast paths,Fast-Path Share,63.45%,922 queries,"[60.3%, 66.5%]",VERIFIED,evaluation/results/retrieval_metrics.json
+CLM-006,Grounded Verification,Evidence verification checks whether answers are supported via NLI,Contradiction Recall,100.0%,14 test pairs,"[76.8%, 100.0%]",VERIFIED,evaluation/results/answer_quality_metrics.json
+CLM-007,Safe Abstention,System abstains when valid evidence is insufficient or contradictory,Safe Abstention Rate,100.0%,10 audit cases,"[69.2%, 100.0%]",VERIFIED,evaluation/results/answer_quality_metrics.json
+CLM-008,Hybrid Retrieval,Retrieval achieves 94.5% Recall@1 on expanded characterization benchmark,Policy Recall@1,94.47%,922 queries,"[92.8%, 95.8%]",QUALIFIED,evaluation/results/retrieval_metrics.json
+CLM-009,Local Qwen Generation,Generation achieves 0.962 Token F1 under fixed gold evidence,Fixed-Gold Token F1,0.9620,100 queries,"[0.941, 0.983]",VERIFIED,evaluation/results/answer_quality_metrics.json
+CLM-010,Baseline Evaluation,End-to-end exact answer match on frozen 301-query baseline is 27.91%,Exact Match,27.91%,301 queries,"[23.1%, 33.3%]",VERIFIED,evaluation/results/answer_quality_metrics.json
+CLM-011,Confidence Calibration,Calibration achieves 0.041 validation ECE via isotonic regression,Validation ECE,0.041,Held-out split,"[0.028, 0.056]",VERIFIED,evaluation/results/answer_quality_metrics.json
+CLM-012,Concurrency & Load,Load testing maintains 100% data isolation; throughput saturates at 137 QPS,Isolation & QPS,234.7 -> 137 QPS,"1,000 queries",N/A,VERIFIED,evaluation/results/concurrency_results.csv
+CLM-013,Index Consistency,100% post-mutation consistency across 20 update cycles,Consistency Rate,100.0%,20 cycles,"[83.9%, 100.0%]",VERIFIED,evaluation/results/scalability_results.csv
+CLM-014,Corpus Integrity,"Characterization corpus covers 120 policies, 422 versions, 2,110 chunks",Entity Counts,"120/422/2,110",Master Ledger,Exact,VERIFIED,evaluation/results/corpus_manifest.json
+CLM-015,Audit Traceability,Audit tracking preserves provenance and structured citations,Citation Completeness,100.0%,63 audit records,"[94.3%, 100.0%]",VERIFIED,evaluation/results/query_level_results.jsonl

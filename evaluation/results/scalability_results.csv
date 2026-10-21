@@ -1,0 +1,5 @@
+policy_count,version_count,chunk_count,generation_time_sec,tokenization_time_sec,bm25_build_time_sec,indexing_throughput_chunks_per_sec,estimated_memory_mb
+120,422,2110,0.0196,0.0259,0.0218,44293.65,8.78
+500,1999,9995,0.0919,0.1233,0.1517,36347.05,23.11
+1000,4074,20370,0.1714,0.3018,0.1857,41780.44,41.97
+5000,20674,103370,1.2101,1.3554,0.9371,45090.6,192.9

@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-10-21T12:20:32.245477+00:00",
+  "platform": "Linux-7.1.8-100.fc43.x86_64-x86_64-with-glibc2.41",
+  "processor": "",
+  "cpu_count_logical": 12,
+  "cpu_count_physical": 12,
+  "ram_total_gb": 16.0,
+  "python_version": "3.11.17",
+  "local_llm_model": "qwen3:4b-q4_K_M",
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "reranker_model": "ms-marco-TinyBERT-L-2-v2",
+  "ollama_base_url": "http://ollama:11434"
+}

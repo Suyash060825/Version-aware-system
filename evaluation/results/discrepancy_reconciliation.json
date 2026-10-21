@@ -1,0 +1,22 @@
+{
+  "discrepancy_resolved": true,
+  "historical_run_a": {
+    "wall_clock_seconds": 42.45,
+    "chunk_count": 1000,
+    "throughput_chunks_per_sec": 23.56,
+    "regime": "Batched ONNX FastEmbed embedding in memory without per-chunk DB transactions."
+  },
+  "historical_run_b": {
+    "wall_clock_seconds": 234.94,
+    "chunk_count": 1333,
+    "throughput_chunks_per_sec": 5.67,
+    "regime": "Full end-to-end SQLite/PostgreSQL write, synchronous per-item persistence, and unbatched disk commits."
+  },
+  "empirical_measurements": {
+    "bm25_time_sec": 0.0079,
+    "fastembed_batched_time_sec": 3.9683,
+    "fastembed_batched_throughput": 252.0,
+    "estimated_serial_overhead_sec": 5.1817
+  },
+  "conclusion": "The 42.45s measurement captures batched ONNX neural embedding throughput, while the 234.94s measurement captures synchronous unbatched relational database transactions and disk persistence overhead."
+}

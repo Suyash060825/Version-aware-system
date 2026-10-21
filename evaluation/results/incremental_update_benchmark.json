@@ -1,0 +1,11 @@
+{
+  "total_chunks": 3000,
+  "delta_chunks": 150,
+  "reused_chunks": 2850,
+  "compute_avoidance_ratio": 0.95,
+  "cold_rebuild_wall_clock_sec": 5.3988,
+  "incremental_update_sec": 0.2409,
+  "measured_speedup": 22.41,
+  "historical_claimed_speedup": 24.95,
+  "verdict": "VERIFIED_COMPUTE_AVOIDANCE_95PCT"
+}

@@ -1,0 +1,10 @@
+{
+  "total_queries": 1000,
+  "policy_recall_at_1": 0.526,
+  "policy_recall_at_5": 0.526,
+  "policy_recall_at_10": 0.526,
+  "chunk_recall_at_1": 0.191,
+  "chunk_recall_at_5": 0.191,
+  "chunk_recall_at_10": 0.191,
+  "mrr": 0.32154882154882153
+}

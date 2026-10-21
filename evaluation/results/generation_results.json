@@ -1,0 +1,106 @@
+{
+  "model": "qwen3:4b-q4_K_M",
+  "backend": "ollama (Docker Compose local inference)",
+  "trials": 8,
+  "mean_wall_clock_sec": 78.958,
+  "mean_tokens_per_sec": 11.04,
+  "think_tags_clean_rate_pct": 100.0,
+  "sample_records": [
+    {
+      "query_id": "Q-EVAL-00417",
+      "query_text": "Provide a comprehensive plain-language summary of Annual & Paid Time Off Policy (v7.0). Explain who is eligible, the mandatory threshold (30 days), the required advance notice for exceptions, and the disciplinary consequences for non-compliance.",
+      "model_identifier": "qwen3:4b-q4_K_M",
+      "llm_used": false,
+      "wall_clock_seconds": 90.194,
+      "generated_tokens_count": 77,
+      "tokens_per_second": 0.85,
+      "think_tags_leaked": false,
+      "citations_present": true,
+      "answer_snippet": "According to the Annual & Paid Time Off Policy (v7.0, 2. Core Entitlements & Allowances):\nCore Entitlements & Allowances\nUnder this policy version (v7"
+    },
+    {
+      "query_id": "Q-EVAL-00418",
+      "query_text": "Provide a comprehensive plain-language summary of Sick & Medical Leave Policy (v6.0). Explain who is eligible, the mandatory threshold (15 days), the required advance notice for exceptions, and the disciplinary consequences for non-compliance.",
+      "model_identifier": "qwen3:4b-q4_K_M",
+      "llm_used": false,
+      "wall_clock_seconds": 90.187,
+      "generated_tokens_count": 75,
+      "tokens_per_second": 0.83,
+      "think_tags_leaked": false,
+      "citations_present": false,
+      "answer_snippet": "According to the Sick & Medical Leave Policy (v6.0, 2. Core Entitlements & Allowances):\nCore Entitlements & Allowances\nUnder this policy version (v6.0"
+    },
+    {
+      "query_id": "Q-EVAL-00419",
+      "query_text": "Provide a comprehensive plain-language summary of Parental & Maternity Leave Policy (v4.0). Explain who is eligible, the mandatory threshold (26 weeks), the required advance notice for exceptions, and the disciplinary consequences for non-compliance.",
+      "model_identifier": "qwen3:4b-q4_K_M",
+      "llm_used": false,
+      "wall_clock_seconds": 0.133,
+      "generated_tokens_count": 11,
+      "tokens_per_second": 82.47,
+      "think_tags_leaked": false,
+      "citations_present": false,
+      "answer_snippet": "I could not find sufficient authoritative evidence in the applicable policies."
+    },
+    {
+      "query_id": "Q-EVAL-00420",
+      "query_text": "Provide a comprehensive plain-language summary of Bereavement & Compassionate Leave (v2.0). Explain who is eligible, the mandatory threshold (5 days), the required advance notice for exceptions, and the disciplinary consequences for non-compliance.",
+      "model_identifier": "qwen3:4b-q4_K_M",
+      "llm_used": false,
+      "wall_clock_seconds": 90.216,
+      "generated_tokens_count": 77,
+      "tokens_per_second": 0.85,
+      "think_tags_leaked": false,
+      "citations_present": false,
+      "answer_snippet": "According to the Bereavement & Compassionate Leave (v2.0, 2. Core Entitlements & Allowances):\nCore Entitlements & Allowances\nUnder this policy version"
+    },
+    {
+      "query_id": "Q-EVAL-00421",
+      "query_text": "Provide a comprehensive plain-language summary of Sabbatical & Extended Study Leave (v1.0). Explain who is eligible, the mandatory threshold (12 months), the required advance notice for exceptions, and the disciplinary consequences for non-compliance.",
+      "model_identifier": "qwen3:4b-q4_K_M",
+      "llm_used": false,
+      "wall_clock_seconds": 90.218,
+      "generated_tokens_count": 75,
+      "tokens_per_second": 0.83,
+      "think_tags_leaked": false,
+      "citations_present": false,
+      "answer_snippet": "According to the Sabbatical & Extended Study Leave (v1.0, 2. Core Entitlements & Allowances):\nCore Entitlements & Allowances\nUnder this policy version"
+    },
+    {
+      "query_id": "Q-EVAL-00422",
+      "query_text": "Provide a comprehensive plain-language summary of Probation & Confirmation Guidelines (v3.0). Explain who is eligible, the mandatory threshold (3 months), the required advance notice for exceptions, and the disciplinary consequences for non-compliance.",
+      "model_identifier": "qwen3:4b-q4_K_M",
+      "llm_used": false,
+      "wall_clock_seconds": 90.212,
+      "generated_tokens_count": 73,
+      "tokens_per_second": 0.81,
+      "think_tags_leaked": false,
+      "citations_present": false,
+      "answer_snippet": "According to the Probation & Confirmation Guidelines (v3.0, 2. Core Entitlements & Allowances):\nCore Entitlements & Allowances\nUnder this policy versi"
+    },
+    {
+      "query_id": "Q-EVAL-00423",
+      "query_text": "Provide a comprehensive plain-language summary of Employee Notice Period Standards (v4.0). Explain who is eligible, the mandatory threshold (2 months), the required advance notice for exceptions, and the disciplinary consequences for non-compliance.",
+      "model_identifier": "qwen3:4b-q4_K_M",
+      "llm_used": false,
+      "wall_clock_seconds": 90.276,
+      "generated_tokens_count": 75,
+      "tokens_per_second": 0.83,
+      "think_tags_leaked": false,
+      "citations_present": false,
+      "answer_snippet": "According to the Employee Notice Period Standards (v4.0, 2. Core Entitlements & Allowances):\nCore Entitlements & Allowances\nUnder this policy version "
+    },
+    {
+      "query_id": "Q-EVAL-00424",
+      "query_text": "Provide a comprehensive plain-language summary of Performance Improvement Plan (PIP) (v7.0). Explain who is eligible, the mandatory threshold (30 days), the required advance notice for exceptions, and the disciplinary consequences for non-compliance.",
+      "model_identifier": "qwen3:4b-q4_K_M",
+      "llm_used": false,
+      "wall_clock_seconds": 90.229,
+      "generated_tokens_count": 80,
+      "tokens_per_second": 0.89,
+      "think_tags_leaked": false,
+      "citations_present": true,
+      "answer_snippet": "According to the Performance Evaluation & Promotion Policy (v9, Performance Evaluation & Promotion Policy - 4. Performance Improvement Plan (PIP)):\nPe"
+    }
+  ]
+}
