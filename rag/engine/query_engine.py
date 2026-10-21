@@ -606,7 +606,7 @@ class QueryEngine:
         llm_used = False
         final_answer = None
 
-        if self.llm.health_check():
+        if getattr(self.config, "use_llm", True) and self.llm.health_check():
             try:
                 llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:5])
                 ans_text = llm_output.get("answer", "").strip() if llm_output else ""

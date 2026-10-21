@@ -33,3 +33,4 @@ fastembed>=0.3.0
 flashrank>=0.2.0
 pgvector>=0.2.5
 faiss-cpu>=1.8.0
+pytest>=8.0.0

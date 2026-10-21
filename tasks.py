@@ -3,7 +3,14 @@ tasks.py
 Celery task definitions for background processing.
 """
 import os
+import sys
 import logging
+
+# Ensure application root is in python path for all Celery worker processes
+_APP_DIR = os.path.abspath(os.path.dirname(__file__))
+if _APP_DIR not in sys.path:
+    sys.path.insert(0, _APP_DIR)
+
 from celery import Celery
 
 logger = logging.getLogger(__name__)

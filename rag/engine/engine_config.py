@@ -13,5 +13,6 @@ class EngineConfig:
     use_confidence_gate: bool = True
     use_cache: bool = True
     use_nli: bool = False  # Disabled by default in production per audit (CPU latency blocker)
+    use_llm: bool = True
     rerank_top_k: int = 15
     min_evidence_score: float = 2.0
