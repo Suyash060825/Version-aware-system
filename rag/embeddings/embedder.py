@@ -112,8 +112,9 @@ class Qwen3Embedder(BaseEmbedder):
 
 class FastEmbedEmbedder(BaseEmbedder):
     def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5"):
-        self.model_name = model_name
-        self.dimension = 384
+        from config import Config
+        self.model_name = model_name or Config.EMBEDDING_MODEL
+        self.dimension = Config.EMBEDDING_DIMENSION
         try:
             from fastembed import TextEmbedding
             self._model = TextEmbedding(model_name=model_name)
@@ -153,8 +154,9 @@ _EMBEDDER = None
 def get_embedder() -> BaseEmbedder:
     global _EMBEDDER
     if _EMBEDDER is None:
-        engine = os.environ.get("EMBEDDING_ENGINE", "fastembed").lower()
-        model = os.environ.get("EMBEDDING_MODEL", os.environ.get("FASTEMBED_MODEL", "BAAI/bge-small-en-v1.5"))
+        from config import Config
+        engine = os.environ.get("EMBEDDING_ENGINE", Config.EMBEDDING_ENGINE).lower()
+        model = os.environ.get("EMBEDDING_MODEL") or os.environ.get("FASTEMBED_MODEL") or Config.EMBEDDING_MODEL
         
         if engine in ("fastembed", "auto"):
             _EMBEDDER = FastEmbedEmbedder(model)

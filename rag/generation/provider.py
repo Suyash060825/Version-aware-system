@@ -6,6 +6,7 @@ import os
 import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Iterator
+from config import Config
 
 logger = logging.getLogger("rag.generation.provider")
 
@@ -89,9 +90,18 @@ class LocalLLMProvider(ABC):
 
 class OllamaProvider(LocalLLMProvider):
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
-        self.base_url = base_url or os.environ.get("LOCAL_LLM_BASE_URL", "http://localhost:11434")
-        self.model = model or os.environ.get("LOCAL_LLM_MODEL", "qwen3:4b-q4_K_M")
-        self.timeout = float(os.environ.get("LLM_TIMEOUT", "45.0"))
+        raw_url = (base_url or os.environ.get("LOCAL_LLM_BASE_URL") or os.environ.get("OLLAMA_BASE_URL") or Config.OLLAMA_BASE_URL).rstrip("/")
+        if "://ollama:" in raw_url:
+            import socket
+            try:
+                socket.gethostbyname("ollama")
+                self.base_url = raw_url
+            except Exception:
+                self.base_url = raw_url.replace("://ollama:", "://localhost:")
+        else:
+            self.base_url = raw_url
+        self.model = model or os.environ.get("LOCAL_LLM_MODEL") or Config.LOCAL_LLM_MODEL
+        self.timeout = float(os.environ.get("LLM_TIMEOUT", str(Config.LLM_TIMEOUT)))
         self.positive_cache_window = 60.0
         self.negative_cache_window = 45.0
         self._last_health_time = 0
@@ -101,10 +111,10 @@ class OllamaProvider(LocalLLMProvider):
         """Centralized Ollama runtime configuration options."""
         return {
             "temperature": 0.1,
-            "num_predict": int(os.environ.get("LLM_MAX_NEW_TOKENS", "512")),
-            "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096")),
-            "num_thread": int(os.environ.get("OLLAMA_NUM_THREADS", "0")),
-            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "10m"),
+            "num_predict": Config.LLM_MAX_NEW_TOKENS,
+            "num_ctx": Config.OLLAMA_NUM_CTX,
+            "num_thread": Config.OLLAMA_NUM_THREADS,
+            "keep_alive": Config.OLLAMA_KEEP_ALIVE,
         }
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:

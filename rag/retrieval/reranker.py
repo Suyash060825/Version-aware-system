@@ -133,15 +133,16 @@ _RERANKER = None
 def get_reranker():
     global _RERANKER
     if _RERANKER is None:
+        from config import Config
         mode = os.environ.get("RERANKER_MODE", "real").lower()
-        engine = os.environ.get("RERANKER_ENGINE", "flashrank").lower()
-        model = os.environ.get("RERANKER_MODEL", "ms-marco-TinyBERT-L-2-v2")
+        engine = os.environ.get("RERANKER_ENGINE", Config.RERANKER_ENGINE).lower()
+        model = os.environ.get("RERANKER_MODEL") or os.environ.get("FLASHRANK_MODEL") or Config.RERANKER_MODEL
         if mode == "mock":
             logger.info("Initializing reranker in MOCK mode (pass-through).")
             _RERANKER = MockReranker()
         elif engine in ("flashrank", "auto"):
             try:
-                _RERANKER = FlashRankReranker(os.environ.get("FLASHRANK_MODEL", model))
+                _RERANKER = FlashRankReranker(model)
                 if _RERANKER._ranker is None:
                     logger.warning("FlashRank ONNX ranker failed to initialize. Falling back to pass-through MockReranker.")
                     _RERANKER = MockReranker()

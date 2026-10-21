@@ -12,11 +12,12 @@ if _APP_DIR not in sys.path:
     sys.path.insert(0, _APP_DIR)
 
 from celery import Celery
+from config import Config
 
 logger = logging.getLogger(__name__)
 
 def make_celery(app_name=__name__):
-    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+    redis_url = Config.REDIS_URL
     celery = Celery(app_name, broker=redis_url, backend=redis_url)
     celery.conf.update(
         task_serializer='json',

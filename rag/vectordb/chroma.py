@@ -8,6 +8,8 @@ from typing import List, Dict, Optional, Any
 from abc import ABC, abstractmethod
 import chromadb
 
+from config import Config
+
 logger = logging.getLogger(__name__)
 
 class VectorStoreBase(ABC):
@@ -22,7 +24,7 @@ class VectorStoreBase(ABC):
     @abstractmethod
     def stats(self) -> dict: pass
 
-CHROMA_PATH = "data/chroma"
+CHROMA_PATH = getattr(Config, "CHROMA_PERSIST_DIR", "data/chroma")
 
 class VectorStore(VectorStoreBase):
     def __init__(self, path: str = CHROMA_PATH):
@@ -40,15 +42,18 @@ class VectorStore(VectorStoreBase):
         self.col_name = f"policy_chunks_{safe_model_slug}"
 
         try:
-            self._col = self._client.get_or_create_collection(
-                name=self.col_name,
-                metadata={
-                    "hnsw:space": "cosine",
-                    "embedding_model": self.embedding_model,
-                    "embedding_dimension": self.embedding_dimension,
-                    "embedding_revision": self.embedding_revision
-                }
-            )
+            try:
+                self._col = self._client.get_collection(name=self.col_name)
+            except Exception:
+                self._col = self._client.create_collection(
+                    name=self.col_name,
+                    metadata={
+                        "hnsw:space": "cosine",
+                        "embedding_model": self.embedding_model,
+                        "embedding_dimension": self.embedding_dimension,
+                        "embedding_revision": self.embedding_revision
+                    }
+                )
             # Verify stored metadata against runtime
             col_meta = self._col.metadata or {}
             stored_dim = col_meta.get("embedding_dimension")
@@ -112,11 +117,11 @@ class VectorStore(VectorStoreBase):
             v_str = str(version)
 
             all_results = []
-            res_int = self._col.get(where={"policy_id": {"$eq": p_val}})
+            res_int = self._col.get(where={"policy_id": p_val})
             if res_int and res_int.get("ids"):
                 all_results.append(res_int)
             if str(p_val) != p_val:
-                res_str = self._col.get(where={"policy_id": {"$eq": str(p_val)}})
+                res_str = self._col.get(where={"policy_id": str(p_val)})
                 if res_str and res_str.get("ids"):
                     all_results.append(res_str)
 
@@ -136,11 +141,11 @@ class VectorStore(VectorStoreBase):
         try:
             p_val = int(policy_id) if str(policy_id).isdigit() else policy_id
             ids_to_del = set()
-            res_int = self._col.get(where={"policy_id": {"$eq": p_val}})
+            res_int = self._col.get(where={"policy_id": p_val})
             if res_int and res_int.get("ids"):
                 ids_to_del.update(res_int["ids"])
             if str(p_val) != p_val:
-                res_str = self._col.get(where={"policy_id": {"$eq": str(p_val)}})
+                res_str = self._col.get(where={"policy_id": str(p_val)})
                 if res_str and res_str.get("ids"):
                     ids_to_del.update(res_str["ids"])
             if ids_to_del:

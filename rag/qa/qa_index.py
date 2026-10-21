@@ -11,17 +11,18 @@ import threading
 import numpy as np
 from typing import List, Tuple, Dict, Any, Set
 from models import CanonicalQuestion, CompiledAnswer
+from config import Config
 
 logger = logging.getLogger("rag.qa.qa_index")
 
 class CanonicalQAIndex:
-    INDEX_FILE = "data/canonical_qa_faiss.index"
-    META_FILE = "data/canonical_qa_faiss.meta.pkl"
+    INDEX_FILE = getattr(Config, "FAISS_INDEX_PATH", "data/canonical_qa_faiss.index")
+    META_FILE = getattr(Config, "FAISS_INDEX_PATH", "data/canonical_qa_faiss.index").replace(".index", ".meta.pkl")
 
     def __init__(self, dimension: int = None):
         from rag.embeddings.embedder import get_embedder
         embedder = get_embedder()
-        self.dimension = dimension or getattr(embedder, "dimension", 384)
+        self.dimension = dimension or getattr(embedder, "dimension", Config.EMBEDDING_DIMENSION)
         self._base_index = None
         self._delta_index = None
         self._metadata: List[Dict[str, Any]] = []

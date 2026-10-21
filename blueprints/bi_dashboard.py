@@ -60,7 +60,8 @@ def _generate_insight(stats: dict) -> str:
     cache_key = "bi_dashboard:insight"
     try:
         import redis
-        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        from config import Config
+        redis_url = Config.REDIS_URL
         redis_client = redis.Redis.from_url(redis_url, socket_timeout=1.0)
         cached = redis_client.get(cache_key)
         if cached:

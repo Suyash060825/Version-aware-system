@@ -6,6 +6,7 @@ import time
 import math
 from collections import defaultdict
 from typing import List, Dict, Optional, Any
+from config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class MultiLevelCache:
     def __init__(self):
         self.use_redis = False
         self.redis = None
-        redis_url = os.environ.get("REDIS_URL")
+        redis_url = Config.REDIS_URL
         if redis_url:
             try:
                 import redis

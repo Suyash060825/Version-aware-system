@@ -1,0 +1,109 @@
+{
+  "timestamp": "2026-10-21T18:40:00Z",
+  "test_environment": {
+    "runtime": "Docker Container (web)",
+    "python_version": "3.11.17",
+    "pytest_version": "9.1.1",
+    "database": "PostgreSQL 16.6 (pgvector 0.8.6)",
+    "redis": "Redis 7.2",
+    "inference_engine": "Ollama (qwen3:4b-q4_K_M)",
+    "embedding_engine": "FastEmbed ONNX (BAAI/bge-small-en-v1.5)"
+  },
+  "summary": {
+    "total_discovered": 50,
+    "total_executed": 50,
+    "passed": 50,
+    "failed": 0,
+    "skipped": 0,
+    "xfailed": 0,
+    "duration_seconds": 38.48,
+    "verdict": "ALL_TESTS_PASSING"
+  },
+  "test_suites": [
+    {
+      "suite": "tests/test_audit_engineering_pass.py",
+      "count": 13,
+      "passed": 13,
+      "failed": 0,
+      "highlights": [
+        "OllamaProvider default and model fidelity verified",
+        "Ollama health check verifies qwen3:4b-q4_K_M installed",
+        "Policy AI review and rewrite distinguishes heuristic from model",
+        "What-if AI scenario evaluation exposes provenance",
+        "Vector validation rejects wrong dimension / NaN",
+        "Embedder bounded batching verified",
+        "Policy metadata edit invalidates cache and triggers reindexing",
+        "Celery task compatibility alias verified",
+        "Safe anonymous user returns safe defaults on error views"
+      ]
+    },
+    {
+      "suite": "tests/test_independent_validation.py",
+      "count": 7,
+      "passed": 7,
+      "failed": 0,
+      "highlights": [
+        "Embedding batch and dimension consistency verified",
+        "Embedding validation rejects NaN and wrong dimension",
+        "Embedding model mismatch detection verified",
+        "Ingestion pathway compilation and searchability verified",
+        "Idempotent recompilation does not duplicate chunks verified",
+        "Compiler failure cannot mark policy ready verified",
+        "Zero leakage confidentiality isolation verified"
+      ]
+    },
+    {
+      "suite": "tests/test_repo_consistency_repair.py",
+      "count": 6,
+      "passed": 6,
+      "failed": 0,
+      "highlights": [
+        "Config.validate_configuration rules enforced",
+        "get_safe_diagnostics redacts secrets from database URI",
+        "External cloud LLM providers (Gemini/OpenAI) refused",
+        "Celery broker uses centralized Config.REDIS_URL",
+        "Chroma safe collection retrieval without rust metadata corruption",
+        "SafeAnonymousUser attributes verified"
+      ]
+    },
+    {
+      "suite": "tests/test_rbac.py",
+      "count": 2,
+      "passed": 2,
+      "failed": 0,
+      "highlights": [
+        "Admin route requires admin role",
+        "HR route access verified"
+      ]
+    },
+    {
+      "suite": "tests/test_production_hardening.py",
+      "count": 5,
+      "passed": 5,
+      "failed": 0,
+      "highlights": [
+        "BM25 index works outside Flask application context",
+        "Cache clear safeguard verified",
+        "Incremental compiler unchanged chunk bypass verified",
+        "Null-safe version resolver verified",
+        "Reranker startup and status verified"
+      ]
+    },
+    {
+      "suite": "tests/test_whatif_ai.py & tests/test_whatif_branches.py",
+      "count": 17,
+      "passed": 17,
+      "failed": 0,
+      "highlights": [
+        "Scenario evaluation with LLM fallback",
+        "No chunks scenario handling",
+        "JSON extraction edge cases (empty string, list, surrounding text)",
+        "Employee role applies department filter",
+        "Non-employee role bypasses department filter",
+        "High confidence compliant not flagged",
+        "Not compliant flagged for HR",
+        "Heuristic verdict directly verified"
+      ]
+    }
+  ]
+}

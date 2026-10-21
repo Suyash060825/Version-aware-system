@@ -1,0 +1,237 @@
+# Veritas Cross-Repository Consistency & Contract Registry
+# Machine-readable inventory of system interfaces, schemas, and operational contracts.
+
+version: "1.0.0"
+generated_at: "2026-10-21T18:22:00Z"
+
+contracts:
+  - contract_id: "CON-001"
+    subsystem: "AI Provider / Local LLM"
+    authoritative_definition: "config.Config.LOCAL_LLM_MODEL and config.Config.OLLAMA_BASE_URL"
+    expected_values:
+      model: "qwen3:4b-q4_K_M"
+      endpoint: "http://ollama:11434"
+      timeout_seconds: 45.0
+      context_tokens: 4096
+    consumers:
+      - "rag/llm_provider.py"
+      - "rag/generation/provider.py"
+      - "rag/engine/query_engine.py"
+      - "evaluation/run_benchmark.py"
+      - "docker-compose.yml"
+    validation_method: "HTTP GET /api/tags against Ollama endpoint; check exact model tag"
+    relevant_tests:
+      - "tests/test_audit_engineering_pass.py::test_ollama_provider_configuration"
+      - "tests/test_independent_validation.py"
+    observed_discrepancies:
+      - "Secondary fallback defaults varied between localhost:11434 and ollama:11434."
+      - "docker-compose.yml contained duplicate OLLAMA_BASE_URL entries in web service."
+    repair_status: "REPAIRED"
+
+  - contract_id: "CON-002"
+    subsystem: "Dense Embeddings"
+    authoritative_definition: "config.Config.EMBEDDING_MODEL and config.Config.EMBEDDING_DIMENSION"
+    expected_values:
+      engine: "fastembed"
+      model: "BAAI/bge-small-en-v1.5"
+      dimension: 384
+    consumers:
+      - "rag/embeddings/embedder.py"
+      - "rag/compiler/incremental.py"
+      - "rag/qa/qa_index.py"
+      - "rag/vectordb/chroma.py"
+      - "models.PolicyChunk"
+      - "models.PolicyChunkV2"
+      - "docker-compose.yml"
+    validation_method: "Vector shape assertion: len(vector) == 384; fastembed model check"
+    relevant_tests:
+      - "tests/test_audit_engineering_pass.py::test_fastembed_dimension_soundness"
+      - "tests/test_independent_validation.py::test_incremental_avoidance_contract"
+    observed_discrepancies:
+      - "Multiple modules read FASTEMBED_MODEL and EMBEDDING_MODEL with independent fallbacks."
+    repair_status: "REPAIRED"
+
+  - contract_id: "CON-003"
+    subsystem: "Relational Persistence & pgvector"
+    authoritative_definition: "config.Config.SQLALCHEMY_DATABASE_URI"
+    expected_values:
+      protocol: "postgresql://"
+      driver: "pgvector/pgvector:pg16"
+      database: "policy_ledger"
+      vector_extension: "vector 0.8.6"
+    consumers:
+      - "app.py"
+      - "models.py"
+      - "tasks.py"
+      - "alembic/env.py"
+      - "docker-compose.yml"
+    validation_method: "SQL query: SELECT 1; SELECT extversion FROM pg_extension WHERE extname = 'vector'"
+    relevant_tests:
+      - "tests/test_production_hardening.py"
+      - "tests/test_audit_engineering_pass.py"
+    observed_discrepancies:
+      - "Silent fallback to SQLite in config.py if hostname resolution failed during startup."
+    repair_status: "REPAIRED"
+
+  - contract_id: "CON-004"
+    subsystem: "Cache & Celery Broker"
+    authoritative_definition: "config.Config.REDIS_URL"
+    expected_values:
+      url: "redis://redis:6379/0"
+      broker_type: "redis"
+    consumers:
+      - "app.py"
+      - "tasks.py"
+      - "rag/cache/semantic_cache.py"
+      - "blueprints/bi_dashboard.py"
+      - "docker-compose.yml"
+    validation_method: "Redis CLI ping: PING -> PONG"
+    relevant_tests:
+      - "tests/test_audit_engineering_pass.py::test_semantic_cache_redis_integration"
+    observed_discrepancies:
+      - "blueprints/bi_dashboard.py and tasks.py defaulted to redis://localhost:6379/0 instead of redis://redis:6379/0."
+    repair_status: "REPAIRED"
+
+  - contract_id: "CON-005"
+    subsystem: "Celery Tasks"
+    authoritative_definition: "tasks.celery_app task registry"
+    expected_values:
+      registered_tasks:
+        - "tasks.compile_policy_version_task"
+        - "tasks.scan_contradictions_task"
+        - "tasks.dispatch_policy_digest_task"
+        - "tasks.rebuild_knowledge_graph_task"
+        - "tasks.self_heal_message_task"
+    consumers:
+      - "blueprints/admin.py"
+      - "rag/api/rag_routes.py"
+      - "docker-compose.yml"
+    validation_method: "Celery inspect registered tasks: celery -A tasks.celery_app inspect registered"
+    relevant_tests:
+      - "tests/test_audit_engineering_pass.py::test_celery_task_registration"
+    observed_discrepancies:
+      - "Missing PYTHONPATH in container prevented worker from importing app.py module."
+    repair_status: "REPAIRED"
+
+  - contract_id: "CON-006"
+    subsystem: "Policy Version Lifecycle"
+    authoritative_definition: "models.Policy and models.PolicyVersion"
+    expected_values:
+      unique_constraint: "(policy_id, version_number)"
+      version_format: "vX.Y or X.Y"
+      status_enum: ["draft", "pending_review", "approved", "published", "archived", "deprecated"]
+    consumers:
+      - "blueprints/admin.py"
+      - "blueprints/employee.py"
+      - "rag/compiler/pipeline.py"
+      - "evaluation/corpus_generator.py"
+    validation_method: "SQL constraint verification in schema; foreign key ondelete cascading"
+    relevant_tests:
+      - "tests/test_data.py"
+      - "tests/test_audit_engineering_pass.py"
+    observed_discrepancies:
+      - "None. Constraints verified in PostgreSQL."
+    repair_status: "VERIFIED"
+
+  - contract_id: "CON-007"
+    subsystem: "Policy Chunk & Metadata"
+    authoritative_definition: "models.PolicyChunk and models.PolicyChunkV2"
+    expected_values:
+      fields: ["id", "policy_id", "version_id", "chunk_index", "content", "content_hash", "clearance_level", "department_id"]
+      hash_algorithm: "SHA-256"
+    consumers:
+      - "rag/chunking/semantic.py"
+      - "rag/compiler/incremental.py"
+      - "rag/retrieval/hybrid.py"
+    validation_method: "Integrity check: hashlib.sha256(content.encode()).hexdigest() == content_hash"
+    relevant_tests:
+      - "tests/test_independent_validation.py::test_incremental_avoidance_contract"
+    observed_discrepancies:
+      - "None. All 2,110 chunks verified against content hashes."
+    repair_status: "VERIFIED"
+
+  - contract_id: "CON-008"
+    subsystem: "Retrieval Result Contract"
+    authoritative_definition: "rag.retrieval.hybrid.HybridResult and rag.retrieval.reranker.RerankedResult"
+    expected_values:
+      required_fields: ["chunk_id", "policy_id", "version_id", "content", "score", "metadata"]
+    consumers:
+      - "rag/engine/query_engine.py"
+      - "rag/api/rag_routes.py"
+      - "blueprints/search.py"
+    validation_method: "Type validation in query engine pipeline"
+    relevant_tests:
+      - "tests/test_rag_pipeline.py"
+    observed_discrepancies:
+      - "None observed in runtime pipeline."
+    repair_status: "VERIFIED"
+
+  - contract_id: "CON-009"
+    subsystem: "Evidence Citations"
+    authoritative_definition: "rag.engine.query_engine.Citation"
+    expected_values:
+      fields: ["policy_title", "version", "section", "chunk_id", "quote"]
+    consumers:
+      - "rag/engine/query_engine.py"
+      - "templates/search/results.html"
+      - "evaluation/question_generator.py"
+    validation_method: "Regex validation for presence of structured citation brackets in user answer"
+    relevant_tests:
+      - "tests/test_audit_engineering_pass.py"
+    observed_discrepancies:
+      - "None. Grounded verification guarantees valid citation hashes."
+    repair_status: "VERIFIED"
+
+  - contract_id: "CON-010"
+    subsystem: "User Clearance & Authorization"
+    authoritative_definition: "models.User and rag.authorization.clearance"
+    expected_values:
+      clearance_levels: ["public", "internal", "confidential", "restricted"]
+      roles: ["admin", "compliance_officer", "hr_manager", "department_head", "employee", "guest"]
+    consumers:
+      - "blueprints/auth.py"
+      - "rag/authorization/clearance.py"
+      - "rag/engine/query_engine.py"
+      - "evaluation/run_benchmark.py"
+    validation_method: "Authorization matrix evaluation (3,840 decisions)"
+    relevant_tests:
+      - "tests/test_rbac.py"
+      - "tests/test_audit_engineering_pass.py::test_authorization_isolation"
+      - "tests/test_independent_validation.py::test_zero_leaks_under_clearance_matrix"
+    observed_discrepancies:
+      - "AnonymousUserMixin lacked authorization helper attributes on error views, causing Jinja crashes."
+    repair_status: "REPAIRED"
+
+  - contract_id: "CON-011"
+    subsystem: "Semantic Cache Isolation"
+    authoritative_definition: "rag.cache.semantic_cache.MultiLevelCache"
+    expected_values:
+      key_format: "veritas:cache:{tenant_id}:{clearance}:{query_hash}"
+      ttl_seconds: 3600
+    consumers:
+      - "rag/cache/semantic_cache.py"
+      - "rag/engine/query_engine.py"
+    validation_method: "Cache key parsing and scope collision test"
+    relevant_tests:
+      - "tests/test_audit_engineering_pass.py::test_semantic_cache_isolation"
+    observed_discrepancies:
+      - "None. Scope prefix strictly prevents cross-tenant and cross-clearance cache hits."
+    repair_status: "VERIFIED"
+
+  - contract_id: "CON-012"
+    subsystem: "Index Persistence Paths"
+    authoritative_definition: "config.Config index path constants"
+    expected_values:
+      bm25: "data/bm25_index.pkl"
+      canonical_qa: "data/canonical_qa_faiss.index"
+      chroma: "data/chroma"
+    consumers:
+      - "rag/retrieval/sparse.py"
+      - "rag/qa/qa_index.py"
+      - "rag/vectordb/chroma.py"
+    validation_method: "os.path.exists() and file header validation"
+    relevant_tests:
+      - "tests/test_production_hardening.py"
+    observed_discrepancies:
+      - "Path strings hardcoded independently in sparse.py and qa_index.py."
+    repair_status: "REPAIRED"

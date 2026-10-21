@@ -40,9 +40,11 @@ def validate_production_env(app: Flask):
 
 def create_app(env="default"):
     app = Flask(__name__)
-    app.config.from_object(config[env])
+    cfg_cls = config.get(env, config["default"])
+    app.config.from_object(cfg_cls)
 
-    # Validate production environment
+    # Validate configuration and security environment
+    cfg_cls.validate_configuration()
     validate_production_env(app)
 
     # Ensure data dirs exist
@@ -239,15 +241,7 @@ def create_app(env="default"):
 
     # Safe model configuration diagnostic logging
     diag_logger = logging.getLogger("app.diagnostics")
-    diag_logger.info(
-        "AI Diagnostic State: "
-        f"Embedding Engine={os.environ.get('EMBEDDING_ENGINE', 'fastembed')}, "
-        f"Embedding Model={os.environ.get('EMBEDDING_MODEL', 'BAAI/bge-small-en-v1.5')}, "
-        f"Reranker Engine={os.environ.get('RERANKER_ENGINE', 'flashrank')}, "
-        f"Reranker Model={os.environ.get('RERANKER_MODEL', 'ms-marco-TinyBERT-L-2-v2')}, "
-        f"LLM Backend={os.environ.get('LLM_BACKEND', 'ollama')}, "
-        f"LLM Model={os.environ.get('LOCAL_LLM_MODEL', 'qwen3:4b-q4_K_M')}"
-    )
+    diag_logger.info(f"AI Diagnostic State: {cfg_cls.get_safe_diagnostics()}")
 
     return app
 

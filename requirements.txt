@@ -12,7 +12,6 @@ pillow>=10.0.0
 python-dateutil>=2.9.0
 sentence-transformers>=3.0.0
 chromadb
-openai>=1.51.0
 PyMuPDF>=1.24.0
 pdfplumber>=0.11.0
 python-docx>=1.1.0

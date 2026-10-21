@@ -1,0 +1,63 @@
+{
+  "timestamp": "2026-10-21T18:22:30Z",
+  "audit_version": "1.0.0",
+  "status": "CENTRALIZED_AND_VALIDATED",
+  "authoritative_source": "config.Config",
+  "environment": {
+    "effective_flask_env": "production",
+    "cloud_dependencies_enforced": "NONE (100% Local Inference)"
+  },
+  "effective_settings": {
+    "app_name": "Policy Ledger",
+    "company_name": "Acme Corporation",
+    "database_uri": "postgresql://postgres:******@postgres:5432/policy_ledger",
+    "database_dialect": "postgresql+pgvector",
+    "redis_url": "redis://redis:6379/0",
+    "celery_broker": "redis://redis:6379/0",
+    "celery_backend": "redis://redis:6379/0",
+    "llm_backend": "ollama",
+    "local_llm_model": "qwen3:4b-q4_K_M",
+    "ollama_base_url": "http://ollama:11434",
+    "llm_timeout_seconds": 45.0,
+    "llm_max_new_tokens": 512,
+    "ollama_num_ctx": 4096,
+    "ollama_keep_alive": "10m",
+    "embedding_engine": "fastembed",
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "embedding_dimension": 384,
+    "reranker_engine": "flashrank",
+    "reranker_model": "ms-marco-TinyBERT-L-2-v2",
+    "semantic_cache_enabled": true,
+    "semantic_cache_threshold": 0.95,
+    "cache_ttl_seconds": 3600,
+    "default_top_k": 5,
+    "rerank_top_k": 3,
+    "bm25_index_path": "data/bm25_index.pkl",
+    "faiss_index_path": "data/canonical_qa_faiss.index",
+    "chroma_persist_dir": "data/chroma",
+    "eval_corpus_seed": 42,
+    "max_content_length_mb": 32.0
+  },
+  "discrepancies_resolved": [
+    {
+      "key": "DATABASE_URL",
+      "issue": "Silent SQLite fallback concealed network connectivity errors",
+      "resolution": "Enforce explicit Postgres connection in production and Docker deployments"
+    },
+    {
+      "key": "REDIS_URL",
+      "issue": "Tasks and bi_dashboard defaulted to localhost:6379 while app used redis:6379",
+      "resolution": "Harmonized to config.Config.REDIS_URL"
+    },
+    {
+      "key": "OLLAMA_BASE_URL",
+      "issue": "Duplicated in docker-compose.yml web service; conflicting localhost vs ollama defaults in providers",
+      "resolution": "Harmonized to config.Config.OLLAMA_BASE_URL"
+    },
+    {
+      "key": "EMBEDDING_DIMENSION",
+      "issue": "Hardcoded 384 literals scattered across pgvector, models.py, and test fixtures",
+      "resolution": "Bound to config.Config.EMBEDDING_DIMENSION with startup validation"
+    }
+  ]
+}

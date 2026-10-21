@@ -9,11 +9,12 @@ import logging
 from typing import List, Tuple, Dict, Any, Optional
 from rank_bm25 import BM25Okapi
 from models import PolicyChunkV2
+from config import Config
 
 logger = logging.getLogger("rag.retrieval.sparse")
 
 class PersistentBM25Index:
-    INDEX_PATH = "data/bm25_index.pkl"
+    INDEX_PATH = getattr(Config, "BM25_INDEX_PATH", "data/bm25_index.pkl")
     
     def __init__(self):
         self._bm25 = None
