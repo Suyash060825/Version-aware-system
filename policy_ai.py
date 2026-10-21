@@ -44,15 +44,15 @@ _REFUSAL_MARKER = "I couldn't find this information"
 def _llm_text(system_prompt: str, user_prompt: str) -> str:
     llm = get_llm()
     try:
-        result = llm.complete([
+        resp = llm.generate([
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
-        ]).strip()
+        ])
+        if getattr(resp, "fallback", False):
+            return ""
+        result = resp.text.strip()
     except Exception:
         return ""
-    # The zero-dependency ExtractiveClient fallback (used when no LLM provider is
-    # configured) is shaped for the RAG chat prompt format and always refuses
-    # outside it — treat that as "no result" so callers use their own fallback.
     if _REFUSAL_MARKER in result:
         return ""
     return result
@@ -113,7 +113,8 @@ def rewrite_text(content: str, mode: str, target_language: str = "") -> str:
     system = "You are an expert corporate policy editor. Output ONLY the resulting text — no preamble, no explanation, no markdown fences."
     user = f"{instruction}\n\n---\n{content}\n---"
     result = _llm_text(system, user)
-    return result or content
+    # Do not silently return original content as though rewriting succeeded when generation fails
+    return result
 
 
 def explain_clause(content: str, clause_text: str) -> str:
@@ -187,12 +188,14 @@ def review_policy(content: str) -> dict:
     """Module 3 — 'AI Review': missing sections, compliance check, risk scoring, legal language checker, suggestions."""
     if not (content or "").strip():
         return {"missing_sections": [], "compliance_issues": [], "legal_language_issues": [],
-               "suggestions": [], "risk_score": 0}
+               "suggestions": [], "risk_score": 0, "assessment_source": "empty", "is_heuristic": True}
 
     raw = _llm_text(REVIEW_SYSTEM_PROMPT, f"POLICY TEXT:\n{content}\n\nProduce the JSON now.")
     parsed = _extract_json(raw) if raw else None
-    if not parsed:
+    source = "model"
+    if not parsed or not isinstance(parsed, dict) or not any(k in parsed for k in ("missing_sections", "compliance_issues", "risk_score")):
         parsed = _heuristic_review(content)
+        source = "heuristic_fallback"
 
     return {
         "missing_sections": [str(s) for s in (parsed.get("missing_sections") or [])],
@@ -200,6 +203,8 @@ def review_policy(content: str) -> dict:
         "legal_language_issues": [str(s) for s in (parsed.get("legal_language_issues") or [])],
         "suggestions": [str(s) for s in (parsed.get("suggestions") or [])],
         "risk_score": max(0, min(100, int(parsed.get("risk_score", 50) or 0))),
+        "assessment_source": source,
+        "is_heuristic": (source == "heuristic_fallback"),
     }
 
 

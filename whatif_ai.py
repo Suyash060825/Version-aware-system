@@ -156,6 +156,7 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
 
     if not top_chunks:
         result = _heuristic_verdict(scenario, top_chunks)
+        provenance = "heuristic_fallback"
     else:
         excerpts = "\n\n---\n\n".join(
             f"[{c.get('policy_name')} — {c.get('section', 'General')}]\n{c.get('text', '')[:1200]}"
@@ -172,7 +173,9 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
             raw_resp = llm.generate(prompt_msgs)
             raw = raw_resp.text
             
+            provenance = "model"
             if getattr(raw_resp, "fallback", False):
+                provenance = "fallback"
                 parsed = {
                     "verdict": "depends",
                     "confidence": 40,
@@ -198,6 +201,7 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
             
         if raw_resp is None or (not getattr(raw_resp, "fallback", False) and (not parsed or "I couldn't find this information" in (raw or ""))):
             result = _heuristic_verdict(scenario, top_chunks)
+            provenance = "heuristic_fallback"
         else:
             result = {
                 "verdict": parsed.get("verdict") if parsed.get("verdict") in
@@ -222,4 +226,5 @@ def evaluate_scenario(scenario: str, user_role: str = "employee", user_departmen
         "citations": citations,
         "flagged_for_hr": flagged,
         "chunks_used": len(top_chunks),
+        "provenance": provenance,
     }

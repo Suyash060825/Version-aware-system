@@ -306,23 +306,16 @@ def policy_extract_file():
     try:
         upload.save(tmp_path)
 
-        from rag.parser.pdf_parser import extract_text
-        text = (extract_text(tmp_path) or "").strip()
+        from rag.parser.pdf_parser import extract_document
+        parse_result = extract_document(tmp_path, max_chars=60000)
 
-        if not text:
-            return jsonify({
-                "success": False,
-                "error": "Couldn't find any readable text in that file. "
-                         "If it's a scanned PDF, try uploading a text-based version."
-            }), 422
-        if text.startswith("[") and ("not installed" in text or "extraction failed" in text or "OCR" in text):
-            return jsonify({"success": False, "error": text.strip("[]")}), 500
+        if not parse_result.success:
+            err_msg = parse_result.error or "Couldn't find any readable text in that file."
+            status_code = 500 if "failed" in err_msg.lower() or "not installed" in err_msg.lower() else 422
+            return jsonify({"success": False, "error": err_msg}), status_code
 
-        # Cap extremely large extractions so the textarea stays usable
-        max_chars = 60000
-        truncated = len(text) > max_chars
-        if truncated:
-            text = text[:max_chars]
+        text = parse_result.text
+        truncated = parse_result.truncated
 
         audit("policy.import_file", "policy", None, {
             "filename": filename, "ext": ext, "chars": len(text),
@@ -449,6 +442,15 @@ def policy_edit(policy_id):
             policy.tags.append(tag)
 
         db.session.commit()
+        from rag.cache.semantic_cache import get_cache
+        get_cache().invalidate_policy(policy.id)
+        from rag.authorization.evidence_filter import get_evidence_filter
+        get_evidence_filter().clear_cache()
+        active_ver = policy.versions.filter_by(is_active=True).first()
+        if active_ver:
+            from rag.compiler.pipeline import auto_compile_policy_version
+            auto_compile_policy_version(policy.id, active_ver.id)
+
         audit("policy.edit", "policy", policy.id, {"title": policy.title})
         flash("Policy metadata updated.", "success")
         return redirect(url_for("admin.policy_detail", policy_id=policy.id))
@@ -612,11 +614,11 @@ def policy_publish(policy_id):
 
     # Auto-index into vector store (Try Celery background task, fallback to sync if Redis/Celery fails)
     try:
-        from tasks import index_policy_version_task
+        from tasks import compile_policy_version_task
         active_ver2 = policy.versions.filter_by(is_active=True).first()
         if active_ver2:
             try:
-                index_policy_version_task.delay(policy.id, active_ver2.id)
+                compile_policy_version_task.delay(policy.id, active_ver2.id)
             except Exception as celery_err:
                 current_app.logger.warning(f"Celery enqueue failed: {celery_err}. Running synchronously.")
                 from rag.indexing.index_policy import index_policy_version

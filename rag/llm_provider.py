@@ -73,13 +73,13 @@ class OllamaProvider(LLMProvider):
         base_url: Optional[str] = None,
         model: Optional[str] = None,
         api_key: Optional[str] = None,
-        timeout: Optional[int] = None
+        timeout: Optional[Any] = None
     ):
         raw_url = (
             base_url
-            or os.environ.get("LOCAL_LLM_BASE_URL")
             or os.environ.get("OLLAMA_BASE_URL")
-            or os.environ.get("OLLAMA_URL", "http://localhost:11434")
+            or os.environ.get("LOCAL_LLM_BASE_URL")
+            or os.environ.get("OLLAMA_URL", "http://ollama:11434")
         ).rstrip("/")
         if "://ollama:" in raw_url:
             import socket
@@ -96,12 +96,14 @@ class OllamaProvider(LLMProvider):
             or os.environ.get("OLLAMA_MODEL", "qwen3:4b-q4_K_M")
         )
         self.api_key = api_key or os.environ.get("OLLAMA_API_KEY", "")
-        self.timeout = timeout if timeout is not None else (2.0, 3.5)
+        read_timeout = float(os.environ.get("LLM_TIMEOUT", "45.0"))
+        self.timeout = timeout if timeout is not None else (3.0, read_timeout)
         import requests
         self._session = requests.Session()
         self._last_health_time = 0
         self._is_healthy = None
-        self.negative_cache_window = 60
+        self.positive_cache_window = 60.0
+        self.negative_cache_window = 30.0
 
     def generate(
         self,
@@ -125,14 +127,21 @@ class OllamaProvider(LLMProvider):
             if system and not any(m.get("role") == "system" for m in messages):
                 messages = [{"role": "system", "content": system}] + messages
 
+        options = {
+            "num_predict": max_tokens or int(os.environ.get("LLM_MAX_NEW_TOKENS", "512")),
+            "temperature": temperature,
+            "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096")),
+            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "10m"),
+        }
+        num_thread = int(os.environ.get("OLLAMA_NUM_THREADS", "0"))
+        if num_thread > 0:
+            options["num_thread"] = num_thread
+
         payload = {
             "model": self.model,
             "messages": messages,
             "stream": False,
-            "options": {
-                "num_predict": max_tokens,
-                "temperature": temperature
-            }
+            "options": options
         }
 
         headers = {}
@@ -172,6 +181,8 @@ class OllamaProvider(LLMProvider):
                 "prompt_tokens": data.get("prompt_eval_count", 0),
                 "completion_tokens": data.get("eval_count", 0)
             }
+            self._is_healthy = True
+            self._last_health_time = time.time()
             return LLMResponse(
                 text=content,
                 raw_response=data,
@@ -183,7 +194,125 @@ class OllamaProvider(LLMProvider):
             logger.error(f"[OllamaProvider] Error generating completion: {e}")
             fallback_resp = ExtractiveProvider().generate(prompt, system=system)
             fallback_resp.error = f"Ollama error: {str(e)}"
+            fallback_resp.fallback = True
             return fallback_resp
+
+    def stream(
+        self,
+        prompt: str | List[Dict[str, str]],
+        *,
+        system: Optional[str] = None,
+        max_tokens: int = 1024,
+        temperature: float = 0.2,
+        **kwargs
+    ):
+        """Stream tokens from Ollama with think tag suppression."""
+        import json, re, time
+        if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
+            return
+
+        endpoint = f"{self.base_url}/api/chat"
+        if isinstance(prompt, str):
+            messages = []
+            if system:
+                messages.append({"role": "system", "content": system})
+            messages.append({"role": "user", "content": prompt})
+        else:
+            messages = list(prompt)
+            if system and not any(m.get("role") == "system" for m in messages):
+                messages = [{"role": "system", "content": system}] + messages
+
+        options = {
+            "num_predict": max_tokens or int(os.environ.get("LLM_MAX_NEW_TOKENS", "512")),
+            "temperature": temperature,
+            "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096")),
+            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "10m"),
+        }
+
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": True,
+            "options": options
+        }
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        def raw_token_generator():
+            try:
+                with self._session.post(endpoint, json=payload, headers=headers, timeout=self.timeout, stream=True) as resp:
+                    if resp.status_code == 200:
+                        self._is_healthy = True
+                        self._last_health_time = time.time()
+                        for line in resp.iter_lines():
+                            if line:
+                                try:
+                                    chunk = json.loads(line.decode("utf-8"))
+                                    token = ""
+                                    if "message" in chunk and isinstance(chunk["message"], dict):
+                                        token = chunk["message"].get("content", "")
+                                    elif "response" in chunk:
+                                        token = chunk.get("response", "")
+                                    if token:
+                                        yield token
+                                except Exception:
+                                    pass
+            except Exception as e:
+                self._is_healthy = False
+                self._last_health_time = time.time()
+                logger.warning(f"[OllamaProvider] Streaming failed: {e}")
+
+        # Suppress <think> tags
+        in_think = False
+        buffer = ""
+        start_tag = "<think>"
+        end_tag = "</think>"
+        for token in raw_token_generator():
+            buffer += token
+            while buffer:
+                if not in_think:
+                    start_idx = buffer.find(start_tag)
+                    if start_idx != -1:
+                        pre = buffer[:start_idx]
+                        if pre:
+                            yield pre
+                        buffer = buffer[start_idx + len(start_tag):]
+                        in_think = True
+                        continue
+                    matched_prefix_len = 0
+                    for plen in range(min(len(buffer), len(start_tag) - 1), 0, -1):
+                        if start_tag.startswith(buffer[-plen:]):
+                            matched_prefix_len = plen
+                            break
+                    if matched_prefix_len > 0:
+                        emit = buffer[:-matched_prefix_len]
+                        if emit:
+                            yield emit
+                        buffer = buffer[-matched_prefix_len:]
+                        break
+                    else:
+                        yield buffer
+                        buffer = ""
+                        break
+                else:
+                    end_idx = buffer.find(end_tag)
+                    if end_idx != -1:
+                        buffer = buffer[end_idx + len(end_tag):]
+                        in_think = False
+                        continue
+                    matched_prefix_len = 0
+                    for plen in range(min(len(buffer), len(end_tag) - 1), 0, -1):
+                        if end_tag.startswith(buffer[-plen:]):
+                            matched_prefix_len = plen
+                            break
+                    if matched_prefix_len > 0:
+                        buffer = buffer[-matched_prefix_len:]
+                    else:
+                        buffer = ""
+                    break
+        if not in_think and buffer:
+            yield buffer
 
     def embed(self, texts: List[str]) -> List[List[float]]:
         from rag.embeddings.embedder import get_embedder
@@ -196,37 +325,62 @@ class OllamaProvider(LLMProvider):
 
     def health_check(self) -> bool:
         import time
-        if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
+        now = time.time()
+        if self._is_healthy is True and (now - self._last_health_time < self.positive_cache_window):
+            return True
+        if self._is_healthy is False and (now - self._last_health_time < self.negative_cache_window):
             return False
-        endpoint = f"{self.base_url}/api/version"
+
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
+
         try:
-            req = urllib.request.Request(endpoint, headers=headers)
-            with urllib.request.urlopen(req, timeout=1.0) as resp:  # nosec B310
-                self._is_healthy = (resp.status == 200)
-                self._last_health_time = time.time()
-                return self._is_healthy
+            resp = self._session.get(f"{self.base_url}/api/tags", headers=headers, timeout=(1.0, 2.0))
+            if resp.status_code == 200:
+                data = resp.json()
+                models = [m.get("name", "") for m in data.get("models", [])]
+                model_base = self.model.split(":")[0].lower().replace("_", "-")
+                has_model = any(model_base in m.lower().replace("_", "-") for m in models)
+                self._is_healthy = has_model
+                self._last_health_time = now
+                if not has_model:
+                    logger.warning(f"[OllamaProvider] Ollama online but model '{self.model}' not in {models}")
+                return has_model
         except Exception as e:
             # Fallback for host execution if Docker hostname was configured
             for docker_host in ("ollama:11434", "host.docker.internal"):
                 if docker_host in self.base_url:
-                    alt_url = self.base_url.replace(docker_host, "localhost:11434" if "ollama" in docker_host else "localhost")
+                    alt_url = self.base_url.replace(docker_host, "localhost:11434")
                     try:
-                        alt_req = urllib.request.Request(f"{alt_url}/api/version" if "ollama" in docker_host else f"{alt_url}/models", headers=headers)
-                        with urllib.request.urlopen(alt_req, timeout=1.0) as resp:
-                            if resp.status == 200:
+                        alt_resp = self._session.get(f"{alt_url}/api/tags", headers=headers, timeout=(1.0, 2.0))
+                        if alt_resp.status_code == 200:
+                            data = alt_resp.json()
+                            models = [m.get("name", "") for m in data.get("models", [])]
+                            model_base = self.model.split(":")[0].lower().replace("_", "-")
+                            has_model = any(model_base in m.lower().replace("_", "-") for m in models)
+                            if has_model:
                                 self.base_url = alt_url
                                 self._is_healthy = True
-                                self._last_health_time = time.time()
+                                self._last_health_time = now
                                 return True
                     except Exception:
                         pass
             self._is_healthy = False
-            self._last_health_time = time.time()
+            self._last_health_time = now
             logger.debug(f"[OllamaProvider] Health check failed: {e}")
             return False
+
+    def diagnostics(self) -> Dict[str, Any]:
+        healthy = self.health_check()
+        return {
+            "provider": "OllamaProvider",
+            "model": self.model,
+            "base_url": self.base_url,
+            "healthy": healthy,
+            "timeout": self.timeout,
+            "backend": "ollama",
+        }
 
 
 class LMStudioProvider(OllamaProvider):
@@ -608,43 +762,33 @@ def get_llm_provider(force_reload: bool = False) -> LLMProvider:
     if _provider_instance and not force_reload:
         return _provider_instance
 
-    backend = os.environ.get("LLM_BACKEND", os.environ.get("LLM_PROVIDER", "cascade")).lower().strip()
+    backend = os.environ.get("LLM_BACKEND", os.environ.get("LLM_PROVIDER", "ollama")).lower().strip()
 
     if backend in ("mock", "stub", "test"):
         logger.info("[LLMProvider] Initializing MockLLMProvider")
         _provider_instance = MockLLMProvider()
-    elif backend == "cascade":
-        logger.info("[LLMProvider] Initializing CascadeProvider (LMStudio -> Gemini)")
-        primary = LMStudioProvider()
-        secondary = GeminiProvider()
-        _provider_instance = CascadeProvider(primary, secondary)
-    elif backend == "ollama":
-        logger.info("[LLMProvider] Initializing OllamaProvider")
-        _provider_instance = OllamaProvider(timeout=10)
-    elif backend == "vllm":
-        logger.info("[LLMProvider] Initializing OllamaProvider")
+    elif backend in ("ollama", "local", "vllm"):
+        logger.info("[LLMProvider] Initializing OllamaProvider with Qwen model")
         _provider_instance = OllamaProvider()
-    elif backend == "lmstudio":
-        logger.info("[LLMProvider] Initializing LMStudioProvider")
-        provider = LMStudioProvider()
-        if not provider.health_check():
-            logger.error("[LLMProvider] LM Studio health check FAILED — is LM Studio running at %s?", provider.base_url)
-        _provider_instance = provider
-    elif backend == "gemini":
-        logger.info("[LLMProvider] Initializing GeminiProvider")
-        _provider_instance = GeminiProvider()
     elif backend == "extractive":
         logger.info("[LLMProvider] Initializing ExtractiveProvider")
         _provider_instance = ExtractiveProvider()
-    else:
-        logger.warning(f"[LLMProvider] Unknown backend '{backend}'. Auto-detecting best provider...")
-        # Check if LM Studio is available, else Gemini if key present, else Extractive
-        lmstudio = LMStudioProvider()
-        if lmstudio.health_check():
-            _provider_instance = lmstudio
-        elif os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"):
-            _provider_instance = GeminiProvider()
+    elif backend == "gemini":
+        logger.info("[LLMProvider] Initializing GeminiProvider (ablation/evaluation reference only)")
+        _provider_instance = GeminiProvider()
+    elif backend == "lmstudio":
+        logger.warning("[LLMProvider] LM Studio is deprecated. Initializing LMStudioProvider.")
+        provider = LMStudioProvider()
+        if not provider.health_check():
+            logger.error("[LLMProvider] LM Studio health check FAILED — falling back to Ollama")
+            _provider_instance = OllamaProvider()
         else:
-            _provider_instance = ExtractiveProvider()
+            _provider_instance = provider
+    elif backend == "cascade":
+        logger.warning("[LLMProvider] CascadeProvider is deprecated in production runtime. Defaulting to OllamaProvider.")
+        _provider_instance = OllamaProvider()
+    else:
+        logger.info(f"[LLMProvider] Defaulting to primary local OllamaProvider (backend requested: '{backend}')")
+        _provider_instance = OllamaProvider()
 
     return _provider_instance

@@ -5,32 +5,81 @@ Supports scanned PDFs via OCR (pytesseract).
 Libraries: PyMuPDF (fitz), pdfplumber, python-docx
 """
 from pathlib import Path
+from dataclasses import dataclass
+from typing import Optional
 
+@dataclass
+class ParserResult:
+    text: str
+    success: bool
+    format: str
+    error: Optional[str] = None
+    truncated: bool = False
+    char_count: int = 0
+    page_count: int = 0
+
+def extract_document(filepath: str, max_chars: int = 60000) -> ParserResult:
+    """
+    Auto-detect file type and extract clean text with structured metadata.
+    Returns ParserResult object with status, format, error, truncation info.
+    """
+    path = Path(filepath)
+    if not path.exists():
+        return ParserResult(text="", success=False, format="unknown", error=f"File not found: {filepath}")
+    
+    size = path.stat().st_size
+    if size == 0:
+        return ParserResult(text="", success=False, format="unknown", error="File is empty (0 bytes)")
+
+    ext = path.suffix.lower()
+    raw_text = ""
+    error = None
+    page_count = 0
+
+    try:
+        if ext == ".pdf":
+            raw_text = _extract_pdf(filepath)
+        elif ext == ".docx":
+            raw_text = _extract_docx(filepath)
+        elif ext in (".xlsx", ".xls"):
+            raw_text = _extract_xlsx(filepath)
+        elif ext in (".txt", ".md"):
+            raw_text = path.read_text(encoding="utf-8", errors="ignore")
+        elif ext in (".html", ".htm"):
+            raw_text = _extract_html(filepath)
+        else:
+            raw_text = path.read_text(encoding="utf-8", errors="ignore")
+    except Exception as e:
+        return ParserResult(text="", success=False, format=ext, error=f"Extraction failure: {e}")
+
+    # Check for known error message patterns emitted by extractors
+    if raw_text.startswith("[") and ("failed" in raw_text.lower() or "not installed" in raw_text.lower() or "encrypted" in raw_text.lower()):
+        error = raw_text.strip("[]")
+        return ParserResult(text="", success=False, format=ext, error=error)
+
+    raw_text = raw_text.strip()
+    if not raw_text:
+        return ParserResult(text="", success=False, format=ext, error="No readable text found in document.")
+
+    truncated = len(raw_text) > max_chars
+    final_text = raw_text[:max_chars] if truncated else raw_text
+
+    return ParserResult(
+        text=final_text,
+        success=True,
+        format=ext,
+        error=None,
+        truncated=truncated,
+        char_count=len(final_text),
+        page_count=page_count
+    )
 
 def extract_text(filepath: str) -> str:
     """
-    Auto-detect file type and extract clean text.
-    Returns raw text string ready for chunking.
+    Backwards-compatible wrapper returning raw text string ready for chunking.
     """
-    path = Path(filepath)
-    ext = path.suffix.lower()
-
-    if ext == ".pdf":
-        return _extract_pdf(filepath)
-    elif ext == ".docx":
-        return _extract_docx(filepath)
-    elif ext in (".xlsx", ".xls"):
-        return _extract_xlsx(filepath)
-    elif ext in (".txt", ".md"):
-        return path.read_text(encoding="utf-8", errors="ignore")
-    elif ext in (".html", ".htm"):
-        return _extract_html(filepath)
-    else:
-        # Try plain text as fallback
-        try:
-            return path.read_text(encoding="utf-8", errors="ignore")
-        except Exception:
-            return ""
+    res = extract_document(filepath, max_chars=10_000_000)
+    return res.text if res.success else ""
 
 
 def _extract_pdf(filepath: str) -> str:

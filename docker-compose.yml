@@ -36,6 +36,7 @@ services:
       - LLM_BACKEND=${LLM_BACKEND:-ollama}
       - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}
       - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-http://ollama:11434}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
       - EMBEDDING_ENGINE=${EMBEDDING_ENGINE:-fastembed}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
       - FASTEMBED_MODEL=${FASTEMBED_MODEL:-BAAI/bge-small-en-v1.5}
@@ -84,6 +85,7 @@ services:
       - LLM_BACKEND=${LLM_BACKEND:-ollama}
       - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}
       - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-http://ollama:11434}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
       - EMBEDDING_ENGINE=${EMBEDDING_ENGINE:-fastembed}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
       - FASTEMBED_MODEL=${FASTEMBED_MODEL:-BAAI/bge-small-en-v1.5}

@@ -199,12 +199,12 @@ tr:hover td{background:var(--paper)}
       <div><div class="s-name">Policy Ledger</div><div class="s-company">{{ config.COMPANY_NAME }}</div></div>
     </div>
     <nav class="s-nav">
-      {% if current_user.can_manage_policies() %}
+      {% if current_user.is_authenticated and current_user.can_manage_policies() %}
       <div class="s-section">Admin</div>
       <a href="{{ url_for('admin.dashboard') }}" class="s-item {% if request.endpoint == 'admin.dashboard' %}active{% endif %}"><span class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>Dashboard</a>
       <a href="{{ url_for('admin.policy_list') }}" class="s-item {% if request.endpoint and 'policy' in request.endpoint %}active{% endif %}"><span class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></span>Policies</a>
       <a href="{{ url_for('admin.policy_create') }}" class="s-item"><span class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>New Policy</a>
-      {% if current_user.is_admin() %}
+      {% if current_user.is_authenticated and current_user.is_admin() %}
       <a href="{{ url_for('admin.user_list') }}" class="s-item {% if request.endpoint and 'user' in request.endpoint %}active{% endif %}"><span class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Users</a>
       <a href="{{ url_for('admin.category_list') }}" class="s-item"><span class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.4 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>Categories</a>
       <a href="{{ url_for('audit_center.audit_dashboard') }}" class="s-item {% if request.endpoint and request.endpoint.startswith('audit_center.') %}active{% endif %}"><span class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V11"/><path d="M13 2v7h7"/><line x1="8" y1="14" x2="14" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/><path d="M13 2l8 8"/></svg></span>Audit Center</a>
@@ -240,11 +240,15 @@ tr:hover td{background:var(--paper)}
       </a>
     </nav>
     <div class="s-foot">
-      <div class="s-user-name">{{ current_user.name }}</div>
-      <div class="s-user-role">{{ current_user.role }}</div>
+      <div class="s-user-name">{% if current_user.is_authenticated %}{{ current_user.name }}{% else %}Guest{% endif %}</div>
+      <div class="s-user-role">{% if current_user.is_authenticated %}{{ current_user.role }}{% else %}Visitor{% endif %}</div>
       <div class="s-foot-links">
+        {% if current_user.is_authenticated %}
         <a href="{{ url_for('auth.profile') }}">Profile</a>
         <a href="{{ url_for('auth.logout') }}">Sign out</a>
+        {% else %}
+        <a href="{{ url_for('auth.login') }}">Sign In</a>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -266,7 +270,11 @@ tr:hover td{background:var(--paper)}
           {% set unc = unread_count if unread_count is defined else 0 %}
           {% if unc > 0 %}<span class="notif-badge">{{ unc }}</span>{% endif %}
         </a>
+        {% if current_user.is_authenticated %}
         <a href="{{ url_for('auth.profile') }}" class="btn btn-secondary btn-sm">{{ current_user.name[:18] }}</a>
+        {% else %}
+        <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-sm">Sign In</a>
+        {% endif %}
       </div>
     </div>
 

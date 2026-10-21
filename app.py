@@ -75,6 +75,24 @@ def create_app(env="default"):
     login_manager.login_message = "Please log in to access this page."
     login_manager.login_message_category = "warning"
 
+    from flask_login import AnonymousUserMixin
+    class SafeAnonymousUser(AnonymousUserMixin):
+        name = "Guest"
+        role = "guest"
+        department_id = None
+        id = None
+        clearance = "public_only"
+
+        def can_manage_policies(self):
+            return False
+        def is_admin(self):
+            return False
+        def is_hr(self):
+            return False
+        def is_approver(self):
+            return False
+    login_manager.anonymous_user = SafeAnonymousUser
+
     @login_manager.user_loader
     def load_user(user_id):
         return db.session.get(User, int(user_id))
@@ -151,6 +169,23 @@ def create_app(env="default"):
     @app.route("/")
     def index():
         return redirect(url_for("auth.login"))
+
+    @app.route("/health/llm")
+    def root_health_llm():
+        from rag.llm_provider import get_llm_provider
+        try:
+            provider = get_llm_provider()
+            is_healthy = provider.health_check()
+            model_name = getattr(provider, "model", "qwen3:4b-q4_K_M")
+        except Exception:
+            is_healthy = False
+            model_name = "unknown"
+        return jsonify({
+            "healthy": is_healthy,
+            "model": model_name,
+            "provider": "ollama",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }), (200 if is_healthy else 503)
 
     # Error pages
     @app.errorhandler(403)

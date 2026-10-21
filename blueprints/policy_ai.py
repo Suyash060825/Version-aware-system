@@ -93,6 +93,11 @@ def writer_action(policy_id):
         result = explain_clause(content, clause)
     else:
         result = rewrite_text(content, mode, target_language)
+        if not result:
+            return jsonify({
+                "success": False,
+                "error": "AI rewriting failed or model was unavailable. No rewrite was produced."
+            }), 502
 
     audit("policy_ai.writer", "policy", policy.id, {"mode": mode})
     return jsonify({"success": True, "result": result})

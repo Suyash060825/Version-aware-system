@@ -41,6 +41,9 @@ def compile_policy_version_task(self, policy_id: int, version_id: int):
             raise self.retry(exc=RuntimeError(job.error))
         return {"stage": job.stage, "chunks": job.chunk_count, "facts": job.fact_count}
 
+# Backwards compatibility alias for tasks and callers
+index_policy_version_task = compile_policy_version_task
+
 @celery_app.task(name="tasks.scan_contradictions_task", bind=True)
 def scan_contradictions_task(self):
     """
