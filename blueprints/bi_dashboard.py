@@ -126,49 +126,51 @@ def bi_dashboard():
     version_growth = _count_by_month(version_dates)
 
     # ---------- Employee Compliance / Read Rate ----------
+    active_mand_pids = [p.id for p in Policy.query.filter_by(status=PolicyStatus.ACTIVE, is_mandatory=True).all()]
+    active_policy_ids = [p.id for p in Policy.query.filter_by(status=PolicyStatus.ACTIVE).all()]
     total_employees = User.query.filter_by(role=UserRole.EMPLOYEE, is_active=True).count()
-    mandatory_policies = Policy.query.filter_by(status=PolicyStatus.ACTIVE, is_mandatory=True).count()
+    mandatory_policies = len(active_mand_pids)
     total_required = total_employees * mandatory_policies
-    total_acked = PolicyAcknowledgement.query.filter(
-        PolicyAcknowledgement.acknowledged_at.isnot(None), PolicyAcknowledgement.is_mandatory == True
-    ).count()
-    compliance_rate = round(100 * total_acked / total_required) if total_required else 100
+    total_acked = PolicyAcknowledgement.query.join(User, PolicyAcknowledgement.user_id == User.id).filter(
+        User.role == UserRole.EMPLOYEE,
+        User.is_active == True,
+        PolicyAcknowledgement.policy_id.in_(active_mand_pids),
+        PolicyAcknowledgement.acknowledged_at.isnot(None),
+    ).count() if active_mand_pids else 0
+    compliance_rate = round(100 * min(total_acked, total_required) / total_required) if total_required else 100
 
-    total_reads = PolicyAcknowledgement.query.filter(PolicyAcknowledgement.read_at.isnot(None)).count()
-    total_acks_all = PolicyAcknowledgement.query.count()
-    read_rate = round(100 * total_reads / max(total_acks_all, 1)) if total_acks_all else 0
+    total_potential_reads = total_employees * len(active_policy_ids)
+    total_reads = PolicyAcknowledgement.query.join(User, PolicyAcknowledgement.user_id == User.id).filter(
+        User.role == UserRole.EMPLOYEE,
+        User.is_active == True,
+        PolicyAcknowledgement.policy_id.in_(active_policy_ids),
+        PolicyAcknowledgement.read_at.isnot(None),
+    ).count() if active_policy_ids else 0
+    read_rate = round(100 * min(total_reads, total_potential_reads) / total_potential_reads) if total_potential_reads else 0
 
     # ---------- Department Analytics (Batched Queries) ----------
-    dept_emp_counts = dict(
-        db.session.query(User.department_id, func.count(User.id))
-        .filter(User.role == UserRole.EMPLOYEE, User.is_active == True)
-        .group_by(User.department_id).all()
-    )
     dept_pol_counts = dict(
         db.session.query(Policy.department_id, func.count(Policy.id))
-        .group_by(Policy.department_id).all()
-    )
-    dept_mand_counts = dict(
-        db.session.query(Policy.department_id, func.count(Policy.id))
-        .filter(Policy.is_mandatory == True, Policy.status == PolicyStatus.ACTIVE)
-        .group_by(Policy.department_id).all()
-    )
-    dept_ack_counts = dict(
-        db.session.query(Policy.department_id, func.count(PolicyAcknowledgement.id))
-        .join(Policy, PolicyAcknowledgement.policy_id == Policy.id)
-        .filter(PolicyAcknowledgement.acknowledged_at.isnot(None))
         .group_by(Policy.department_id).all()
     )
 
     dept_data = []
     for d in Department.query.order_by(Department.name).all():
-        dept_employees = dept_emp_counts.get(d.id, 0)
+        dept_emps = User.query.filter_by(department_id=d.id, role=UserRole.EMPLOYEE, is_active=True).all()
+        dept_emp_count = len(dept_emps)
+        dept_emp_ids = [u.id for u in dept_emps]
         dept_policies = dept_pol_counts.get(d.id, 0)
-        dept_mandatory = dept_mand_counts.get(d.id, 0)
-        dept_required = dept_employees * dept_mandatory
-        dept_acked = dept_ack_counts.get(d.id, 0)
-        dept_compliance = round(100 * dept_acked / dept_required) if dept_required else None
-        dept_data.append({"name": d.name, "policies": dept_policies, "employees": dept_employees,
+        if dept_emp_count and active_mand_pids:
+            dept_required = dept_emp_count * len(active_mand_pids)
+            dept_acked = PolicyAcknowledgement.query.filter(
+                PolicyAcknowledgement.user_id.in_(dept_emp_ids),
+                PolicyAcknowledgement.policy_id.in_(active_mand_pids),
+                PolicyAcknowledgement.acknowledged_at.isnot(None),
+            ).count()
+            dept_compliance = round(100 * min(dept_acked, dept_required) / dept_required)
+        else:
+            dept_compliance = None
+        dept_data.append({"name": d.name, "policies": dept_policies, "employees": dept_emp_count,
                           "compliance": dept_compliance})
     dept_data.sort(key=lambda x: -x["policies"])
 

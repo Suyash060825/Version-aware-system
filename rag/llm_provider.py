@@ -4,6 +4,7 @@ Abstract LLM Provider interface and concrete implementations for Ollama, vLLM, G
 """
 from abc import ABC, abstractmethod
 import os
+import time
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
@@ -385,55 +386,6 @@ class OllamaProvider(LLMProvider):
         }
 
 
-class LMStudioProvider(OllamaProvider):
-    """
-    Provider for LM Studio local server (http://localhost:1234/v1 by default).
-    Configurable via LMSTUDIO_BASE_URL and LOCAL_LLM_MODEL.
-    """
-    def __init__(self, base_url=None, model=None, timeout=600):
-        resolved_base = base_url or os.environ.get("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
-        resolved_model = model or os.environ.get("LOCAL_LLM_MODEL") or self._detect_model(resolved_base)
-        super().__init__(
-            base_url=resolved_base,
-            model=resolved_model,
-            api_key="lm-studio",
-            timeout=timeout
-        )
-
-    @staticmethod
-    def _detect_model(base_url: str) -> str:
-        """Auto-detect the first loaded model from LM Studio /v1/models."""
-        try:
-            import urllib.request, json
-            req = urllib.request.Request(
-                f"{base_url}/models",
-                headers={"Authorization": "Bearer lm-studio"}
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                data = json.loads(resp.read())
-                models = data.get("data", [])
-                if models:
-                    return models[0]["id"]
-        except Exception:
-            pass
-        return "local-model"
-
-    def health_check(self) -> bool:
-        endpoint = f"{self.base_url}/models"
-        try:
-            import urllib.request
-            req = urllib.request.Request(
-                endpoint,
-                headers={"Authorization": "Bearer lm-studio"}
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                return resp.status == 200
-        except Exception as e:
-            logger.warning(f"[LMStudioProvider] Health check failed: {e}")
-            return False
-
-
-
 class GeminiProvider(LLMProvider):
     """
     Provider for Google Gemini API or OpenRouter endpoint.
@@ -746,13 +698,10 @@ def get_llm_provider(force_reload: bool = False) -> LLMProvider:
         logger.info("[LLMProvider] Initializing GeminiProvider (ablation/evaluation reference only)")
         _provider_instance = GeminiProvider()
     elif backend == "lmstudio":
-        logger.warning("[LLMProvider] LM Studio is deprecated. Initializing LMStudioProvider.")
-        provider = LMStudioProvider()
-        if not provider.health_check():
-            logger.error("[LLMProvider] LM Studio health check FAILED — falling back to Ollama")
-            _provider_instance = OllamaProvider()
-        else:
-            _provider_instance = provider
+        raise RuntimeError(
+            "[Architecture Constraint] LM Studio integration is disabled. Veritas strictly executes "
+            "local generation via Ollama (qwen3:4b-q4_K_M)."
+        )
     elif backend == "cascade":
         logger.warning("[LLMProvider] CascadeProvider is deprecated in production runtime. Defaulting to OllamaProvider.")
         _provider_instance = OllamaProvider()

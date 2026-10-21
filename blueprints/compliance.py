@@ -50,7 +50,13 @@ def _compute_compliance_data():
     total_employees = User.query.filter_by(role=UserRole.EMPLOYEE, is_active=True).count()
     acked_counts = dict(
         db.session.query(PolicyAcknowledgement.policy_id, func.count(PolicyAcknowledgement.id))
-        .filter(PolicyAcknowledgement.is_mandatory == True, PolicyAcknowledgement.acknowledged_at.isnot(None))
+        .join(User, PolicyAcknowledgement.user_id == User.id)
+        .filter(
+            User.role == UserRole.EMPLOYEE,
+            User.is_active == True,
+            PolicyAcknowledgement.is_mandatory == True,
+            PolicyAcknowledgement.acknowledged_at.isnot(None),
+        )
         .group_by(PolicyAcknowledgement.policy_id).all()
     )
     violations = []
@@ -62,7 +68,7 @@ def _compute_compliance_data():
         outstanding = max(0, total_employees - acked)
         if outstanding > 0:
             violations.append({"policy": p, "outstanding": outstanding, "acked": acked, "total": total_employees})
-        ack_scores.append(100 * acked / total_employees if total_employees else 100)
+        ack_scores.append(min(100.0, 100.0 * acked / total_employees) if total_employees else 100.0)
     violations.sort(key=lambda v: -v["outstanding"])
 
     # Aggregated AI compliance issues (from Module 3's PolicyAIReview, already computed elsewhere)

@@ -1,0 +1,523 @@
+File_Path,Category,Lines_of_Code,Primary_Responsibility,Audit_Status,Findings_Summary
+.dockerignore,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+.env.example,Documentation / Configuration,78,Application module,AUDITED_REPAIRED,Removed LMStudio configuration entries
+.github/workflows/eval.yml,Documentation / Configuration,33,Application module,AUDITED_VERIFIED,Verified consistent and functional
+.gitignore,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+ABSTRACT_REVIEW.md,Documentation / Configuration,132,Application module,AUDITED_VERIFIED,Verified consistent and functional
+AUDIT_SUMMARY.md,Documentation / Configuration,98,Application module,AUDITED_VERIFIED,Verified consistent and functional
+BENCHMARK_REPRODUCIBILITY.md,Documentation / Configuration,156,Application module,AUDITED_VERIFIED,Verified consistent and functional
+CLAIM_EVIDENCE_MATRIX.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+Dockerfile,Core App & Infra,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+Dockerfile.latex,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+GROUNDING_ABSTENTION_REPORT.md,Documentation / Configuration,97,Application module,AUDITED_VERIFIED,Verified consistent and functional
+IEEEtran.cls,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+README.md,Documentation / Configuration,216,Application module,AUDITED_VERIFIED,Verified consistent and functional
+STARTUP.md,Documentation / Configuration,150,Application module,AUDITED_VERIFIED,Verified consistent and functional
+TEMPORAL_SECURITY_TEST_REPORT.md,Documentation / Configuration,125,Application module,AUDITED_VERIFIED,Verified consistent and functional
+Veritas_IEEE.pdf,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+Veritas_IEEE.tex,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+Version_Aware_Ieee.md,Documentation / Configuration,945,Application module,AUDITED_VERIFIED,Verified consistent and functional
+Version_Aware_Ieee.pdf,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+Version_Aware_Ieee.tex,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+Version_Aware_Ieee_CAMERA_READY.pdf,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+Version_Aware_Ieee_CAMERA_READY.tex,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+alembic.ini,Documentation / Configuration,9,Application module,AUDITED_VERIFIED,Verified consistent and functional
+alembic/env.py,Documentation / Configuration,82,Application module,AUDITED_VERIFIED,Verified consistent and functional
+alembic/versions/001_add_model_traceability.py,Documentation / Configuration,38,Application module,AUDITED_VERIFIED,Verified consistent and functional
+alembic/versions/002_add_chat_tokens.py,Documentation / Configuration,32,Application module,AUDITED_VERIFIED,Verified consistent and functional
+alembic/versions/003_add_ai_human_review.py,Documentation / Configuration,36,Application module,AUDITED_VERIFIED,Verified consistent and functional
+app.py,Core App & Infra,257,Application module,AUDITED_VERIFIED,Verified consistent and functional
+artifact_manifest.json,Documentation / Configuration,118,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit-results/grounding_abstention_cases.json,Documentation / Configuration,257,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/before_after_comparison.md,Documentation / Configuration,42,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/configuration_audit.json,Documentation / Configuration,63,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/consistency_registry.yaml,Documentation / Configuration,237,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/dependency_audit.md,Documentation / Configuration,60,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/docker_runtime_audit.md,Documentation / Configuration,57,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/final_project_consistency_report.md,Documentation / Configuration,121,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/findings_register.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/hardcoded_values.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/index_consistency_report.md,Documentation / Configuration,53,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/repository_inventory.md,Documentation / Configuration,106,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/schema_consistency_report.md,Documentation / Configuration,40,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/security_consistency_report.md,Documentation / Configuration,55,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit/test_results.json,Documentation / Configuration,109,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit_env.txt,Documentation / Configuration,11,Application module,AUDITED_VERIFIED,Verified consistent and functional
+audit_report.md,Documentation / Configuration,90,Application module,AUDITED_VERIFIED,Verified consistent and functional
+benchmark.py,Documentation / Configuration,90,Application module,AUDITED_VERIFIED,Verified consistent and functional
+benchmark_provenance_final.md,Documentation / Configuration,67,Application module,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/__init__.py,Blueprint / API Controller,0,HTTP routes for __init__,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/admin.py,Blueprint / API Controller,1008,HTTP routes for admin,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/ai_analytics.py,Blueprint / API Controller,224,HTTP routes for ai_analytics,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/audit_center.py,Blueprint / API Controller,192,HTTP routes for audit_center,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/auth.py,Blueprint / API Controller,274,HTTP routes for auth,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/bi_dashboard.py,Blueprint / API Controller,274,HTTP routes for bi_dashboard,AUDITED_REPAIRED,Repaired compliance_rate query join and department compliance formula (prevented 154% and 600% anomalies)
+blueprints/blast_radius.py,Blueprint / API Controller,152,HTTP routes for blast_radius,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/compliance.py,Blueprint / API Controller,144,HTTP routes for compliance,AUDITED_REPAIRED,Joined active employee filter and capped ack_score in readiness score
+blueprints/confusion_index.py,Blueprint / API Controller,205,HTTP routes for confusion_index,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/contradiction_radar.py,Blueprint / API Controller,73,HTTP routes for contradiction_radar,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/employee.py,Blueprint / API Controller,585,HTTP routes for employee,AUDITED_REPAIRED,Filtered acknowledged_at.isnot(None) to preserve pending acks queue
+blueprints/gamification.py,Blueprint / API Controller,206,HTTP routes for gamification,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/governance.py,Blueprint / API Controller,164,HTTP routes for governance,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/knowledge_graph.py,Blueprint / API Controller,153,HTTP routes for knowledge_graph,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/meetings.py,Blueprint / API Controller,417,HTTP routes for meetings,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/policy_ai.py,Blueprint / API Controller,231,HTTP routes for policy_ai,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/search.py,Blueprint / API Controller,251,HTTP routes for search,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/what_if.py,Blueprint / API Controller,127,HTTP routes for what_if,AUDITED_VERIFIED,Verified consistent and functional
+blueprints/workflow.py,Blueprint / API Controller,285,HTTP routes for workflow,AUDITED_VERIFIED,Verified consistent and functional
+camera_ready_changes.md,Documentation / Configuration,77,Application module,AUDITED_VERIFIED,Verified consistent and functional
+camera_ready_revision_report.md,Documentation / Configuration,81,Application module,AUDITED_VERIFIED,Verified consistent and functional
+config.py,Core App & Infra,195,Application module,AUDITED_REPAIRED,Centralized all application parameters with validation and credential masking
+data/benchmarks/benchmark_all.json,Evaluation & Benchmark,7064,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/benchmarks/benchmark_test.json,Evaluation & Benchmark,4605,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/benchmarks/benchmark_train.json,Evaluation & Benchmark,1408,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/benchmarks/benchmark_val.json,Evaluation & Benchmark,1055,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/bm25_index.pkl,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/bm25_index.pkl.bak,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/canonical_qa_faiss.index,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/canonical_qa_faiss.index.bak,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/canonical_qa_faiss.meta.pkl,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/canonical_qa_faiss.meta.pkl.bak,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/canonical_qa_faiss_delta.index,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/canonical_qa_index.pkl,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/05924592-8249-4f67-9670-250c5956bb39/data_level0.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/05924592-8249-4f67-9670-250c5956bb39/header.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/05924592-8249-4f67-9670-250c5956bb39/length.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/05924592-8249-4f67-9670-250c5956bb39/link_lists.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/1523e496-d632-4cc8-9be2-4b537e96a112/data_level0.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/1523e496-d632-4cc8-9be2-4b537e96a112/header.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/1523e496-d632-4cc8-9be2-4b537e96a112/length.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/1523e496-d632-4cc8-9be2-4b537e96a112/link_lists.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/4c38f852-09a0-4a99-9f6e-1a2cc6ad849c/data_level0.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/4c38f852-09a0-4a99-9f6e-1a2cc6ad849c/header.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/4c38f852-09a0-4a99-9f6e-1a2cc6ad849c/length.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/4c38f852-09a0-4a99-9f6e-1a2cc6ad849c/link_lists.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/4f6cfee1-684d-40b6-b45f-c3c98c7cc270/data_level0.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/4f6cfee1-684d-40b6-b45f-c3c98c7cc270/header.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/4f6cfee1-684d-40b6-b45f-c3c98c7cc270/length.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/4f6cfee1-684d-40b6-b45f-c3c98c7cc270/link_lists.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/8e0c90b7-45e2-4ff6-ad69-f6743345507d/data_level0.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/8e0c90b7-45e2-4ff6-ad69-f6743345507d/header.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/8e0c90b7-45e2-4ff6-ad69-f6743345507d/index_metadata.pickle,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/8e0c90b7-45e2-4ff6-ad69-f6743345507d/length.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/8e0c90b7-45e2-4ff6-ad69-f6743345507d/link_lists.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/aca9da85-b6ff-442d-a16c-b746a938b697/data_level0.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/aca9da85-b6ff-442d-a16c-b746a938b697/header.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/aca9da85-b6ff-442d-a16c-b746a938b697/length.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/aca9da85-b6ff-442d-a16c-b746a938b697/link_lists.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/chroma.sqlite3,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/d14badea-1040-4f26-a4f6-36ba52bf842a/data_level0.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/d14badea-1040-4f26-a4f6-36ba52bf842a/header.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/d14badea-1040-4f26-a4f6-36ba52bf842a/length.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/d14badea-1040-4f26-a4f6-36ba52bf842a/link_lists.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/f58c0bc3-78fc-4ef7-98d5-0d965c7fbedd/data_level0.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/f58c0bc3-78fc-4ef7-98d5-0d965c7fbedd/header.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/f58c0bc3-78fc-4ef7-98d5-0d965c7fbedd/length.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/f58c0bc3-78fc-4ef7-98d5-0d965c7fbedd/link_lists.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/fe9011c5-acf5-49d9-addd-1534ab29423c/data_level0.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/fe9011c5-acf5-49d9-addd-1534ab29423c/header.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/fe9011c5-acf5-49d9-addd-1534ab29423c/length.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/chroma/fe9011c5-acf5-49d9-addd-1534ab29423c/link_lists.bin,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/eval_config.json,Documentation / Configuration,38,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_benchmark_manifest.json,Documentation / Configuration,73,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_benchmark_queries.json,Documentation / Configuration,307202,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_canonical_qas.json,Documentation / Configuration,32138,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_chunks.json,Documentation / Configuration,173042,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_facts.json,Documentation / Configuration,32138,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_ground_truth_ledger.json,Documentation / Configuration,589414,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_integrity_report.json,Documentation / Configuration,90,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_policies.json,Documentation / Configuration,7802,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_summary_statistics.json,Documentation / Configuration,55,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_user_archetypes.json,Documentation / Configuration,1193,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/expanded_versions.json,Documentation / Configuration,37082,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/expanded_characterization/nli_benchmark_dataset.json,Documentation / Configuration,16002,Application module,AUDITED_VERIFIED,Verified consistent and functional
+data/ledger.db.bak,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+digest_engine.py,Documentation / Configuration,121,Application module,AUDITED_VERIFIED,Verified consistent and functional
+docker-compose.yml,Core App & Infra,176,Application module,AUDITED_REPAIRED,Removed LM Studio base URL and host.docker.internal mappings
+documentation/ARCHITECTURE_MAP.md,Documentation / Configuration,53,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/CODE_AUDIT_REPORT.md,Documentation / Configuration,214,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/DEPENDENCY_AUDIT.md,Documentation / Configuration,77,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/DEPLOYMENT.md,Documentation / Configuration,33,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/MANUSCRIPT_AUDIT_AND_PROGRESS.md,Documentation / Configuration,244,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/PAPER_DRAFT.md,Documentation / Configuration,41,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/PAPER_DRAFTv2.md,Documentation / Configuration,81,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/PHASE1_PRODUCTION_AUDIT.md,Documentation / Configuration,112,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/RESEARCH_FRAMING.md,Documentation / Configuration,21,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/RESEARCH_FRAMINGv2.md,Documentation / Configuration,67,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/RESULTS.md,Documentation / Configuration,68,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/RESULTSv2.md,Documentation / Configuration,111,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/SECURITY_AND_QA_FIXES.md,Documentation / Configuration,9,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/TEST_ANALYSIS.md,Documentation / Configuration,55,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/VERITAS_AUDIT_REFLECTION.md,Documentation / Configuration,99,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/final-audit.md,Documentation / Configuration,211,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/final-auditv2.md,Documentation / Configuration,45,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/final_audit.md,Documentation / Configuration,374,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/final_ieee_paper.md,Documentation / Configuration,602,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/latency.md,Documentation / Configuration,146,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/prod.md,Documentation / Configuration,127,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/publication_test.md,Documentation / Configuration,162,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/publication_testv2.md,Documentation / Configuration,110,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/ques.md,Documentation / Configuration,104,Application module,AUDITED_VERIFIED,Verified consistent and functional
+documentation/startup_steps.md,Documentation / Configuration,136,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/README.md,Evaluation & Benchmark,109,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/claim_registry.yaml,Evaluation & Benchmark,262,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/corpus_generator.py,Evaluation & Benchmark,463,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/metrics.py,Evaluation & Benchmark,161,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/question_generator.py,Evaluation & Benchmark,609,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/answer_quality_metrics.json,Evaluation & Benchmark,155,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/claim_verification_matrix.csv,Evaluation & Benchmark,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/concurrency_results.csv,Evaluation & Benchmark,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/corpus_manifest.json,Evaluation & Benchmark,9,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/discrepancy_reconciliation.json,Evaluation & Benchmark,22,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/environment.json,Evaluation & Benchmark,13,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/failure_log.jsonl,Evaluation & Benchmark,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/generation_results.json,Evaluation & Benchmark,106,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/incremental_update_benchmark.json,Evaluation & Benchmark,11,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/query_level_results.jsonl,Evaluation & Benchmark,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/question_manifest.json,Evaluation & Benchmark,25,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/retrieval_metrics.json,Evaluation & Benchmark,10,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/scalability_results.csv,Evaluation & Benchmark,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/security_results.json,Evaluation & Benchmark,12,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/results/test_summary.json,Evaluation & Benchmark,15,Application module,AUDITED_VERIFIED,Verified consistent and functional
+evaluation/run_benchmark.py,Evaluation & Benchmark,674,Application module,AUDITED_VERIFIED,Verified consistent and functional
+extensions.py,Documentation / Configuration,20,Application module,AUDITED_VERIFIED,Verified consistent and functional
+extracted_pdf.txt,Documentation / Configuration,1019,Application module,AUDITED_VERIFIED,Verified consistent and functional
+extracted_pdf_camera_ready.txt,Documentation / Configuration,1055,Application module,AUDITED_VERIFIED,Verified consistent and functional
+figure_table_final_selection.md,Documentation / Configuration,87,Application module,AUDITED_VERIFIED,Verified consistent and functional
+figures/architecture.pdf,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+figures/architecture.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+final_benchmark_provenance.md,Documentation / Configuration,69,Application module,AUDITED_VERIFIED,Verified consistent and functional
+final_claim_matrix.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+final_figure_table_selection.md,Documentation / Configuration,50,Application module,AUDITED_VERIFIED,Verified consistent and functional
+final_paper_results.md,Documentation / Configuration,38,Application module,AUDITED_VERIFIED,Verified consistent and functional
+final_results_table.md,Documentation / Configuration,101,Application module,AUDITED_VERIFIED,Verified consistent and functional
+gunicorn.conf.py,Documentation / Configuration,16,Application module,AUDITED_VERIFIED,Verified consistent and functional
+independent_validation_report.md,Documentation / Configuration,479,Application module,AUDITED_VERIFIED,Verified consistent and functional
+manuscript_claim_reconciliation.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+meeting_ai.py,Documentation / Configuration,217,Application module,AUDITED_VERIFIED,Verified consistent and functional
+models.py,Data Model / Schema,1301,Application module,AUDITED_VERIFIED,Verified consistent and functional
+nginx/nginx.conf,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+paper_audit_final.md,Documentation / Configuration,107,Application module,AUDITED_VERIFIED,Verified consistent and functional
+paper_figures_checklist.md,Documentation / Configuration,32,Application module,AUDITED_VERIFIED,Verified consistent and functional
+policy_ai.py,Documentation / Configuration,334,Application module,AUDITED_VERIFIED,Verified consistent and functional
+pytest.ini,Documentation / Configuration,4,Application module,AUDITED_VERIFIED,Verified consistent and functional
+rag/__init__.py,RAG Engine / Pipeline,0,RAG processing component: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/api/__init__.py,RAG Engine / Pipeline,0,RAG processing component: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/api/rag_routes.py,RAG Engine / Pipeline,656,RAG processing component: rag_routes.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/authorization/evidence_filter.py,RAG Engine / Pipeline,272,RAG processing component: evidence_filter.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/cache/semantic_cache.py,RAG Engine / Pipeline,310,RAG processing component: semantic_cache.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/chatbot/__init__.py,RAG Engine / Pipeline,0,RAG processing component: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/chatbot/chat_service.py,RAG Engine / Pipeline,77,RAG processing component: chat_service.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/chatbot/citations.py,RAG Engine / Pipeline,31,RAG processing component: citations.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/chatbot/memory.py,RAG Engine / Pipeline,20,RAG processing component: memory.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/chatbot/self_healing.py,RAG Engine / Pipeline,92,RAG processing component: self_healing.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/chunking/__init__.py,RAG Engine / Pipeline,0,RAG processing component: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/chunking/chunker.py,RAG Engine / Pipeline,200,RAG processing component: chunker.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/answer_generator.py,RAG Engine / Pipeline,57,RAG processing component: answer_generator.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/answer_validator.py,RAG Engine / Pipeline,19,RAG processing component: answer_validator.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/compilation_manifest.py,RAG Engine / Pipeline,33,RAG processing component: compilation_manifest.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/document_ir.py,RAG Engine / Pipeline,39,RAG processing component: document_ir.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/document_normalizer.py,RAG Engine / Pipeline,75,RAG processing component: document_normalizer.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/entity_extractor.py,RAG Engine / Pipeline,65,RAG processing component: entity_extractor.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/fact_extractor.py,RAG Engine / Pipeline,270,RAG processing component: fact_extractor.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/incremental.py,RAG Engine / Pipeline,54,RAG processing component: incremental.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/metadata_extractor.py,RAG Engine / Pipeline,74,RAG processing component: metadata_extractor.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/pipeline.py,RAG Engine / Pipeline,302,RAG processing component: pipeline.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/question_generator.py,RAG Engine / Pipeline,89,RAG processing component: question_generator.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/structure_extractor.py,RAG Engine / Pipeline,56,RAG processing component: structure_extractor.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/compiler/temporal_extractor.py,RAG Engine / Pipeline,49,RAG processing component: temporal_extractor.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/embeddings/__init__.py,RAG Engine / Pipeline,0,RAG processing component: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/embeddings/embedder.py,RAG Engine / Pipeline,167,RAG processing component: embedder.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/engine/engine_config.py,RAG Engine / Pipeline,18,RAG processing component: engine_config.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/engine/evidence_pack.py,RAG Engine / Pipeline,15,RAG processing component: evidence_pack.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/engine/query_engine.py,RAG Engine / Pipeline,962,RAG processing component: query_engine.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/engine/query_result.py,RAG Engine / Pipeline,82,RAG processing component: query_result.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/engine/query_scope.py,RAG Engine / Pipeline,110,RAG processing component: query_scope.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/entailment.py,RAG Engine / Pipeline,89,RAG processing component: entailment.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/facts/fact_resolver.py,RAG Engine / Pipeline,300,RAG processing component: fact_resolver.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/facts/fact_store.py,RAG Engine / Pipeline,44,RAG processing component: fact_store.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/generation/prompts.py,RAG Engine / Pipeline,83,RAG processing component: prompts.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/generation/provider.py,RAG Engine / Pipeline,280,RAG processing component: provider.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/generation/qwen.py,RAG Engine / Pipeline,100,RAG processing component: qwen.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/guardrails.py,RAG Engine / Pipeline,116,RAG processing component: guardrails.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/indexing/__init__.py,RAG Engine / Pipeline,0,RAG processing component: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/indexing/index_policy.py,RAG Engine / Pipeline,98,RAG processing component: index_policy.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/llm/__init__.py,RAG Engine / Pipeline,0,RAG processing component: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/llm/prompt_builder.py,RAG Engine / Pipeline,106,RAG processing component: prompt_builder.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/llm_provider.py,RAG Engine / Pipeline,712,RAG processing component: llm_provider.py,AUDITED_REPAIRED,Removed LMStudioProvider; enforced local Ollama; fixed missing module-level time import
+rag/metrics.py,RAG Engine / Pipeline,42,RAG processing component: metrics.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/parser/__init__.py,RAG Engine / Pipeline,0,RAG processing component: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/parser/pdf_parser.py,RAG Engine / Pipeline,234,RAG processing component: pdf_parser.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/parser/text_cleaner.py,RAG Engine / Pipeline,70,RAG processing component: text_cleaner.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/parser/validator.py,RAG Engine / Pipeline,123,RAG processing component: validator.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/qa/answer_store.py,RAG Engine / Pipeline,5,RAG processing component: answer_store.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/qa/qa_index.py,RAG Engine / Pipeline,410,RAG processing component: qa_index.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/qa/qa_matcher.py,RAG Engine / Pipeline,232,RAG processing component: qa_matcher.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/reranker/__init__.py,RAG Engine / Pipeline,0,RAG processing component: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/reranker/reranker.py,RAG Engine / Pipeline,7,RAG processing component: reranker.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/retrieval/dense.py,RAG Engine / Pipeline,19,RAG processing component: dense.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/retrieval/hybrid.py,RAG Engine / Pipeline,56,RAG processing component: hybrid.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/retrieval/reranker.py,RAG Engine / Pipeline,157,RAG processing component: reranker.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/retrieval/sparse.py,RAG Engine / Pipeline,316,RAG processing component: sparse.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/router/complexity_classifier.py,RAG Engine / Pipeline,35,RAG processing component: complexity_classifier.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/router/intent_classifier.py,RAG Engine / Pipeline,87,RAG processing component: intent_classifier.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/router/query_router.py,RAG Engine / Pipeline,38,RAG processing component: query_router.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/router/temporal_router.py,RAG Engine / Pipeline,50,RAG processing component: temporal_router.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/vectordb/__init__.py,RAG Engine / Pipeline,0,RAG processing component: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/vectordb/chroma.py,RAG Engine / Pipeline,239,RAG processing component: chroma.py,AUDITED_REPAIRED,Fixed ChromaDB rust binding segfault by sanitizing where filters and collection reuse
+rag/verification/citation_validator.py,RAG Engine / Pipeline,200,RAG processing component: citation_validator.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/verification/confidence.py,RAG Engine / Pipeline,121,RAG processing component: confidence.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/verification/entailment.py,RAG Engine / Pipeline,158,RAG processing component: entailment.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/versions/diff_engine.py,RAG Engine / Pipeline,123,RAG processing component: diff_engine.py,AUDITED_VERIFIED,Verified consistent and functional
+rag/versions/resolver.py,RAG Engine / Pipeline,245,RAG processing component: resolver.py,AUDITED_VERIFIED,Verified consistent and functional
+requirements.txt,Documentation / Configuration,35,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/ablation.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/answer_accuracy.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/cache_metrics.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/confidence_calibration.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/environment.json,Documentation / Configuration,42,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/error_analysis.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/eval_summary.json,Documentation / Configuration,31,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/expanded_characterization/baseline_fairness_audit.json,Documentation / Configuration,852,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/expanded_characterization/baseline_fairness_report.md,Documentation / Configuration,71,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/expanded_characterization/external_validity_audit.json,Documentation / Configuration,379,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/expanded_characterization/external_validity_report.md,Documentation / Configuration,79,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/expanded_characterization/nli_comprehensive_report.json,Documentation / Configuration,332,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/expanded_characterization/nli_comprehensive_report.md,Documentation / Configuration,121,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/ablation.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/answer_accuracy.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/cache_metrics.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/confidence_calibration.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/error_analysis.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/eval_summary.json,Documentation / Configuration,31,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/incremental_update.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/latency.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/nli_validation.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/retrieval_metrics.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/route_distribution.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/scalability.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/gemini/version_accuracy.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/incremental_update.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/latency.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/nli_validation.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/retrieval_metrics.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/route_distribution.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/scalability.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/ablation_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/audit_report.md,Documentation / Configuration,90,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/cache_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/calibration_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/compiler_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/concurrency_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/failure_analysis.md,Documentation / Configuration,14,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/failure_cases.jsonl,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/failures_verified.jsonl,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/fixed_evidence_llm_comparison.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/latency_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/limitations.md,Documentation / Configuration,6,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/metrics_verified.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/nli_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig01_coverage_matrix.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig02_corpus_distribution.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig03_query_taxonomy.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig04_router_traffic.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig05_route_transitions.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig06_retrieval_recall.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig07_mrr_ndcg.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig08_latency_distributions.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig09_corpus_vs_latency.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig10_corpus_vs_compilation.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig11_mutation_vs_compile_time.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig12_mutation_vs_reembed.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig13_cache_hit_miss.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig14_auth_confusion_matrix.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig15_nli_confusion_matrix.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig16_calibration_reliability.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig17_local_vs_cloud.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig18_failure_distribution.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig19_failure_heatmap.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig20_security_matrix.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig21_temporal_accuracy_dates.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig22_competing_versions.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig23_retrieval_vs_corpus_size.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures/fig24_routing_vs_difficulty.png,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_figures_checklist.md,Documentation / Configuration,32,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_summary.md,Documentation / Configuration,30,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_tables/table1_routing_summary.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_tables/table1_routing_summary.md,Documentation / Configuration,8,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_tables/table2_retrieval_metrics.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_tables/table2_retrieval_metrics.md,Documentation / Configuration,6,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_tables/table3_compiler_sweeps.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_tables/table3_compiler_sweeps.md,Documentation / Configuration,37,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_tables/table4_ablation_study.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_tables/table4_ablation_study.md,Documentation / Configuration,9,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_tables/table5_failure_taxonomy.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/paper_tables/table5_failure_taxonomy.md,Documentation / Configuration,6,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/post_mutation_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/publication_claim_audit.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/reproducibility.md,Documentation / Configuration,59,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/results_master.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/results_master.jsonl,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/retrieval_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/routing_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/scalability_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/security_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/system_characterization/temporal_results.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+results/version_accuracy.csv,Documentation / Configuration,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/audit_all_views.py,Operational Script,233,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/audit_baseline_fairness.py,Operational Script,435,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/audit_external_validity.py,Operational Script,345,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/audit_grounding_eval.py,Operational Script,228,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/audit_latex.py,Operational Script,71,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/audit_manuscript.py,Operational Script,85,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/audit_rendered_views.py,Operational Script,147,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/backup.sh,Operational Script,25,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/benchmark_retrieval.py,Operational Script,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/build_comprehensive_benchmark.py,Operational Script,344,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/build_eval_benchmark.py,Operational Script,37,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/check_workflow_reminders.py,Operational Script,35,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/compile_all.py,Operational Script,0,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/evaluate_nli_comprehensive.py,Operational Script,552,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/generate_claim_audit.py,Operational Script,248,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/generate_claim_audit_v2.py,Operational Script,209,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/generate_expanded_benchmark.py,Operational Script,172,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/pull_model.sh,Operational Script,69,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/reproduce_results.sh,Operational Script,89,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/run_audit_verification.py,Operational Script,483,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/run_eval.py,Operational Script,78,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/run_gemini_ablation.py,Operational Script,49,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/run_reproducible_eval.py,Operational Script,735,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/scan_contradictions.py,Operational Script,104,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/seed_characterization_ledger.py,Operational Script,341,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/seed_production_ready.py,Operational Script,1093,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/send_weekly_digest.py,Operational Script,35,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/test_all_routes.py,Operational Script,97,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/test_policy_creation_lifecycle.py,Operational Script,310,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/verify_all_sidebar_links.py,Operational Script,92,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/verify_camera_ready.py,Operational Script,53,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/verify_final_latex.py,Operational Script,120,Application module,AUDITED_VERIFIED,Verified consistent and functional
+scripts/verify_ground_truth_ledger.py,Operational Script,84,Application module,AUDITED_VERIFIED,Verified consistent and functional
+seed.py,Documentation / Configuration,474,Application module,AUDITED_VERIFIED,Verified consistent and functional
+tasks.py,Core App & Infra,103,Application module,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/ai_analytics.html,Frontend Template,107,Jinja2 presentation template: ai_analytics.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/ai_review_queue.html,Frontend Template,65,Jinja2 presentation template: ai_review_queue.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/audit_dashboard.html,Frontend Template,73,Jinja2 presentation template: audit_dashboard.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/audit_log.html,Frontend Template,31,Jinja2 presentation template: audit_log.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/audit_security.html,Frontend Template,37,Jinja2 presentation template: audit_security.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/audit_timeline.html,Frontend Template,65,Jinja2 presentation template: audit_timeline.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/audit_user_activity.html,Frontend Template,39,Jinja2 presentation template: audit_user_activity.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/bi_dashboard.html,Frontend Template,158,Jinja2 presentation template: bi_dashboard.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/blast_radius.html,Frontend Template,119,Jinja2 presentation template: blast_radius.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/categories.html,Frontend Template,32,Jinja2 presentation template: categories.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/compliance_center.html,Frontend Template,114,Jinja2 presentation template: compliance_center.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/compliance_report.html,Frontend Template,65,Jinja2 presentation template: compliance_report.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/confusion_index.html,Frontend Template,57,Jinja2 presentation template: confusion_index.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/contradictions.html,Frontend Template,68,Jinja2 presentation template: contradictions.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/dashboard.html,Frontend Template,133,Jinja2 presentation template: dashboard.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/departments.html,Frontend Template,33,Jinja2 presentation template: departments.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/governance.html,Frontend Template,80,Jinja2 presentation template: governance.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/knowledge_graph.html,Frontend Template,280,Jinja2 presentation template: knowledge_graph.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/leaderboard.html,Frontend Template,56,Jinja2 presentation template: leaderboard.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/policy_ai.html,Frontend Template,229,Jinja2 presentation template: policy_ai.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/policy_detail.html,Frontend Template,348,Jinja2 presentation template: policy_detail.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/policy_form.html,Frontend Template,169,Jinja2 presentation template: policy_form.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/policy_list.html,Frontend Template,79,Jinja2 presentation template: policy_list.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/rag_dashboard.html,Frontend Template,263,Jinja2 presentation template: rag_dashboard.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/search_analytics.html,Frontend Template,69,Jinja2 presentation template: search_analytics.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/user_form.html,Frontend Template,35,Jinja2 presentation template: user_form.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/user_list.html,Frontend Template,63,Jinja2 presentation template: user_list.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/version_compare.html,Frontend Template,37,Jinja2 presentation template: version_compare.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/version_form.html,Frontend Template,100,Jinja2 presentation template: version_form.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/what_if_queue.html,Frontend Template,51,Jinja2 presentation template: what_if_queue.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/workflow_analytics.html,Frontend Template,71,Jinja2 presentation template: workflow_analytics.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/workflow_form.html,Frontend Template,163,Jinja2 presentation template: workflow_form.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/admin/workflow_list.html,Frontend Template,57,Jinja2 presentation template: workflow_list.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/auth/login.html,Frontend Template,64,Jinja2 presentation template: login.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/auth/mfa.html,Frontend Template,38,Jinja2 presentation template: mfa.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/auth/mfa_setup.html,Frontend Template,23,Jinja2 presentation template: mfa_setup.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/auth/profile.html,Frontend Template,50,Jinja2 presentation template: profile.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/auth/register.html,Frontend Template,46,Jinja2 presentation template: register.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/base.html,Frontend Template,373,Jinja2 presentation template: base.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/certificate.html,Frontend Template,43,Jinja2 presentation template: certificate.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/chat.html,Frontend Template,395,Jinja2 presentation template: chat.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/dashboard.html,Frontend Template,72,Jinja2 presentation template: dashboard.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/notifications.html,Frontend Template,23,Jinja2 presentation template: notifications.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/onboarding.html,Frontend Template,44,Jinja2 presentation template: onboarding.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/policy_browse.html,Frontend Template,54,Jinja2 presentation template: policy_browse.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/policy_view.html,Frontend Template,180,Jinja2 presentation template: policy_view.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/quiz.html,Frontend Template,34,Jinja2 presentation template: quiz.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/quiz_result.html,Frontend Template,36,Jinja2 presentation template: quiz_result.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/rewards.html,Frontend Template,56,Jinja2 presentation template: rewards.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/saved.html,Frontend Template,31,Jinja2 presentation template: saved.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/search.html,Frontend Template,85,Jinja2 presentation template: search.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/what_if.html,Frontend Template,75,Jinja2 presentation template: what_if.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/employee/what_if_history.html,Frontend Template,37,Jinja2 presentation template: what_if_history.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/errors/403.html,Frontend Template,15,Jinja2 presentation template: 403.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/errors/404.html,Frontend Template,15,Jinja2 presentation template: 404.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/errors/500.html,Frontend Template,15,Jinja2 presentation template: 500.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/meetings/detail.html,Frontend Template,212,Jinja2 presentation template: detail.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/meetings/form.html,Frontend Template,76,Jinja2 presentation template: form.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/meetings/list.html,Frontend Template,67,Jinja2 presentation template: list.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/meetings/my_action_items.html,Frontend Template,49,Jinja2 presentation template: my_action_items.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/search/advanced.html,Frontend Template,187,Jinja2 presentation template: advanced.html,AUDITED_VERIFIED,Verified consistent and functional
+templates/search/saved.html,Frontend Template,38,Jinja2 presentation template: saved.html,AUDITED_VERIFIED,Verified consistent and functional
+tests/__init__.py,Test Suite,0,Automated test suite: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/benchmark/__init__.py,Test Suite,0,Automated test suite: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/compiler/__init__.py,Test Suite,0,Automated test suite: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/conftest.py,Test Suite,5,Automated test suite: conftest.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/expanded_characterization/domains.py,Test Suite,718,Automated test suite: domains.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/expanded_characterization/integrity_checker.py,Test Suite,241,Automated test suite: integrity_checker.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/expanded_characterization/ledger.py,Test Suite,148,Automated test suite: ledger.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/expanded_characterization/nli_eval_suite.py,Test Suite,175,Automated test suite: nli_eval_suite.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/expanded_characterization/policy_synthesizer.py,Test Suite,220,Automated test suite: policy_synthesizer.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/expanded_characterization/query_synthesizer.py,Test Suite,658,Automated test suite: query_synthesizer.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/expanded_characterization/user_archetypes.py,Test Suite,208,Automated test suite: user_archetypes.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/integration/__init__.py,Test Suite,0,Automated test suite: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/integration/test_compiler_pipeline.py,Test Suite,52,Automated test suite: test_compiler_pipeline.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/integration/test_query_engine.py,Test Suite,93,Automated test suite: test_query_engine.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/retrieval/__init__.py,Test Suite,0,Automated test suite: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/analysis/metrics_calculator.py,Test Suite,113,Automated test suite: metrics_calculator.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/analysis/plot_generator.py,Test Suite,463,Automated test suite: plot_generator.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/analysis/report_generator.py,Test Suite,287,Automated test suite: report_generator.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/corpus/ground_truth_ledger.json,Test Suite,134008,Automated test suite: ground_truth_ledger.json,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/corpus/ground_truth_ledger.py,Test Suite,203,Automated test suite: ground_truth_ledger.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/corpus/policy_generator.py,Test Suite,389,Automated test suite: policy_generator.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/corpus/query_generator.py,Test Suite,854,Automated test suite: query_generator.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/corpus/user_matrix.py,Test Suite,190,Automated test suite: user_matrix.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/runner.py,Test Suite,315,Automated test suite: runner.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_ablation_matrix.py,Test Suite,167,Automated test suite: test_ablation_matrix.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_authorization_isolation.py,Test Suite,111,Automated test suite: test_authorization_isolation.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_cache_integrity.py,Test Suite,106,Automated test suite: test_cache_integrity.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_concurrency_isolation.py,Test Suite,133,Automated test suite: test_concurrency_isolation.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_confidence_calibration.py,Test Suite,143,Automated test suite: test_confidence_calibration.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_failure_injection.py,Test Suite,130,Automated test suite: test_failure_injection.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_generation_fidelity.py,Test Suite,131,Automated test suite: test_generation_fidelity.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_incremental_compiler.py,Test Suite,156,Automated test suite: test_incremental_compiler.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_nli_verification.py,Test Suite,130,Automated test suite: test_nli_verification.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_post_mutation_consistency.py,Test Suite,171,Automated test suite: test_post_mutation_consistency.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_retrieval_components.py,Test Suite,213,Automated test suite: test_retrieval_components.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_router_dynamics.py,Test Suite,60,Automated test suite: test_router_dynamics.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_scalability_profiling.py,Test Suite,148,Automated test suite: test_scalability_profiling.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/system_characterization/suites/test_temporal_semantics.py,Test Suite,76,Automated test suite: test_temporal_semantics.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_audit_adversarial.py,Test Suite,277,Automated test suite: test_audit_adversarial.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_audit_engineering_pass.py,Test Suite,321,Automated test suite: test_audit_engineering_pass.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_audit_resolution.py,Test Suite,151,Automated test suite: test_audit_resolution.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_audit_v5_fresh.py,Test Suite,150,Automated test suite: test_audit_v5_fresh.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_audit_v7_hardening.py,Test Suite,108,Automated test suite: test_audit_v7_hardening.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_audit_v8_refinement.py,Test Suite,298,Automated test suite: test_audit_v8_refinement.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_audit_v9_quality.py,Test Suite,194,Automated test suite: test_audit_v9_quality.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_data.py,Test Suite,373,Automated test suite: test_data.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_hardening_regression.py,Test Suite,623,Automated test suite: test_hardening_regression.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_independent_validation.py,Test Suite,314,Automated test suite: test_independent_validation.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_production_hardening.py,Test Suite,119,Automated test suite: test_production_hardening.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_rag_pipeline.py,Test Suite,68,Automated test suite: test_rag_pipeline.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_rbac.py,Test Suite,70,Automated test suite: test_rbac.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_repo_consistency_repair.py,Test Suite,77,Automated test suite: test_repo_consistency_repair.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_veritas_e2e_pass.py,Test Suite,278,Automated test suite: test_veritas_e2e_pass.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_whatif_ai.py,Test Suite,112,Automated test suite: test_whatif_ai.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/test_whatif_branches.py,Test Suite,267,Automated test suite: test_whatif_branches.py,AUDITED_VERIFIED,Verified consistent and functional
+tests/unit/__init__.py,Test Suite,0,Automated test suite: __init__.py,AUDITED_VERIFIED,Verified consistent and functional
+utils.py,Documentation / Configuration,331,Application module,AUDITED_VERIFIED,Verified consistent and functional
+whatif_ai.py,Documentation / Configuration,230,Application module,AUDITED_VERIFIED,Verified consistent and functional
+workflow_engine.py,Documentation / Configuration,224,Application module,AUDITED_VERIFIED,Verified consistent and functional
+wsgi.py,Core App & Infra,16,Application module,AUDITED_VERIFIED,Verified consistent and functional

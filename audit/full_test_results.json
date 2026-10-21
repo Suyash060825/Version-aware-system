@@ -1,0 +1,130 @@
+{
+  "test_suite_execution": {
+    "timestamp": "2026-10-21T16:30:35Z",
+    "environment": "Docker Linux container (policy_ledger_web)",
+    "pytest_version": "9.1.1",
+    "python_version": "3.11.17",
+    "summary": {
+      "total": 56,
+      "passed": 56,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duration_seconds": 140.53
+    },
+    "suites": [
+      {
+        "file": "tests/test_repo_consistency_repair.py",
+        "passed": 6,
+        "failed": 0,
+        "tests": [
+          "test_config_validation_rules",
+          "test_safe_diagnostics_redacts_credentials",
+          "test_cloud_llm_provider_refusal",
+          "test_celery_broker_centralized_configuration",
+          "test_chroma_safe_collection_retrieval",
+          "test_docker_compose_environment_parity"
+        ]
+      },
+      {
+        "file": "tests/test_audit_engineering_pass.py",
+        "passed": 13,
+        "failed": 0,
+        "tests": [
+          "test_ollama_provider_local_fidelity",
+          "test_ollama_health_check_strict_verification",
+          "test_policy_ai_fallback_visibility",
+          "test_whatif_provenance_recording",
+          "test_embedding_dimension_consistency",
+          "test_vector_validation_inf_nan_rejection",
+          "test_policy_creation_lifecycle",
+          "test_pdf_parser_result_contract",
+          "test_policy_metadata_edit_invalidates_caches_and_reindexes",
+          "test_policy_publish_celery_task_compatibility",
+          "test_policy_archival_and_restoration",
+          "test_policy_duplication_and_deletion",
+          "test_anonymous_user_safe_handling_on_error_pages"
+        ]
+      },
+      {
+        "file": "tests/test_exhaustive_audit_validation.py",
+        "passed": 6,
+        "failed": 0,
+        "tests": [
+          "test_ollama_local_provider_contract",
+          "test_ollama_generation_usage_tokens",
+          "test_dashboard_metrics_truthfulness",
+          "test_pending_acknowledgement_filter_truthfulness",
+          "test_user_action_persistence_lifecycle",
+          "test_clearance_and_role_security_enforcement"
+        ]
+      },
+      {
+        "file": "tests/test_rbac.py",
+        "passed": 2,
+        "failed": 0,
+        "tests": [
+          "test_anonymous_access_redirect",
+          "test_employee_rbac_admin_forbidden"
+        ]
+      },
+      {
+        "file": "tests/test_production_hardening.py",
+        "passed": 5,
+        "failed": 0,
+        "tests": [
+          "test_database_health_probe",
+          "test_redis_health_probe",
+          "test_vector_database_health_probe",
+          "test_ollama_health_probe",
+          "test_gunicorn_worker_concurrency"
+        ]
+      },
+      {
+        "file": "tests/test_whatif_ai.py",
+        "passed": 4,
+        "failed": 0,
+        "tests": [
+          "test_scenario_evaluation_parsing",
+          "test_scenario_grounding_verification",
+          "test_scenario_hr_flagging",
+          "test_scenario_history_persistence"
+        ]
+      },
+      {
+        "file": "tests/test_whatif_branches.py",
+        "passed": 13,
+        "failed": 0,
+        "tests": [
+          "test_branch_allow_verdict",
+          "test_branch_prohibit_verdict",
+          "test_branch_depends_verdict",
+          "test_branch_unclear_verdict",
+          "test_branch_multi_condition_matching",
+          "test_branch_conflicting_rules",
+          "test_branch_historical_version_as_of",
+          "test_branch_empty_policy_context",
+          "test_branch_prompt_injection_containment",
+          "test_branch_malformed_llm_json_fallback",
+          "test_branch_confidence_score_normalization",
+          "test_branch_role_clearance_filtering",
+          "test_branch_cache_scope_invalidation"
+        ]
+      },
+      {
+        "file": "tests/test_independent_validation.py",
+        "passed": 7,
+        "failed": 0,
+        "tests": [
+          "test_independent_ground_truth_compliance",
+          "test_evidence_completeness_verification",
+          "test_safe_abstention_on_unsupported_queries",
+          "test_retrieval_reciprocal_rank_fusion",
+          "test_temporal_policy_version_selection",
+          "test_database_audit_log_telemetry",
+          "test_end_to_end_user_journey_validation"
+        ]
+      }
+    ]
+  }
+}

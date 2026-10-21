@@ -75,7 +75,7 @@ def dashboard():
     trending = [p for p in trending_raw if ev_filter.is_authorized_for_policy(current_user, p)][:6]
 
     # Pending acknowledgements
-    acked_ids = [a.policy_id for a in current_user.acknowledgements.all()]
+    acked_ids = [a.policy_id for a in current_user.acknowledgements.filter(PolicyAcknowledgement.acknowledged_at.isnot(None)).all()]
     pending_acks_raw = Policy.query.filter(
         Policy.status == PolicyStatus.ACTIVE,
         Policy.is_mandatory == True,
