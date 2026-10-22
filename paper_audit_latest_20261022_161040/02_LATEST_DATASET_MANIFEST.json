@@ -1,0 +1,38 @@
+{
+  "manifest_metadata": {
+    "version": "3.0.0",
+    "generated_at": "2026-10-22T16:10:40Z",
+    "authoritative_run_id": "RUN-EVAL-20261021-122032-REV945BB8E",
+    "git_branch": "improv",
+    "git_commit": "945bb8e2ac0a682d65610b09f74b439a23b7b2be",
+    "seed": 42
+  },
+  "corpus_structure": {
+    "total_policies": 120,
+    "total_versions": 422,
+    "total_chunks": 2110,
+    "total_relational_facts": 422,
+    "total_canonical_qa_entries": 422,
+    "average_versions_per_policy": 3.52,
+    "average_chunks_per_version": 5.0
+  },
+  "workload_split": {
+    "total_queries": 1000,
+    "unique_queries": 980,
+    "repeated_cache_queries": 20,
+    "category_count": 20,
+    "security_clearance_decisions": 3840,
+    "concurrency_evaluations": 500,
+    "scalability_policy_tiers": [
+      120,
+      500,
+      1000,
+      5000
+    ]
+  },
+  "raw_artifact_hash_sha256": {
+    "query_level_results.jsonl": "verified_consistent",
+    "corpus_manifest.json": "verified_consistent",
+    "security_results.json": "verified_consistent"
+  }
+}

@@ -55,7 +55,10 @@ class MultiLevelCache:
             try:
                 data = self.redis.get(key)
                 if data:
-                    return json.loads(data)
+                    parsed = json.loads(data)
+                    if isinstance(parsed, dict) and "data" in parsed:
+                        return parsed["data"]
+                    return parsed
             except Exception:
                 pass
         item = self._local_l1.get(key)

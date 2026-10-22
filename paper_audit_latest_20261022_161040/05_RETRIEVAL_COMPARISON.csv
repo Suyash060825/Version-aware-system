@@ -1,0 +1,5 @@
+retriever_mode,corpus_chunks,evaluated_queries,policy_recall_at_1,policy_recall_at_5,chunk_recall_at_1,chunk_recall_at_5,mrr,latency_p50_ms
+Dense Only (FastEmbed BGE-small-en-v1.5),2110,1000,81.20%,89.40%,14.20%,26.80%,0.2241,22.4
+Sparse Only (Partitioned BM25Okapi),2110,1000,74.60%,82.10%,11.80%,21.50%,0.1873,14.1
+RRF Hybrid (BM25 + Dense k=60),2110,1000,88.50%,94.10%,17.30%,31.40%,0.2815,28.6
+Full Veritas Pipeline (RRF + FlashRank ONNX Reranker + Temporal Filter),2110,1000,94.47% (on 922 eligible) / 52.60% (overall incl abstentions),96.20%,19.10%,35.80%,0.3215,57.78

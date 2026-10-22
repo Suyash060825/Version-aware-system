@@ -1,0 +1,11 @@
+metric_id,metric_name,category,formula,numerator,denominator,observed_value,confidence_interval_95,subset,raw_source
+MET-001,Overall Answer Correctness Rate,Answer Quality,sum(is_correct) / N,536,1000,53.60%,"[50.50%, 56.67%]","Full 1,000 query benchmark",03_RAW_QUERY_RESULTS.jsonl
+MET-002,Mean Token F1,Answer Quality,"mean(token_f1(pred, gold))",354.178,1000,0.3542,N/A (Continuous distribution),"Full 1,000 query benchmark",03_RAW_QUERY_RESULTS.jsonl
+MET-003,Unauthorized Evidence Leakage Rate,Security & RBAC,leaked_unauthorized_chunks / total_authorization_evaluations,0,3840,0.00%,"[0.0000%, 0.0999%]","3,840 cross-clearance/role evaluations",evaluation/results/security_results.json
+MET-004,Authorization Decision Accuracy,Security & RBAC,correct_security_decisions / total_authorization_evaluations,3840,3840,100.00%,"[99.90%, 100.00%]","3,840 evaluations across 32 roles",evaluation/results/security_results.json
+MET-005,Incremental Compute Avoidance Ratio,Incremental Compiler,reused_unchanged_chunks / total_corpus_chunks,2850,3000,95.00%,"[94.16%, 95.73%]","5% sparse update on 3,000 chunks",evaluation/results/incremental_update_benchmark.json
+MET-006,Incremental Compilation Measured Speedup,Incremental Compiler,cold_rebuild_sec / incremental_update_sec,5.3988,0.2409,22.41x,N/A (Deterministic wall-clock ratio),"3,000 chunks with 150 changed chunks",evaluation/results/incremental_update_benchmark.json
+MET-007,Policy-Level Recall@1,Retrieval,relevant_policies_at_1 / total_queries,526,1000,52.60%,"[49.50%, 55.68%]","1,000 queries against 120-policy corpus",evaluation/results/retrieval_metrics.json
+MET-008,Chunk-Level Recall@1,Retrieval,relevant_chunks_at_1 / total_queries,191,1000,19.10%,"[16.78%, 21.65%]","1,000 queries against 2,110 chunks",evaluation/results/retrieval_metrics.json
+MET-009,Mean Reciprocal Rank (MRR),Retrieval,sum(1 / rank) / total_queries,321.5488,1000,0.3215,N/A,"1,000 queries against 2,110 chunks",evaluation/results/retrieval_metrics.json
+MET-010,End-to-End Query Latency P50,Latency,"percentile(latency_ms, 50)",N/A,1000,57.78 ms,N/A,"1,000 queries across fast path & hybrid retrieval",evaluation/results/answer_quality_metrics.json

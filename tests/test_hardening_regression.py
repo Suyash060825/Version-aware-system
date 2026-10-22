@@ -503,6 +503,9 @@ def test_production_config_secret_validation(monkeypatch):
 def test_version_comparison_pre_authorization_and_refusal(app):
     from rag.engine.query_engine import get_query_engine
 
+    engine = get_query_engine()
+    engine.cache.clear()
+
     u_emp = User(name="emp_cmp", email="emp_cmp@test.com", password_hash="h", role="employee", department_id=1)
     u_exec = User(name="exec_cmp", email="exec_cmp@test.com", password_hash="h", role="executive", department_id=3)
     db.session.add_all([u_emp, u_exec])

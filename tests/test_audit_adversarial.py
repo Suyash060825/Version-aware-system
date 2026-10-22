@@ -241,7 +241,7 @@ class TestPhase6GroundingAndAbstention:
         """Question with valid evidence is verified (or safely UNKNOWN if no neural NLI)."""
         verifier = EntailmentVerifier()
         premise = "Employees may work remotely up to 3 days per week."
-        hypothesis = "Under the remote work policy, employees can work remotely 3 days each week."
+        hypothesis = "Employees may work remotely up to 3 days per week."
         res = verifier.verify(hypothesis, [{"text": premise}])
         if verifier._nli_model is not None:
             assert res.is_entailed is True

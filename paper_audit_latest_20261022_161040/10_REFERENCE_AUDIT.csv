@@ -1,0 +1,26 @@
+key,title,authors,venue,year,doi_or_arxiv,verification_status
+lewis2020rag,Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks,P. Lewis et al.,Proc. NeurIPS,2020,10.5555/3495724.3496517 / arXiv:2005.11401,VERIFIED
+gao2024rag_survey,Retrieval-Augmented Generation for Large Language Models: A Survey,Y. Gao et al.,arXiv,2023,arXiv:2312.10997,VERIFIED
+karpukhin2020dpr,Dense Passage Retrieval for Open-Domain Question Answering,V. Karpukhin et al.,Proc. EMNLP,2020,10.18653/v1/2020.emnlp-main.550,VERIFIED
+xiao2024bge,C-Pack: Packed Resources for General Chinese Embeddings,S. Xiao et al.,Proc. SIGIR,2024,10.1145/3626772.3657876,VERIFIED
+robertson2009bm25,The Probabilistic Relevance Framework: BM25 and Beyond,S. Robertson and H. Zaragoza,Found. Trends Inf. Retr.,2009,10.1561/1500000019,VERIFIED
+cormack2009rrf,Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods,G. V. Cormack et al.,Proc. SIGIR,2009,10.1145/1571941.1572114,VERIFIED
+jiao2020tinybert,TinyBERT: Distilling BERT for Natural Language Understanding,X. Jiao et al.,Proc. EMNLP Findings,2020,10.18653/v1/2020.findings-emnlp.372,VERIFIED
+flashrank,FlashRank: Lite & Super-fast re-ranking for search pipelines,P. Damodaran,GitHub repository,2023,https://github.com/PrithivirajDamodaran/FlashRank,VERIFIED
+campos2014temporal,Survey of Temporal Information Retrieval and Related Applications,R. Campos et al.,ACM Comput. Surv.,2014,10.1145/2619088,VERIFIED
+dhingra2022time,Time-Aware Language Models as Temporal Knowledge Bases,B. Dhingra et al.,Trans. Assoc. Comput. Linguist.,2022,10.1162/tacl_a_00459,VERIFIED
+huwiler2025versionrag,VersionRAG: Version-Aware Retrieval-Augmented Generation for Evolving Documents,D. Huwiler et al.,arXiv,2025,arXiv:2510.08109,VERIFIED
+timelyrag2026,TimelyRAG: Semantic-Temporal Hybrid Retrieval for Time-Critical Question Answering,Y. Zhao et al.,arXiv,2026,arXiv:2609.13524,PREPRINT_CONFIRMED
+malkov2020hnsw,Efficient and Robust Approximate Nearest Neighbor Search Using HNSW Graphs,Y. A. Malkov and D. A. Yashunin,IEEE TPAMI,2020,10.1109/TPAMI.2018.2889473,VERIFIED
+johnson2021faiss,Billion-Scale Similarity Search with GPUs,J. Johnson et al.,IEEE Trans. Big Data,2021,10.1109/TBDATA.2019.2921572,VERIFIED
+guo2017calibration,On Calibration of Modern Neural Networks,C. Guo et al.,Proc. ICML,2017,arXiv:1706.04599,VERIFIED
+he2021deberta,DeBERTa: Decoding-Enhanced BERT with Disentangled Attention,P. He et al.,Proc. ICLR,2021,arXiv:2006.03654,VERIFIED
+asai2024selfrag,"Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection",A. Asai et al.,Proc. ICLR,2024,arXiv:2310.11511,VERIFIED
+es2024ragas,RAGAs: Automated Evaluation of Retrieval Augmented Generation,S. Es et al.,Proc. EACL Demos,2024,arXiv:2309.15217,VERIFIED
+saadfalcon2024ares,ARES: Automated Evaluation Framework for RAG Systems,J. Saad-Falcon et al.,Proc. NAACL-HLT,2024,arXiv:2311.09476,VERIFIED
+niu2024ragtruth,RAGTruth: A Hallucination Corpus for Developing Trustworthy RAG Models,C. Niu et al.,Proc. ACL,2024,arXiv:2401.04396,VERIFIED
+almasoud2026sdrag,SD-RAG: Prompt-Injection-Resilient Selective Disclosure in RAG,A. Al Masoud et al.,arXiv,2026,arXiv:2601.11199,PREPRINT_CONFIRMED
+thuillier2026access,Key-Parametrized Embeddings for Access Control in RAG,T. Thuillier et al.,Proc. IEEE COMPSAC,2026,10.1109/COMPSAC61514.2026.00392,VERIFIED
+saxena2026ppparitl,Privacy-provisioned-permission-aware RAG in cloud using IAM and trust,U. R. Saxena et al.,Sci. Rep.,2026,10.1038/s41598-026-71936-w,VERIFIED
+mu2026securerag,"Towards Secure Retrieval-Augmented Generation: Threats, Defenses and Benchmarks",Y. Mu et al.,arXiv,2026,arXiv:2603.21654,PREPRINT_CONFIRMED
+palanisamy2026security,"Security and Privacy in Retrieval-Augmented Generation: Architectures, Threats, and Defenses",B. Palanisamy et al.,arXiv,2026,arXiv:2606.25533,PREPRINT_CONFIRMED

@@ -1,0 +1,122 @@
+[
+  {
+    "metric_id": "MET-001",
+    "metric_name": "Overall Answer Correctness Rate",
+    "category": "Answer Quality",
+    "formula": "sum(is_correct) / N",
+    "numerator": 536,
+    "denominator": 1000,
+    "observed_value": "53.60%",
+    "confidence_interval_95": "[50.50%, 56.67%]",
+    "subset": "Full 1,000 query benchmark",
+    "raw_source": "03_RAW_QUERY_RESULTS.jsonl"
+  },
+  {
+    "metric_id": "MET-002",
+    "metric_name": "Mean Token F1",
+    "category": "Answer Quality",
+    "formula": "mean(token_f1(pred, gold))",
+    "numerator": 354.178,
+    "denominator": 1000,
+    "observed_value": "0.3542",
+    "confidence_interval_95": "N/A (Continuous distribution)",
+    "subset": "Full 1,000 query benchmark",
+    "raw_source": "03_RAW_QUERY_RESULTS.jsonl"
+  },
+  {
+    "metric_id": "MET-003",
+    "metric_name": "Unauthorized Evidence Leakage Rate",
+    "category": "Security & RBAC",
+    "formula": "leaked_unauthorized_chunks / total_authorization_evaluations",
+    "numerator": 0,
+    "denominator": 3840,
+    "observed_value": "0.00%",
+    "confidence_interval_95": "[0.0000%, 0.0999%]",
+    "subset": "3,840 cross-clearance/role evaluations",
+    "raw_source": "evaluation/results/security_results.json"
+  },
+  {
+    "metric_id": "MET-004",
+    "metric_name": "Authorization Decision Accuracy",
+    "category": "Security & RBAC",
+    "formula": "correct_security_decisions / total_authorization_evaluations",
+    "numerator": 3840,
+    "denominator": 3840,
+    "observed_value": "100.00%",
+    "confidence_interval_95": "[99.90%, 100.00%]",
+    "subset": "3,840 evaluations across 32 roles",
+    "raw_source": "evaluation/results/security_results.json"
+  },
+  {
+    "metric_id": "MET-005",
+    "metric_name": "Incremental Compute Avoidance Ratio",
+    "category": "Incremental Compiler",
+    "formula": "reused_unchanged_chunks / total_corpus_chunks",
+    "numerator": 2850,
+    "denominator": 3000,
+    "observed_value": "95.00%",
+    "confidence_interval_95": "[94.16%, 95.73%]",
+    "subset": "5% sparse update on 3,000 chunks",
+    "raw_source": "evaluation/results/incremental_update_benchmark.json"
+  },
+  {
+    "metric_id": "MET-006",
+    "metric_name": "Incremental Compilation Measured Speedup",
+    "category": "Incremental Compiler",
+    "formula": "cold_rebuild_sec / incremental_update_sec",
+    "numerator": 5.3988,
+    "denominator": 0.2409,
+    "observed_value": "22.41x",
+    "confidence_interval_95": "N/A (Deterministic wall-clock ratio)",
+    "subset": "3,000 chunks with 150 changed chunks",
+    "raw_source": "evaluation/results/incremental_update_benchmark.json"
+  },
+  {
+    "metric_id": "MET-007",
+    "metric_name": "Policy-Level Recall@1",
+    "category": "Retrieval",
+    "formula": "relevant_policies_at_1 / total_queries",
+    "numerator": 526,
+    "denominator": 1000,
+    "observed_value": "52.60%",
+    "confidence_interval_95": "[49.50%, 55.68%]",
+    "subset": "1,000 queries against 120-policy corpus",
+    "raw_source": "evaluation/results/retrieval_metrics.json"
+  },
+  {
+    "metric_id": "MET-008",
+    "metric_name": "Chunk-Level Recall@1",
+    "category": "Retrieval",
+    "formula": "relevant_chunks_at_1 / total_queries",
+    "numerator": 191,
+    "denominator": 1000,
+    "observed_value": "19.10%",
+    "confidence_interval_95": "[16.78%, 21.65%]",
+    "subset": "1,000 queries against 2,110 chunks",
+    "raw_source": "evaluation/results/retrieval_metrics.json"
+  },
+  {
+    "metric_id": "MET-009",
+    "metric_name": "Mean Reciprocal Rank (MRR)",
+    "category": "Retrieval",
+    "formula": "sum(1 / rank) / total_queries",
+    "numerator": 321.5488,
+    "denominator": 1000,
+    "observed_value": "0.3215",
+    "confidence_interval_95": "N/A",
+    "subset": "1,000 queries against 2,110 chunks",
+    "raw_source": "evaluation/results/retrieval_metrics.json"
+  },
+  {
+    "metric_id": "MET-010",
+    "metric_name": "End-to-End Query Latency P50",
+    "category": "Latency",
+    "formula": "percentile(latency_ms, 50)",
+    "numerator": "N/A",
+    "denominator": 1000,
+    "observed_value": "57.78 ms",
+    "confidence_interval_95": "N/A",
+    "subset": "1,000 queries across fast path & hybrid retrieval",
+    "raw_source": "evaluation/results/answer_quality_metrics.json"
+  }
+]
