@@ -1,0 +1,13 @@
+{
+  "run_id": "veritas_fullstack_20261023_171900_8337271",
+  "timestamp": "2026-10-23T17:21:29.883099+00:00",
+  "platform": "Linux-7.1.8-100.fc43.x86_64-x86_64-with-glibc2.41",
+  "processor": "",
+  "cpu_count_logical": 12,
+  "python_version": "3.11.17",
+  "local_llm_model": "qwen3:4b-q4_K_M",
+  "llm_digest": "2bfd38a7daaf4b1037efe517ccb73d1a3bbd4822cf89f1a82be1569050a114e0",
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "reranker_model": "ms-marco-TinyBERT-L-2-v2",
+  "ollama_base_url": "http://ollama:11434"
+}

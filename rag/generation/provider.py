@@ -127,6 +127,7 @@ class OllamaProvider(LocalLLMProvider):
                 "model": self.model,
                 "prompt": prompt,
                 "stream": False,
+                "think": False,
                 "options": self._ollama_options()
             }
             if system_prompt:
@@ -138,6 +139,8 @@ class OllamaProvider(LocalLLMProvider):
             self._is_healthy = True
             self._last_health_time = time.time()
             raw_res = data.get("response", "")
+            if not raw_res and "thinking" in data:
+                raw_res = data.get("thinking", "")
             cleaned = re.sub(r"<think>.*?</think>", "", raw_res, flags=re.DOTALL).strip()
             return cleaned
         except Exception as e:

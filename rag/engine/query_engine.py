@@ -53,7 +53,7 @@ def _is_valid_diff_query(query: str) -> bool:
         return True
     return False
 _HAS_TEMPORAL_CUE_RE = re.compile(
-    r"\b(?:in\s+20\d\d|as\s+of|before\s+|after\s+|between\s+|since\s+|until\s+|during\s+|historical|previous|prior|old\s+version|v\d+)\b",
+    r"\b(?:in\s+20\d\d|back\s+in\s+20\d\d|as\s+of|before\s+|after\s+|between\s+|since\s+|until\s+|during\s+|historical|previous|prior|old\s+version|v\d+|version\s+\d+)\b",
     re.I
 )
 _NUM_RE = re.compile(r"\b\d+(?:\.\d+)?%?\b")
@@ -91,7 +91,7 @@ def verify_numeric_grounding(answer: str, chunks_or_ctx_nums: Any) -> bool:
         if num in ctx_nums:
             continue
         num_clean = num.rstrip('%')
-        if _YEAR_RE.match(num_clean) or (num_clean.isdigit() and int(num_clean) in range(1, 10)):
+        if _YEAR_RE.match(num_clean) or (num_clean.isdigit() and int(num_clean) in range(0, 10)):
             continue
         if num.endswith("%") and num[:-1] in ctx_nums:
             continue
@@ -265,6 +265,10 @@ class QueryEngine:
                 target_ts = int(datetime.combine(scope.target_date, dt_time.min).timestamp())
                 filters["valid_from_ts"] = {"$lte": target_ts}
                 filters["valid_to_ts"] = {"$gte": target_ts}
+            elif scope.requested_version:
+                # Version-specific filter: pin to exact requested version label or number
+                ver_clean = str(scope.requested_version).lower().lstrip("v")
+                filters["version_num"] = float(ver_clean) if ver_clean.replace(".", "", 1).isdigit() else scope.requested_version
             elif not has_temporal_cue and not is_diff:
                 filters["is_active"] = True
 
@@ -598,7 +602,10 @@ class QueryEngine:
 
         ranked, score_type, conf, citations = retrieval_pack
 
-        if self.config.use_confidence_gate and conf.abstain:
+        is_synthesis_query = getattr(self.config, "use_llm", True) and (
+            "summary" in normalized_query.lower() or "explain" in normalized_query.lower() or "compare" in normalized_query.lower()
+        )
+        if self.config.use_confidence_gate and conf.abstain and not is_synthesis_query:
             return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000)
 
         # 9. Answer Generation: Grounded Evidence Extraction vs Local LLM

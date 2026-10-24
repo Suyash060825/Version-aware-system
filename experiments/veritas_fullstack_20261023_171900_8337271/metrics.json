@@ -1,0 +1,35 @@
+{
+  "run_id": "veritas_fullstack_20261023_171900_8337271",
+  "total_queries": 3000,
+  "overall_accuracy_pct": 58.27,
+  "accuracy_95_ci": [
+    56.49,
+    60.02
+  ],
+  "mean_token_f1": 0.5015,
+  "expected_calibration_error": 0.6527,
+  "total_llm_eligible": 40,
+  "total_llm_invoked": 38,
+  "llm_invocation_rate_eligible_pct": 95.0,
+  "total_security_evaluations": 3840,
+  "security_violations": 0,
+  "security_leak_rate_pct": 0.0,
+  "security_leak_95_ci_upper": 0.0999,
+  "latency_percentiles_ms": {
+    "p50": 36.68,
+    "p90": 46.72,
+    "p95": 55.75,
+    "p99": 21065.27,
+    "mean": 324.92
+  },
+  "retrieval_metrics": {
+    "total_queries": 3000,
+    "policy_recall_at_1": 0.5793333333333334,
+    "policy_recall_at_5": 0.5793333333333334,
+    "policy_recall_at_10": 0.5793333333333334,
+    "chunk_recall_at_1": 0.085,
+    "chunk_recall_at_5": 0.085,
+    "chunk_recall_at_10": 0.085,
+    "mrr": 0.20581113801452786
+  }
+}

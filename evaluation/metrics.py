@@ -52,14 +52,30 @@ def compute_token_f1(prediction: str, reference: str) -> float:
     return 2 * (precision * recall) / (precision + recall)
 
 
-def compute_expected_calibration_error(confidences: List[float], correctness: List[bool], num_bins: int = 10) -> Dict[str, Any]:
-    """Calculates ECE with uniform binning [0, 0.1, ..., 1.0]."""
+def compute_expected_calibration_error(
+    confidences: List[float],
+    correctness: List[bool],
+    num_bins: int = 10,
+    mask: Optional[List[bool]] = None
+) -> Dict[str, Any]:
+    """
+    Calculates ECE with uniform binning [0, 0.1, ..., 1.0].
+    If mask is provided, calculates calibration only on elements where mask is True (e.g. non-abstained / answered items).
+    """
     if not confidences or len(confidences) != len(correctness):
         return {"ece": 0.0, "bins": []}
 
     conf_arr = np.array(confidences)
     corr_arr = np.array(correctness, dtype=float)
+
+    if mask is not None:
+        mask_arr = np.array(mask, dtype=bool)
+        conf_arr = conf_arr[mask_arr]
+        corr_arr = corr_arr[mask_arr]
+
     total_n = len(conf_arr)
+    if total_n == 0:
+        return {"ece": 0.0, "num_bins": num_bins, "total_samples": 0, "bins": []}
 
     bin_boundaries = np.linspace(0, 1, num_bins + 1)
     ece = 0.0

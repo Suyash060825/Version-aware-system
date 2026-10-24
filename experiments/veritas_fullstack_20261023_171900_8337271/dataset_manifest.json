@@ -1,0 +1,9 @@
+{
+  "seed": 42,
+  "policy_count": 300,
+  "version_count": 1169,
+  "chunk_count": 5845,
+  "fact_count": 1169,
+  "canonical_qa_count": 1169,
+  "validation_passed": true
+}

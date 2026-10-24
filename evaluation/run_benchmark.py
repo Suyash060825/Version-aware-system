@@ -448,7 +448,9 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
                 "abstained": abstained,
                 "expected_abstention": q.expected_abstention,
                 "citation_count": len(citations),
-                "latency_ms": round(elapsed_ms, 2)
+                "latency_ms": round(elapsed_ms, 2),
+                "retrieved_chunk_ids": [c["chunk_id"] for c in citations if isinstance(c, dict) and c.get("chunk_id")],
+                "retrieved_policy_ids": [c["policy_id"] for c in citations if isinstance(c, dict) and c.get("policy_id")]
             }
             query_level_records.append(rec)
 
@@ -468,13 +470,34 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
     total_q = len(queries)
     overall_acc = sum(correctness_list) / total_q if total_q > 0 else 0.0
     mean_f1 = float(np.mean(token_f1s)) if token_f1s else 0.0
-    ece_data = compute_expected_calibration_error(confidences, correctness_list)
+
+    # Answerable vs expected abstention breakdown
+    answerable_indices = [i for i, q in enumerate(queries) if not q.expected_abstention]
+    answerable_correct = sum(1 for i in answerable_indices if correctness_list[i])
+    answerable_total = len(answerable_indices)
+    answerable_acc = (answerable_correct / answerable_total * 100.0) if answerable_total > 0 else 0.0
+
+    attempted_indices = [i for i, r in enumerate(query_level_records) if not r["abstained"]]
+    attempted_correct = sum(1 for i in attempted_indices if correctness_list[i])
+    attempted_total = len(attempted_indices)
+    attempted_acc = (attempted_correct / attempted_total * 100.0) if attempted_total > 0 else 0.0
+
+    # Calibration on all queries vs answered queries only (isolates abstention artifact)
+    ece_all = compute_expected_calibration_error(confidences, correctness_list)
+    answered_mask = [not r["abstained"] for r in query_level_records]
+    ece_answered = compute_expected_calibration_error(confidences, correctness_list, mask=answered_mask)
 
     answer_quality = {
         "total_queries_evaluated": total_q,
         "overall_answer_accuracy_pct": round(overall_acc * 100.0, 2),
+        "answerable_queries_evaluated": answerable_total,
+        "answerable_accuracy_pct": round(answerable_acc, 2),
+        "attempted_queries_count": attempted_total,
+        "attempted_accuracy_pct": round(attempted_acc, 2),
         "mean_token_f1": round(mean_f1, 4),
-        "expected_calibration_error": round(ece_data["ece"], 4),
+        "expected_calibration_error_overall": round(ece_all["ece"], 4),
+        "expected_calibration_error_answered_only": round(ece_answered["ece"], 4),
+        "expected_calibration_error": round(ece_answered["ece"], 4),
         "latency_percentiles_ms": {
             "p50": round(float(np.percentile(latencies, 50)), 2),
             "p90": round(float(np.percentile(latencies, 90)), 2),
@@ -496,14 +519,14 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
     with open(os.path.join(RESULTS_DIR, "answer_quality_metrics.json"), "w") as f:
         json.dump(answer_quality, f, indent=2)
 
-    # Export retrieval metrics
+    # Export genuine retrieval metrics using actual citations/retrieved candidates
     retrieval_records = [
         {
             "query_id": q.query_id,
             "expected_policy_id": q.intended_policy_id,
             "expected_chunk_ids": q.expected_evidence_chunks,
-            "retrieved_policy_ids": [q.intended_policy_id] if r["answer_correctness"] and q.intended_policy_id else [],
-            "retrieved_chunk_ids": q.expected_evidence_chunks if r["answer_correctness"] else []
+            "retrieved_policy_ids": r.get("retrieved_policy_ids", []),
+            "retrieved_chunk_ids": r.get("retrieved_chunk_ids", [])
         }
         for q, r in zip(queries, query_level_records)
     ]
@@ -512,9 +535,9 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
         json.dump(ret_metrics, f, indent=2)
 
     print(f"\nBenchmark Quality Summary:")
-    print(f"  - Overall Accuracy: {answer_quality['overall_answer_accuracy_pct']}%")
+    print(f"  - Overall Accuracy: {answer_quality['overall_answer_accuracy_pct']}% (Answerable: {answer_quality['answerable_accuracy_pct']}%)")
     print(f"  - Mean Token F1: {answer_quality['mean_token_f1']}")
-    print(f"  - Expected Calibration Error (ECE): {answer_quality['expected_calibration_error']}")
+    print(f"  - ECE (Answered Only): {answer_quality['expected_calibration_error_answered_only']} | ECE (Overall): {answer_quality['expected_calibration_error_overall']}")
     print(f"  - Latency: P50={answer_quality['latency_percentiles_ms']['p50']} ms, P95={answer_quality['latency_percentiles_ms']['p95']} ms")
 
 

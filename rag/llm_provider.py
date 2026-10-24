@@ -144,6 +144,7 @@ class OllamaProvider(LLMProvider):
             "model": self.model,
             "messages": messages,
             "stream": False,
+            "think": False,
             "options": options
         }
 
