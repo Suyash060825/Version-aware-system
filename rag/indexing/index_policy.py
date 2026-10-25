@@ -63,15 +63,15 @@ def delete_policy_from_index(policy_id: int):
 
     # 3. BM25 Sparse Index
     try:
-        from rag.retrieval.sparse import PersistentBM25Index
-        PersistentBM25Index().delete_policy(policy_id)
+        from rag.retrieval.sparse import get_bm25_index
+        get_bm25_index().delete_policy(policy_id)
     except Exception as e:
         logger.error(f"Failed deleting policy {policy_id} from BM25 index: {e}")
 
     # 4. Canonical QA Index
     try:
-        from rag.qa.qa_index import CanonicalQAIndex
-        CanonicalQAIndex().delete_policy(policy_id)
+        from rag.qa.qa_index import get_qa_index
+        get_qa_index().delete_policy(policy_id)
     except Exception as e:
         logger.error(f"Failed deleting policy {policy_id} from QA index: {e}")
 

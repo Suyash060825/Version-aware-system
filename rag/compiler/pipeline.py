@@ -115,6 +115,7 @@ class KnowledgeCompilerPipeline:
             ).order_by(PolicyVersion.version_num.desc()).first()
             if prev_version:
                 self._incremental_diff = self.incremental_compiler.diff_versions(self._chunks, prev_version.id)
+                self._prev_version_id = prev_version.id
                 logger.info(
                     f"Incremental diff for policy {job.policy_id} v{job.version_id} vs v{prev_version.id}: "
                     f"{len(self._incremental_diff.unchanged_chunks)} unchanged, "
@@ -202,6 +203,7 @@ class KnowledgeCompilerPipeline:
 
     def _stage_embed(self, job: CompilationJob):
         from rag.embeddings.embedder import get_embedder
+        from rag.vectordb.chroma import get_store
         embedder = get_embedder()
         policy_title = getattr(self._document_ir, "title", "Policy")
         version_label = getattr(self._document_ir, "version_label", "1.0")
@@ -212,7 +214,49 @@ class KnowledgeCompilerPipeline:
             f"[Policy: {policy_title} (v{version_label}) | Department: {dept_name} | Section: {c.section_path or 'General'}]\n{c.text}"
             for c in self._chunks
         ]
-        self._embeddings = embedder.embed(texts)
+
+        cached_embeddings = {}
+        old_by_hash = {}
+        if getattr(self, "_incremental_diff", None) and getattr(self, "_prev_version_id", None):
+            try:
+                old_chunks = PolicyChunkV2.query.filter_by(version_id=self._prev_version_id).all()
+                old_by_hash = {c.text_hash: c.chunk_id for c in old_chunks}
+                unchanged_old_ids = [
+                    old_by_hash[c.text_hash] for c in self._incremental_diff.unchanged_chunks
+                    if c.text_hash in old_by_hash
+                ]
+                if unchanged_old_ids:
+                    store = get_store()
+                    col_res = store._col.get(ids=unchanged_old_ids, include=["embeddings"])
+                    if col_res and col_res.get("ids") and col_res.get("embeddings") is not None:
+                        for cid, emb in zip(col_res["ids"], col_res["embeddings"]):
+                            if emb is not None:
+                                cached_embeddings[cid] = emb
+            except Exception as e:
+                logger.warning(f"Incremental embedding lookup failed (falling back to embedding all chunks): {e}")
+
+        to_embed_indices = []
+        to_embed_texts = []
+        final_embeddings = [None] * len(self._chunks)
+
+        for idx, (c, t) in enumerate(zip(self._chunks, texts)):
+            matched_cid = old_by_hash.get(c.text_hash) if (cached_embeddings and hasattr(c, "text_hash")) else None
+            if matched_cid and matched_cid in cached_embeddings:
+                final_embeddings[idx] = cached_embeddings[matched_cid]
+            else:
+                to_embed_indices.append(idx)
+                to_embed_texts.append(t)
+
+        if to_embed_texts:
+            new_embs = embedder.embed(to_embed_texts)
+            for idx, emb in zip(to_embed_indices, new_embs):
+                final_embeddings[idx] = emb
+
+        logger.info(
+            f"Stage embed: {len(self._chunks) - len(to_embed_texts)} reused from cache, "
+            f"{len(to_embed_texts)} newly embedded."
+        )
+        self._embeddings = final_embeddings
         job.embedding_model = getattr(embedder, "model_name", "unknown")
 
     def _stage_index(self, job: CompilationJob):
@@ -259,11 +303,11 @@ class KnowledgeCompilerPipeline:
         store.upsert_chunks(chunk_dicts, self._embeddings)
         
         # Incremental Delta Updates for BM25 and Canonical QA indexes
-        from rag.retrieval.sparse import PersistentBM25Index
-        PersistentBM25Index().update_policy_version(job.policy_id, job.version_id, chunk_dicts)
+        from rag.retrieval.sparse import get_bm25_index
+        get_bm25_index().update_policy_version(job.policy_id, job.version_id, chunk_dicts)
 
-        from rag.qa.qa_index import CanonicalQAIndex
-        qa_index = CanonicalQAIndex()
+        from rag.qa.qa_index import get_qa_index
+        qa_index = get_qa_index()
         # Find newly created valid QA pairs for this version
         valid_qs = CanonicalQuestion.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).all()
         if valid_qs:

@@ -11,6 +11,7 @@ from models import (db, ChatSession, ChatMessage, SearchHistory, Feedback, Index
                     PolicyChunk, PolicyChunkV2, CompilationJob, Policy, PolicyVersion)
 from extensions import limiter
 from utils import rate_limit_key_user_or_ip
+from config import Config
 from rag.engine.query_engine import get_query_engine
 from rag.guardrails import check_input_guardrails, apply_output_guardrails
 
@@ -97,9 +98,10 @@ def api_chat_stream():
                             })
 
                         is_cache_hit = final_result_data.get("route") in ("CACHE_HIT", "L1_CACHE", "L2_CACHE") or bool(final_result_data.get("cache_hit"))
+                        fallback_model = getattr(Config, "LOCAL_LLM_MODEL", "qwen3")
                         message_id = _save_message(
                             session_id, query, sanitized_answer, formatted_citations,
-                            len(formatted_citations), model_name=final_result_data.get("model", "qwen3"),
+                            len(formatted_citations), model_name=final_result_data.get("model") or fallback_model,
                             cache_hit=is_cache_hit
                         )
 
@@ -114,7 +116,7 @@ def api_chat_stream():
                             "citations": formatted_citations,
                             "confidence": float(final_result_data.get("confidence", 1.0)),
                             "route": final_result_data.get("route", "HYBRID_RAG"),
-                            "model": final_result_data.get("model", "qwen3"),
+                            "model": final_result_data.get("model") or fallback_model,
                             "llm_used": final_result_data.get("llm_used", False),
                             "latency_ms": final_result_data.get("latency_ms", 0),
                             "session_id": session_id,
@@ -197,9 +199,10 @@ def api_chat():
             })
 
         is_cache_hit = result.route in ("CACHE_HIT", "L1_CACHE", "L2_CACHE")
+        fallback_model = getattr(Config, "LOCAL_LLM_MODEL", "qwen3")
         message_id = _save_message(
             session_id, query, sanitized_answer, citations,
-            result.retrieval_count, model_name=result.model or "qwen3",
+            result.retrieval_count, model_name=result.model or fallback_model,
             cache_hit=is_cache_hit
         )
         
@@ -214,7 +217,7 @@ def api_chat():
             "chunks_used": result.retrieval_count,
             "session_id": session_id,
             "fallback": result.abstained,
-            "model": result.model or "qwen3",
+            "model": result.model or fallback_model,
             "message_id": message_id,
             "confidence": float(result.confidence),
             "cache_hit": is_cache_hit,

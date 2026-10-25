@@ -182,6 +182,7 @@ class CanonicalQAIndex:
                     "answer_confidence": getattr(a, "confidence", None),
                     "policy_name": getattr(pol, "title", "Policy") if pol else "Policy",
                     "version_number": getattr(ver, "version_number", "1.0") if ver else "1.0",
+                "version_num": str(getattr(ver, "version_num", getattr(ver, "version_number", "1.0"))) if ver else "1.0",
                     "is_active": getattr(ver, "is_active", True) if ver else True,
                     "section": chunk.section_path if chunk and chunk.section_path else "General",
                     "chunk_id": chunk.chunk_id if chunk else getattr(q, "source_chunk_id", None),
@@ -227,6 +228,7 @@ class CanonicalQAIndex:
                 "answer_confidence": getattr(a, "confidence", None),
                 "policy_name": getattr(pol, "title", "Policy") if pol else "Policy",
                 "version_number": getattr(ver, "version_number", "1.0") if ver else "1.0",
+                "version_num": str(getattr(ver, "version_num", getattr(ver, "version_number", "1.0"))) if ver else "1.0",
                 "is_active": getattr(ver, "is_active", True) if ver else True,
                 "section": getattr(a, "section", "General") if hasattr(a, "section") else "General",
                 "chunk_id": getattr(q, "source_chunk_id", None),
@@ -408,3 +410,13 @@ class CanonicalQAIndex:
             "backend": "FAISS-HNSW-SegmentOverlay",
             "embedding_model": self._embedding_model
         }
+
+
+_QA_INDEX: Optional[CanonicalQAIndex] = None
+
+def get_qa_index(dimension: Optional[int] = None) -> CanonicalQAIndex:
+    global _QA_INDEX
+    if _QA_INDEX is None:
+        _QA_INDEX = CanonicalQAIndex(dimension=dimension)
+    return _QA_INDEX
+

@@ -3,6 +3,7 @@ rag/versions/diff_engine.py
 Deterministic structured diff engine comparing policy facts and text clauses across versions.
 """
 import difflib
+import hashlib
 from collections import OrderedDict
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
@@ -71,7 +72,12 @@ class PolicyDiffEngine:
 
     def compute_diff(self, text_a: str, text_b: str, version_a_id: Optional[int] = None, version_b_id: Optional[int] = None) -> Dict[str, Any]:
         """Compute structured diff comparing facts and clauses between two versions."""
-        cache_key = (version_a_id, version_b_id) if (version_a_id is not None and version_b_id is not None) else (hash(text_a), hash(text_b))
+        if version_a_id is not None and version_b_id is not None:
+            cache_key = (version_a_id, version_b_id)
+        else:
+            h_a = hashlib.sha256(text_a.encode("utf-8")).hexdigest()[:16]
+            h_b = hashlib.sha256(text_b.encode("utf-8")).hexdigest()[:16]
+            cache_key = (h_a, h_b)
         if cache_key in _DIFF_CACHE:
             cached = _DIFF_CACHE[cache_key]
             _DIFF_CACHE.move_to_end(cache_key)

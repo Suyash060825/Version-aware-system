@@ -5,6 +5,7 @@ Qwen local provider connecting to Ollama with structured JSON response extractio
 import json
 import logging
 from typing import Optional, Dict, Any
+from config import Config
 from rag.generation.provider import OllamaProvider
 from rag.generation.prompts import SYSTEM_POLICY_GROUNDING_PROMPT, build_grounded_qa_prompt
 
@@ -18,6 +19,18 @@ class QwenLocalProvider(OllamaProvider):
         except Exception:
             return None
 
+    @property
+    def model(self) -> str:
+        if not super().health_check():
+            core = self._get_core_provider()
+            if core and core.health_check():
+                return getattr(core, "model", getattr(self, "_model", "qwen3"))
+        return getattr(self, "_model", Config.LOCAL_LLM_MODEL)
+
+    @model.setter
+    def model(self, val):
+        self._model = val
+
     def health_check(self) -> bool:
         if super().health_check():
             return True
@@ -28,9 +41,11 @@ class QwenLocalProvider(OllamaProvider):
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: float = 15.0) -> Optional[str]:
         if super().health_check():
-            res = super().generate(prompt, system_prompt, num_predict=num_predict, timeout=timeout)
+            res = super().generate(prompt, system=system_prompt, max_tokens=num_predict, timeout=timeout)
             if res:
-                return res
+                if hasattr(res, "text"):
+                    return res.text if not (getattr(res, "fallback", False) or getattr(res, "error", None)) else None
+                return str(res)
         core = self._get_core_provider()
         if core and core.health_check():
             try:
@@ -44,7 +59,7 @@ class QwenLocalProvider(OllamaProvider):
     def stream(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: float = 15.0):
         if super().health_check():
             has_tokens = False
-            for tok in super().stream(prompt, system_prompt, num_predict=num_predict, timeout=timeout):
+            for tok in super().stream(prompt, system=system_prompt, max_tokens=num_predict, timeout=timeout):
                 has_tokens = True
                 yield tok
             if has_tokens:

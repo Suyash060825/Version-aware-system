@@ -3,22 +3,21 @@ rag/retrieval/hybrid.py
 Hybrid Dense + BM25 retrieval with calibrated Reciprocal Rank Fusion (RRF).
 """
 from typing import List, Dict, Any
+from concurrent.futures import ThreadPoolExecutor
 from rag.retrieval.dense import DenseRetriever
-from rag.retrieval.sparse import PersistentBM25Index
+from rag.retrieval.sparse import PersistentBM25Index, get_bm25_index
 
 class HybridRetriever:
     def __init__(self):
         self.dense = DenseRetriever()
-        self.sparse = PersistentBM25Index()
+        self.sparse = get_bm25_index()
+        self._executor = ThreadPoolExecutor(max_workers=2)
 
     def search(self, query: str, filters: dict = None, top_k: int = 25, query_embedding: List[float] = None) -> List[Dict[str, Any]]:
-        from concurrent.futures import ThreadPoolExecutor
-
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            fut_dense = executor.submit(self.dense.search, query, filters, top_k=top_k, query_embedding=query_embedding)
-            fut_sparse = executor.submit(self.sparse.get_scores, query, filters)
-            dense_results = fut_dense.result()
-            sparse_results = fut_sparse.result()
+        fut_dense = self._executor.submit(self.dense.search, query, filters, top_k=top_k, query_embedding=query_embedding)
+        fut_sparse = self._executor.submit(self.sparse.get_scores, query, filters)
+        dense_results = fut_dense.result()
+        sparse_results = fut_sparse.result()
         
         # Adaptive RRF Fusion parameterization:
         # For concise keyword-heavy queries (<4 words), weight BM25 exact matches higher (K=30)

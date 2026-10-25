@@ -88,30 +88,94 @@ class EntailmentVerifier:
         nli = self._get_nli_model()
 
         if nli:
-            pairs = [(context, claim) for claim in claims]
-            try:
-                scores = nli.predict(pairs, batch_size=32)
-                import numpy as np
-                def softmax(x):
-                    e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
-                    return e_x / e_x.sum(axis=-1, keepdims=True)
+            negations = {'not', 'no', 'never', 'neither', 'none', 'cannot', "can't", "won't", "don't", 'prohibited', 'forbidden', 'disallowed', 'excluded'}
+            claim_scores = [None] * len(claims)
+            pairs_to_predict = []
 
-                probs = softmax(scores) if len(scores.shape) > 1 else softmax(np.array([scores]))[0]
-                label2id = {k.lower(): v for k, v in nli.config.label2id.items()}
-                entailment_idx = label2id.get('entailment', 1)
-                contradiction_idx = label2id.get('contradiction', 0)
+            for i, claim in enumerate(claims):
+                claim_tokens = set(re.findall(r"[a-z0-9]+", claim.lower()))
+                best_chunk_text = ""
+                best_overlap = -1
+                for c in chunks:
+                    c_text = c.get("text", "")
+                    c_tokens = set(re.findall(r"[a-z0-9]+", c_text.lower()))
+                    overlap = len(claim_tokens & c_tokens)
+                    if overlap > best_overlap:
+                        best_overlap = overlap
+                        best_chunk_text = c_text
+                if not best_chunk_text and chunks:
+                    best_chunk_text = chunks[0].get("text", "")
 
-                if len(probs.shape) > 1:
-                    entailment_scores = probs[:, entailment_idx]
-                    contra_scores = probs[:, contradiction_idx]
-                else:
-                    entailment_scores = np.array([probs[entailment_idx]])
-                    contra_scores = np.array([probs[contradiction_idx]])
+                # 1. Verbatim exact match / substring check:
+                # If claim text is directly in evidence, it is 100% entailed without CPU model forward pass
+                c_clean = claim.lower().strip()
+                chunk_clean = best_chunk_text.lower()
+                if c_clean in chunk_clean or (len(c_clean) > 25 and (c_clean[:35] in chunk_clean and c_clean[-20:] in chunk_clean)):
+                    claim_scores[i] = (1.0, 0.0)
+                    continue
 
-                avg_entail = float(entailment_scores.mean())
-                avg_contra = float(contra_scores.mean())
+                # 2. High-fidelity lexical grounding check (>=85% token overlap, exact numbers, matching negations)
+                if claim_tokens:
+                    chunk_tokens = set(re.findall(r"[a-z0-9]+", chunk_clean))
+                    tok_overlap = len(claim_tokens & chunk_tokens) / len(claim_tokens)
+                    claim_nums = set(re.findall(r"\b\d+(?:\.\d+)?%?\b", claim))
+                    chunk_nums = set(re.findall(r"\b\d+(?:\.\d+)?%?\b", best_chunk_text))
+                    unsupported_nums = claim_nums - chunk_nums
+                    claim_has_neg = bool(claim_tokens & negations)
+                    chunk_has_neg = bool(chunk_tokens & negations)
+                    if tok_overlap >= 0.85 and not unsupported_nums and (claim_has_neg == chunk_has_neg):
+                        claim_scores[i] = (0.95, 0.0)
+                        continue
 
-                # FIX 4: Only reject if contradiction > 0.65; do not reject for low entailment alone
+                # Focus chunk context to reduce DeBERTa sequence length from 512 to compact window (reduces O(L^2) attention)
+                compact_ctx = best_chunk_text
+                if len(compact_ctx) > 300 and claim_tokens:
+                    words = best_chunk_text.split()
+                    best_w_idx = 0
+                    max_w_overlap = -1
+                    for w_idx in range(0, max(1, len(words) - 20), 10):
+                        window = " ".join(words[w_idx:w_idx+40])
+                        w_overlap = len(claim_tokens & set(re.findall(r"[a-z0-9]+", window.lower())))
+                        if w_overlap > max_w_overlap:
+                            max_w_overlap = w_overlap
+                            best_w_idx = w_idx
+                    compact_ctx = " ".join(words[best_w_idx:best_w_idx+40])
+
+                pairs_to_predict.append((i, compact_ctx, claim))
+
+            if pairs_to_predict:
+                try:
+                    pairs = [(p[1], p[2]) for p in pairs_to_predict]
+                    scores = nli.predict(pairs, batch_size=min(len(pairs), 8))
+                    import numpy as np
+                    def softmax(x):
+                        e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+                        return e_x / e_x.sum(axis=-1, keepdims=True)
+
+                    probs = softmax(scores) if len(scores.shape) > 1 else softmax(np.array([scores]))[0]
+                    label2id = {k.lower(): v for k, v in nli.config.label2id.items()}
+                    entailment_idx = label2id.get('entailment', 1)
+                    contradiction_idx = label2id.get('contradiction', 0)
+
+                    if len(probs.shape) > 1:
+                        e_scores = probs[:, entailment_idx]
+                        c_scores = probs[:, contradiction_idx]
+                    else:
+                        e_scores = np.array([probs[entailment_idx]])
+                        c_scores = np.array([probs[contradiction_idx]])
+
+                    for (idx, _, _), es, cs in zip(pairs_to_predict, e_scores, c_scores):
+                        claim_scores[idx] = (float(es), float(cs))
+                except Exception as e:
+                    logger.error(f"Error in NLI predict: {e}")
+
+            # Combine predictions
+            entail_vals = [cs[0] for cs in claim_scores if cs is not None]
+            contra_vals = [cs[1] for cs in claim_scores if cs is not None]
+            if len(entail_vals) == len(claims):
+                avg_entail = float(sum(entail_vals) / max(len(entail_vals), 1))
+                avg_contra = float(sum(contra_vals) / max(len(contra_vals), 1))
+
                 if avg_contra > 0.65:
                     verdict = "CONTRADICTION"
                     is_entailed = False
@@ -122,10 +186,8 @@ class EntailmentVerifier:
                     verdict = "UNKNOWN"
                     is_entailed = False
 
-                failed = [claims[i] for i, s in enumerate(contra_scores) if s > 0.65]
+                failed = [claims[i] for i, cs in enumerate(claim_scores) if cs and cs[1] > 0.65]
                 return EntailmentResult(is_entailed=is_entailed, score=avg_entail, verdict=verdict, failed_claims=failed, contra_score=avg_contra)
-            except Exception as e:
-                logger.error(f"Error in NLI predict: {e}")
 
         # Fallback when neural NLI model is unavailable
         # Lexical and symbolic rule verification: checks numbers, dates, negations, and token overlap

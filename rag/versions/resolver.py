@@ -43,7 +43,7 @@ class VersionResolver:
     }
 
     YEAR_RE = re.compile(r'\b(19\d{2}|20\d{2})\b')
-    MONTH_YEAR_RE = re.compile(r'\b(?:in|during|as of|for)?\s*(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+(\d{4})\b', re.IGNORECASE)
+    MONTH_YEAR_RE = re.compile(r'\b(?:in|during|for)?\s*(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+(\d{4})\b', re.IGNORECASE)
     BEFORE_DATE_RE = re.compile(r'\bbefore\s+(?:the\s+)?(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+)?(\d{4})\b', re.IGNORECASE)
     AFTER_DATE_RE = re.compile(r'\bafter\s+(?:the\s+)?(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+)?(\d{4})\b', re.IGNORECASE)
     AS_OF_RE = re.compile(r'\bas of\s+(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+)?(\d{4})\b', re.IGNORECASE)

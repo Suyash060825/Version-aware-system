@@ -328,8 +328,20 @@ class EvidenceFilter:
                 oldest_k = min(self._allowed_pids_cache.keys(), key=lambda k: self._allowed_pids_cache[k][0])
                 self._allowed_pids_cache.pop(oldest_k, None)
 
-        query = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE)
-        policies = query.all()
+        user_id = getattr(user_or_scope, "id", None)
+        can_manage = False
+        if hasattr(user_or_scope, "can_manage_policies"):
+            can_manage = user_or_scope.can_manage_policies() if callable(user_or_scope.can_manage_policies) else bool(user_or_scope.can_manage_policies)
+
+        if user_id and can_manage:
+            policies = Policy.query.all()
+        elif user_id:
+            policies = Policy.query.filter(
+                (Policy.status == PolicyStatus.ACTIVE) | (Policy.author_id == user_id)
+            ).all()
+        else:
+            policies = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE).all()
+
         result = [p.id for p in policies if self.is_authorized_for_policy(user_or_scope, p)]
         self._allowed_pids_cache[key] = (now, list(result))
         return result

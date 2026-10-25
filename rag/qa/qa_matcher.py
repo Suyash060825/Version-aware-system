@@ -5,12 +5,12 @@ Strictly verifies that Policy, PolicyVersion, and Source Chunks exist in the dat
 """
 from typing import List, Optional, Dict, Any
 from models import db, CanonicalQuestion, CompiledAnswer, Policy, PolicyVersion, PolicyChunkV2
-from rag.qa.qa_index import CanonicalQAIndex
+from rag.qa.qa_index import CanonicalQAIndex, get_qa_index
 from rag.authorization.evidence_filter import get_evidence_filter
 
 class QAMatcher:
     def __init__(self):
-        self.index = CanonicalQAIndex()
+        self.index = get_qa_index()
 
     def match(self, query: str, query_embedding: List[float], scope: Optional[Any] = None, threshold: float = 0.80) -> Optional[Dict[str, Any]]:
         results = self.index.search(query_embedding, top_k=5)
@@ -42,7 +42,7 @@ class QAMatcher:
         pol_id = meta.get("policy_id")
         ver_id = meta.get("version_id")
         p_name = meta.get("policy_name")
-        v_num = meta.get("version_number")
+        v_num = meta.get("version_number") or meta.get("version_num")
         c_id = meta.get("chunk_id")
         section = meta.get("section", "General")
         page = meta.get("page", 1)
@@ -70,7 +70,7 @@ class QAMatcher:
                             pol_id = meta.get("policy_id")
                             ver_id = meta.get("version_id")
                             p_name = meta.get("policy_name")
-                            v_num = meta.get("version_number")
+                            v_num = meta.get("version_number") or meta.get("version_num")
                             c_id = meta.get("chunk_id")
                             section = meta.get("section", "General")
                             page = meta.get("page", 1)
@@ -213,7 +213,7 @@ class QAMatcher:
             "policy_id": policy.id,
             "version_id": version.id,
             "policy_name": policy.title,
-            "version": version.version_number,
+            "version": str(getattr(version, "version_number", getattr(version, "version_num", "1.0"))),
             "section": section,
             "page": page,
             "chunk_id": chunk.chunk_id

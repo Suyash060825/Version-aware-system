@@ -3,9 +3,12 @@ rag/verification/confidence.py
 Calibrated multi-factor confidence scoring combining retrieval score, evidence coverage, version clarity, and entailment.
 """
 import re
-from typing import List, Dict, Any, Optional
+import os
+import json
+from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from rag.engine.evidence_pack import EvidencePack
+from config import Config
 
 @dataclass
 class ConfidenceScore:
@@ -20,6 +23,32 @@ class ConfidenceEngine:
     HIGH_THRESHOLD = 0.65
     LOW_THRESHOLD = 0.20
     
+    DEFAULT_KNOTS: List[Tuple[float, float]] = [
+        (0.00, 0.00),
+        (0.20, 0.08),   # unchanged — truly low retrieval stays low
+        (0.35, 0.20),   # was (0.30, 0.10) — relax to allow mid-quality retrieval through
+        (0.50, 0.35),   # was (0.50, 0.25) — more linear progression
+        (0.70, 0.52),   # was (0.70, 0.45)
+        (0.85, 0.72),   # was (0.85, 0.70)
+        (0.95, 0.88),   # was (0.95, 0.85)
+        (1.00, 0.96)    # was (1.00, 0.95)
+    ]
+
+    def __init__(self, knots_path: Optional[str] = None):
+        self.knots_path = knots_path or getattr(Config, "CALIBRATION_KNOTS_PATH", "data/calibration_knots.json")
+        self.knots = self._load_knots()
+
+    def _load_knots(self) -> List[Tuple[float, float]]:
+        if self.knots_path and os.path.exists(self.knots_path):
+            try:
+                with open(self.knots_path, "r") as f:
+                    data = json.load(f)
+                    if isinstance(data, list) and len(data) >= 2:
+                        return [(float(k[0]), float(k[1])) for k in data]
+            except Exception:
+                pass
+        return list(self.DEFAULT_KNOTS)
+
     STOPWORDS = {
         "what", "when", "where", "which", "who", "whom", "how", "why", "does", "have",
         "policy", "policies", "the", "for", "and", "can", "are", "get", "with", "from",
@@ -84,18 +113,7 @@ class ConfidenceEngine:
         Applies a piecewise linear Isotonic Regression curve mapped from validation data.
         Brings Expected Calibration Error (ECE) down and improves Brier Score.
         """
-        # Pre-fitted isotonic knots from validation (raw_score -> calibrated_prob)
-        knots = [
-            (0.00, 0.00),
-            (0.20, 0.08),   # unchanged — truly low retrieval stays low
-            (0.35, 0.20),   # was (0.30, 0.10) — relax to allow mid-quality retrieval through
-            (0.50, 0.35),   # was (0.50, 0.25) — more linear progression
-            (0.70, 0.52),   # was (0.70, 0.45)
-            (0.85, 0.72),   # was (0.85, 0.70)
-            (0.95, 0.88),   # was (0.95, 0.85)
-            (1.00, 0.96)    # was (1.00, 0.95)
-        ]
-        
+        knots = self.knots
         for i in range(len(knots) - 1):
             x1, y1 = knots[i]
             x2, y2 = knots[i+1]

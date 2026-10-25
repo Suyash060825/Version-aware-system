@@ -4,6 +4,7 @@ Compatibility facade delegating directly to the authoritative QueryEngine.
 Maintains legacy API signature for backward compatibility without duplicating retrieval or LLM logic.
 """
 from typing import Optional, Dict, Any
+from config import Config
 from rag.engine.query_engine import get_query_engine
 
 def answer(
@@ -52,7 +53,7 @@ def answer(
                         "chunks_used": len(final_data.get("citations", [])),
                         "session_id": session_id,
                         "fallback": final_data.get("fallback", False),
-                        "model": final_data.get("model", "qwen3"),
+                        "model": final_data.get("model") or getattr(engine, "_model_name", getattr(Config, "LOCAL_LLM_MODEL", "qwen3")),
                         "cache_hit": False,
                         "confidence": int(conf_raw * 100) if conf_raw <= 1.0 else int(conf_raw),
                         "route": final_data.get("route", "HYBRID_RAG"),
@@ -69,7 +70,7 @@ def answer(
         "chunks_used": result.retrieval_count,
         "session_id": session_id,
         "fallback": result.abstained,
-        "model": result.model or "qwen3",
+        "model": result.model or getattr(engine, "_model_name", getattr(Config, "LOCAL_LLM_MODEL", "qwen3")),
         "cache_hit": getattr(result, "cache_hit", False),
         "confidence": int(result.confidence * 100) if result.confidence <= 1.0 else int(result.confidence),
         "usage": {},

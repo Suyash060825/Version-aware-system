@@ -70,15 +70,15 @@ class IntentClassifier:
             if pattern.search(q):
                 return Intent.MULTI_POLICY, 0.80
 
-        # Open-ended exploratory questions pre-routed to Search before Fact matching
-        for pattern in self.OPEN_ENDED_PATTERNS:
-            if pattern.search(q):
-                return Intent.SEARCH, 0.85
-
-        # 5. Direct Fact
+        # 5. Direct Fact (evaluated before open-ended exploratory patterns)
         for pattern in self.FACT_PATTERNS:
             if pattern.search(q):
                 return Intent.FACT, 0.90
+
+        # Open-ended exploratory questions pre-routed to Search
+        for pattern in self.OPEN_ENDED_PATTERNS:
+            if pattern.search(q):
+                return Intent.SEARCH, 0.85
 
         # 6. Default to Search / Semantic QA
         if q.startswith(("what is", "how to", "who is", "where is", "can i", "do i", "does ", "is it", "am i", "are employees", "how do", "what are", "when is", "when can")) or q.endswith("?"):

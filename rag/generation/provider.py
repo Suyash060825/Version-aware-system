@@ -5,8 +5,9 @@ Abstract LocalLLMProvider interface with unified factory.
 import os
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Iterator
+from typing import Optional, Iterator, List, Dict, Any
 from config import Config
+from rag.llm_provider import LLMProvider, LLMResponse
 
 logger = logging.getLogger("rag.generation.provider")
 
@@ -72,25 +73,25 @@ def _suppress_think_tags(token_stream: Iterator[str]) -> Iterator[str]:
         yield buffer
 
 
-class LocalLLMProvider(ABC):
-    @abstractmethod
-    def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
-        pass
-
-    def stream(self, prompt: str, system_prompt: Optional[str] = None):
-        """Default fallback generator yielding the full response."""
-        res = self.generate(prompt, system_prompt)
-        if res:
-            yield res
-
-    @abstractmethod
-    def health_check(self) -> bool:
-        pass
+class LocalLLMProvider(LLMProvider):
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        return []
 
 
 class OllamaProvider(LocalLLMProvider):
-    def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
-        raw_url = (base_url or os.environ.get("LOCAL_LLM_BASE_URL") or os.environ.get("OLLAMA_BASE_URL") or Config.OLLAMA_BASE_URL).rstrip("/")
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None,
+        api_key: Optional[str] = None,
+        timeout: Optional[Any] = None
+    ):
+        raw_url = (
+            base_url
+            or os.environ.get("LOCAL_LLM_BASE_URL")
+            or os.environ.get("OLLAMA_BASE_URL")
+            or Config.OLLAMA_BASE_URL
+        ).rstrip("/")
         if "://ollama:" in raw_url:
             import socket
             try:
@@ -100,81 +101,175 @@ class OllamaProvider(LocalLLMProvider):
                 self.base_url = raw_url.replace("://ollama:", "://localhost:")
         else:
             self.base_url = raw_url
-        self.model = model or os.environ.get("LOCAL_LLM_MODEL") or Config.LOCAL_LLM_MODEL
-        self.timeout = float(os.environ.get("LLM_TIMEOUT", str(Config.LLM_TIMEOUT)))
-        self.positive_cache_window = 60.0
-        self.negative_cache_window = 45.0
+        self.model = (
+            model
+            or os.environ.get("LOCAL_LLM_MODEL")
+            or os.environ.get("OLLAMA_MODEL")
+            or Config.LOCAL_LLM_MODEL
+        )
+        self.api_key = api_key or os.environ.get("OLLAMA_API_KEY", "")
+        read_timeout = float(os.environ.get("LLM_TIMEOUT", str(Config.LLM_TIMEOUT)))
+        self.timeout = timeout if timeout is not None else (3.0, read_timeout)
+        import requests
+        self._session = requests.Session()
         self._last_health_time = 0
         self._is_healthy = None
+        self.positive_cache_window = 60.0
+        self.negative_cache_window = 45.0
 
-    def _ollama_options(self, num_predict: Optional[int] = None) -> dict:
+    def _ollama_options(self, num_predict: Optional[int] = None, temperature: float = 0.1) -> dict:
         """Centralized Ollama runtime configuration options."""
-        return {
-            "temperature": 0.1,
-            "num_predict": num_predict or Config.LLM_MAX_NEW_TOKENS,
-            "num_ctx": Config.OLLAMA_NUM_CTX,
-            "num_thread": Config.OLLAMA_NUM_THREADS,
-            "keep_alive": Config.OLLAMA_KEEP_ALIVE,
+        options = {
+            "temperature": temperature,
+            "num_predict": num_predict or int(os.environ.get("LLM_MAX_NEW_TOKENS", str(Config.LLM_MAX_NEW_TOKENS))),
+            "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", str(Config.OLLAMA_NUM_CTX))),
+            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", str(Config.OLLAMA_KEEP_ALIVE)),
             "think": False,
         }
+        num_thread = int(os.environ.get("OLLAMA_NUM_THREADS", str(Config.OLLAMA_NUM_THREADS)))
+        if num_thread > 0:
+            options["num_thread"] = num_thread
+        return options
 
-    def generate(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: float = 15.0) -> Optional[str]:
-        import requests, time, re
-        if not self.health_check():
-            return None
+    def generate(
+        self,
+        prompt: str | List[Dict[str, str]],
+        *,
+        system: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        num_predict: Optional[int] = None,
+        temperature: float = 0.1,
+        stream: bool = False,
+        timeout: Optional[Any] = None,
+        **kwargs
+    ) -> LLMResponse:
+        import time, re
+        effective_system = system or system_prompt
+        effective_tokens = max_tokens or num_predict
+        effective_timeout = timeout or self.timeout
 
-        effective_timeout = min(float(self.timeout), float(timeout))
+        if isinstance(prompt, str):
+            messages = []
+            if effective_system:
+                messages.append({"role": "system", "content": effective_system})
+            messages.append({"role": "user", "content": prompt})
+        else:
+            messages = list(prompt)
+            if effective_system and not any(m.get("role") == "system" for m in messages):
+                messages = [{"role": "system", "content": effective_system}] + messages
+
+        options = self._ollama_options(num_predict=effective_tokens, temperature=temperature)
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": False,
+            "think": False,
+            "options": options
+        }
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
         try:
-            payload = {
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-                "think": False,
-                "options": self._ollama_options(num_predict=num_predict)
-            }
-            if system_prompt:
-                payload["system"] = system_prompt
-
-            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(3.0, effective_timeout))
+            resp = self._session.post(
+                f"{self.base_url}/api/chat",
+                json=payload,
+                headers=headers,
+                timeout=effective_timeout
+            )
             resp.raise_for_status()
             data = resp.json()
+
+            content = ""
+            if "message" in data and isinstance(data["message"], dict):
+                content = data["message"].get("content", "").strip()
+                if not content and "thinking" in data["message"]:
+                    content = data["message"].get("thinking", "").strip()
+            elif "choices" in data and len(data["choices"]) > 0:
+                content = data["choices"][0].get("message", {}).get("content", "").strip()
+            elif "response" in data:
+                content = data.get("response", "").strip()
+
+            cleaned_content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+            if cleaned_content:
+                content = cleaned_content
+            else:
+                content = re.sub(r"</?think>", "", content).strip()
+
+            usage = {
+                "prompt_tokens": data.get("prompt_eval_count", 0),
+                "completion_tokens": data.get("eval_count", 0)
+            }
             self._is_healthy = True
             self._last_health_time = time.time()
-            raw_res = data.get("response", "")
-            if not raw_res and "thinking" in data:
-                raw_res = data.get("thinking", "")
-            cleaned = re.sub(r"<think>.*?</think>", "", raw_res, flags=re.DOTALL).strip()
-            return cleaned
-        except requests.exceptions.Timeout as te:
-            self._is_healthy = False
-            self._last_health_time = time.time()
-            logger.warning(f"Ollama generation timed out after {effective_timeout}s: {te}")
-            raise TimeoutError(f"Qwen3 generation timed out after {effective_timeout}s") from te
+            return LLMResponse(
+                text=content,
+                raw_response=data,
+                model=self.model,
+                usage=usage,
+                fallback=False
+            )
         except Exception as e:
-            self._is_healthy = False
-            self._last_health_time = time.time()
-            logger.warning(f"Ollama offline/busy ({self.model} at {self.base_url}): {e}. Fast failover active.")
-            return None
+            logger.error(f"[OllamaProvider] Error generating completion: {e}")
+            from rag.llm_provider import ExtractiveProvider
+            fallback_resp = ExtractiveProvider().generate(prompt, system=effective_system)
+            fallback_resp.error = f"Ollama error: {str(e)}"
+            fallback_resp.fallback = True
+            return fallback_resp
 
-    def stream(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: float = 15.0):
-        import requests, json, time
-        if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
+    def stream(
+        self,
+        prompt: str | List[Dict[str, str]],
+        *,
+        system: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        num_predict: Optional[int] = None,
+        temperature: float = 0.1,
+        timeout: Optional[Any] = None,
+        **kwargs
+    ):
+        import json, time
+        now = time.time()
+        if self._is_healthy is False and (now - self._last_health_time < self.negative_cache_window):
             return
 
-        effective_timeout = min(float(self.timeout), float(timeout))
+        effective_system = system or system_prompt
+        effective_tokens = max_tokens or num_predict
+        effective_timeout = timeout or self.timeout
+
+        if isinstance(prompt, str):
+            messages = []
+            if effective_system:
+                messages.append({"role": "system", "content": effective_system})
+            messages.append({"role": "user", "content": prompt})
+        else:
+            messages = list(prompt)
+            if effective_system and not any(m.get("role") == "system" for m in messages):
+                messages = [{"role": "system", "content": effective_system}] + messages
+
+        options = self._ollama_options(num_predict=effective_tokens, temperature=temperature)
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": True,
+            "think": False,
+            "options": options
+        }
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
         def raw_token_generator():
             try:
-                payload = {
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": True,
-                    "think": False,
-                    "options": self._ollama_options(num_predict=num_predict)
-                }
-                if system_prompt:
-                    payload["system"] = system_prompt
-
-                with requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(3.0, effective_timeout), stream=True) as resp:
+                with self._session.post(
+                    f"{self.base_url}/api/chat",
+                    json=payload,
+                    headers=headers,
+                    timeout=effective_timeout,
+                    stream=True
+                ) as resp:
                     if resp.status_code == 200:
                         self._is_healthy = True
                         self._last_health_time = time.time()
@@ -182,65 +277,88 @@ class OllamaProvider(LocalLLMProvider):
                             if line:
                                 try:
                                     chunk = json.loads(line.decode("utf-8"))
-                                    token = chunk.get("response", "")
+                                    token = ""
+                                    if "message" in chunk and isinstance(chunk["message"], dict):
+                                        token = chunk["message"].get("content", "")
+                                    elif "response" in chunk:
+                                        token = chunk.get("response", "")
                                     if token:
                                         yield token
-                                except Exception as parse_err:
-                                    logger.debug(f"Streaming chunk JSON parse error: {parse_err}")
+                                except Exception:
+                                    pass
             except Exception as e:
                 self._is_healthy = False
                 self._last_health_time = time.time()
-                logger.warning(f"Ollama streaming failed: {e}")
+                logger.warning(f"[OllamaProvider] Streaming failed: {e}")
 
         for clean_token in _suppress_think_tags(raw_token_generator()):
             yield clean_token
 
     def health_check(self) -> bool:
-        import requests, time
+        import time
         now = time.time()
-        # If recently confirmed healthy, skip round-trip (positive cache: 60s)
         if self._is_healthy is True and (now - self._last_health_time < self.positive_cache_window):
             return True
         if self._is_healthy is False and (now - self._last_health_time < self.negative_cache_window):
             return False
+
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
         try:
-            resp = requests.get(f"{self.base_url}/api/tags", timeout=(0.3, 0.5))
+            resp = self._session.get(f"{self.base_url}/api/tags", headers=headers, timeout=(1.0, 2.0))
             if resp.status_code == 200:
                 data = resp.json()
                 models = [m.get("name", "") for m in data.get("models", [])]
-                if not models:
-                    logger.error(f"Ollama is running but no models are pulled. Run: ollama pull {self.model}")
-                    self._is_healthy = False
-                    self._last_health_time = time.time()
-                    return False
-
-                # Check if model is pulled with case-insensitive and hyphen/underscore normalization
                 model_base = self.model.split(":")[0].lower().replace("_", "-")
                 has_model = any(model_base in m.lower().replace("_", "-") for m in models)
-                if not has_model:
-                    logger.warning(f"Ollama running but model {self.model} not found in {models}")
                 self._is_healthy = has_model
-                self._last_health_time = time.time()
+                self._last_health_time = now
+                if not has_model:
+                    logger.warning(f"[OllamaProvider] Ollama online but model '{self.model}' not in {models}")
                 return has_model
+        except Exception as e:
+            for docker_host in ("ollama:11434", "host.docker.internal"):
+                if docker_host in self.base_url:
+                    alt_url = self.base_url.replace(docker_host, "localhost:11434")
+                    try:
+                        alt_resp = self._session.get(f"{alt_url}/api/tags", headers=headers, timeout=(1.0, 2.0))
+                        if alt_resp.status_code == 200:
+                            data = alt_resp.json()
+                            models = [m.get("name", "") for m in data.get("models", [])]
+                            model_base = self.model.split(":")[0].lower().replace("_", "-")
+                            has_model = any(model_base in m.lower().replace("_", "-") for m in models)
+                            if has_model:
+                                self.base_url = alt_url
+                                self._is_healthy = True
+                                self._last_health_time = now
+                                return True
+                    except Exception:
+                        pass
             self._is_healthy = False
-            self._last_health_time = time.time()
+            self._last_health_time = now
+            logger.debug(f"[OllamaProvider] Health check failed: {e}")
             return False
-        except Exception as conn_err:
-            if "ollama:11434" in self.base_url:
-                try:
-                    alt_url = self.base_url.replace("ollama:11434", "localhost:11434")
-                    alt_resp = requests.get(f"{alt_url}/api/tags", timeout=(0.3, 0.5))
-                    if alt_resp.status_code == 200:
-                        self.base_url = alt_url
-                        self._is_healthy = True
-                        self._last_health_time = time.time()
-                        return True
-                except Exception:
-                    pass
-            logger.debug(f"LLM health check connection failed: {conn_err}")
-            self._is_healthy = False
-            self._last_health_time = time.time()
-            return False
+
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        from rag.embeddings.embedder import get_embedder
+        try:
+            embedder = get_embedder()
+            return embedder.embed(texts)
+        except Exception as e:
+            logger.error(f"[OllamaProvider] Error generating embeddings: {e}")
+            return []
+
+    def diagnostics(self) -> Dict[str, Any]:
+        healthy = self.health_check()
+        return {
+            "provider": "OllamaProvider",
+            "backend": "ollama",
+            "model": self.model,
+            "base_url": self.base_url,
+            "healthy": healthy,
+        }
 
 
 class MockProvider(LocalLLMProvider):
@@ -248,10 +366,10 @@ class MockProvider(LocalLLMProvider):
         self.response = response
         self.model = "mock-llm"
 
-    def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
-        return self.response
+    def generate(self, prompt: Any, *args, **kwargs) -> LLMResponse:
+        return LLMResponse(text=self.response, model=self.model, fallback=False)
 
-    def stream(self, prompt: str, system_prompt: Optional[str] = None):
+    def stream(self, prompt: Any, *args, **kwargs):
         words = self.response.split(" ")
         for i, w in enumerate(words):
             yield w if i == len(words) - 1 else w + " "
@@ -264,10 +382,10 @@ class ExtractiveGenerationProvider(LocalLLMProvider):
     def __init__(self):
         self.model = "extractive"
 
-    def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
-        return None
+    def generate(self, prompt: Any, *args, **kwargs) -> LLMResponse:
+        return LLMResponse(text="", model=self.model, fallback=True)
 
-    def stream(self, prompt: str, system_prompt: Optional[str] = None):
+    def stream(self, prompt: Any, *args, **kwargs):
         return
         yield
 

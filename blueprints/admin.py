@@ -41,6 +41,18 @@ def hr_required(f):
     return wrapped
 
 
+def _trigger_policy_compilation(policy_id: int, version_id: int):
+    """Enqueues async compilation via Celery with fallback to sync execution if Celery fails."""
+    try:
+        from tasks import compile_policy_version_task
+        compile_policy_version_task.delay(policy_id, version_id)
+    except Exception as e:
+        current_app.logger.warning(f"Celery enqueue failed: {e}. Running auto_compile_policy_version synchronously.")
+        from rag.compiler.pipeline import auto_compile_policy_version
+        auto_compile_policy_version(policy_id, version_id)
+
+
+
 # ================================================================
 # Dashboard
 # ================================================================
@@ -243,8 +255,7 @@ def policy_create():
             db.session.add(version)
             db.session.commit()
 
-            from rag.compiler.pipeline import auto_compile_policy_version
-            auto_compile_policy_version(policy.id, version.id)
+            _trigger_policy_compilation(policy.id, version.id)
 
             audit("policy.create", "policy", policy.id, {"title": title, "policy_id": policy.policy_id})
             flash(f'Policy "{title}" created as draft.', "success")
@@ -448,8 +459,7 @@ def policy_edit(policy_id):
         get_evidence_filter().clear_cache()
         active_ver = policy.versions.filter_by(is_active=True).first()
         if active_ver:
-            from rag.compiler.pipeline import auto_compile_policy_version
-            auto_compile_policy_version(policy.id, active_ver.id)
+            _trigger_policy_compilation(policy.id, active_ver.id)
 
         audit("policy.edit", "policy", policy.id, {"title": policy.title})
         flash("Policy metadata updated.", "success")
@@ -529,8 +539,7 @@ def version_create(policy_id):
             db.session.add(new_ver)
             db.session.commit()
 
-            from rag.compiler.pipeline import auto_compile_policy_version
-            auto_compile_policy_version(policy.id, new_ver.id)
+            _trigger_policy_compilation(policy.id, new_ver.id)
 
             audit("policy.new_version", "policy", policy.id,
                   {"version": ver_label, "changes": diff.get("stats", {})})
@@ -723,8 +732,7 @@ def policy_duplicate(policy_id):
     db.session.commit()
 
     if orig_ver and new_ver:
-        from rag.compiler.pipeline import auto_compile_policy_version
-        auto_compile_policy_version(new_policy.id, new_ver.id)
+        _trigger_policy_compilation(new_policy.id, new_ver.id)
 
     audit("policy.duplicate", "policy", new_policy.id, {"source": orig.policy_id})
     flash(f'Duplicated as "{new_policy.title}".', "success")

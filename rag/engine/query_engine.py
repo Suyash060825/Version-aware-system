@@ -10,8 +10,10 @@ Level 4: Local Small LLM Reasoning + Entailment Verification
 import time
 import re
 import logging
+from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any, Set, Tuple
 
+from config import Config
 from models import Policy, PolicyVersion, PolicyStatus
 from rag import metrics
 from rag.engine.query_result import QueryResult
@@ -106,14 +108,16 @@ _GENERIC_WORDS = {
 def _extract_best_evidence_context(
     normalized_query: str,
     ranked: List[Dict[str, Any]],
-    citations: List[Dict[str, Any]]
+    citations: Optional[List[Dict[str, Any]]] = None
 ) -> Optional[str]:
     """
     Multi-sentence contextual evidence synthesis across top ranked chunks.
     Unified single source of truth across answer() and stream_answer().
+    Does not mutate caller's citations argument in-place.
     """
     if not ranked:
         return None
+    cits = citations if citations is not None else []
     top_section = ranked[0].get("section") or ranked[0].get("section_path") or "Policy"
     top_text = ranked[0].get("text", "").strip()
     q_words = set(re.findall(r"\b[a-z0-9]+\b", normalized_query.lower())) - _STOPWORDS
@@ -149,21 +153,21 @@ def _extract_best_evidence_context(
         if substantive_q_words and top_sub == 0 and len(q_words) > 1:
             return None
 
-        # Reorder citations so winning chunk citation is first
+        # Reorder local citations copy so winning chunk citation is first
         winning_pid = best_chunk.get("policy_id")
         winning_sec = best_chunk.get("section") or best_chunk.get("section_path")
-        for idx, cit in enumerate(citations):
+        for idx, cit in enumerate(cits):
             if cit.get("policy_id") == winning_pid and (cit.get("section") == winning_sec or not winning_sec):
                 if idx > 0:
-                    citations.insert(0, citations.pop(idx))
+                    cits.insert(0, cits.pop(idx))
                 break
 
         start_i = max(0, best_idx - 1)
         end_i = min(len(all_sents), best_idx + 2)
         context_paragraph = " ".join(all_sents[start_i:end_i])
 
-        policy_name = best_chunk.get("policy_name") or (citations[0]["policy_name"] if citations else "Policy")
-        version_raw = best_chunk.get("version") or (citations[0]["version"] if citations else "1.0")
+        policy_name = best_chunk.get("policy_name") or (cits[0]["policy_name"] if cits else "Policy")
+        version_raw = best_chunk.get("version") or (cits[0]["version"] if cits else "1.0")
         version_num = str(version_raw).lstrip("v")
 
         # Multi-part question evidence synthesis across distinct chunks/sections
@@ -177,8 +181,8 @@ def _extract_best_evidence_context(
                     s_i = max(0, cand_idx - 1)
                     e_i = min(len(cand_sents), cand_idx + 2)
                     sec_context = " ".join(cand_sents[s_i:e_i])
-                    sec_pname = cand_chunk.get("policy_name") or (citations[1]["policy_name"] if len(citations) > 1 else "Policy")
-                    sec_vraw = cand_chunk.get("version") or (citations[1]["version"] if len(citations) > 1 else "1.0")
+                    sec_pname = cand_chunk.get("policy_name") or (cits[1]["policy_name"] if len(cits) > 1 else "Policy")
+                    sec_vraw = cand_chunk.get("version") or (cits[1]["version"] if len(cits) > 1 else "1.0")
                     sec_vnum = str(sec_vraw).lstrip("v")
                     return f"According to the {policy_name} (v{version_num}, {best_sec}):\n{context_paragraph}\n\nAdditionally, according to {sec_pname} (v{sec_vnum}, {cand_sec}):\n{sec_context}"
 
@@ -186,11 +190,35 @@ def _extract_best_evidence_context(
     elif top_text and q_words and substantive_q_words:
         top_words = set(re.findall(r"\b[a-z0-9]+\b", top_text.lower()))
         if len(substantive_q_words & top_words) >= 1:
-            policy_name = citations[0]["policy_name"] if citations else "Policy"
-            version_raw = citations[0]["version"] if citations else "1.0"
+            policy_name = cits[0]["policy_name"] if cits else "Policy"
+            version_raw = cits[0]["version"] if cits else "1.0"
             version_num = str(version_raw).lstrip("v")
             return f"According to the {policy_name} (v{version_num}, {top_section}):\n{top_text}"
     return None
+
+
+@dataclass
+class PipelineResult:
+    answer: str
+    route: str
+    confidence: float
+    citations: List[Dict[str, Any]]
+    policy_versions: List[str] = field(default_factory=list)
+    latency_ms: float = 0.0
+    llm_used: bool = False
+    retrieval_count: int = 0
+    reranker_used: bool = False
+    abstained: bool = False
+    abstain_reason: str = "none"
+    model: str = ""
+    usage: Dict[str, Any] = field(default_factory=dict)
+    nli_verdict: str = "none"
+    nli_entailment_score: float = 0.0
+    nli_contradiction_score: float = 0.0
+    llm_token_count: int = 0
+    llm_time_ms: float = 0.0
+    raw_tokens: Optional[List[str]] = None
+    fallback: bool = False
 
 
 class QueryEngine:
@@ -208,6 +236,7 @@ class QueryEngine:
         self.version_resolver = VersionResolver()
         self.diff_engine = PolicyDiffEngine()
         self.llm = get_qwen_provider()
+        self._model_name = getattr(self.llm, "model", getattr(Config, "LOCAL_LLM_MODEL", "qwen3"))
         self.cache = get_cache()
         self.embedder = get_embedder()
 
@@ -438,7 +467,7 @@ class QueryEngine:
         elif scope.allowed_policy_ids is not None:
             p_query = Policy.query.filter(Policy.id.in_(scope.allowed_policy_ids))
         else:
-            p_query = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE)
+            p_query = Policy.query.filter(Policy.status == PolicyStatus.ACTIVE).limit(50)
 
         candidate_policies = p_query.all()
         q_lower = normalized_query.lower()
@@ -471,12 +500,14 @@ class QueryEngine:
 
             v1_cond = PolicyVersion.version_label.ilike(f"%{v1_num}%")
             if v1_float is not None:
-                v1_cond = (PolicyVersion.version_num == v1_float) | v1_cond
+                v1_formatted = f"v{v1_float:.1f}" if v1_float.is_integer() else f"v{v1_float}"
+                v1_cond = (PolicyVersion.version_num == v1_float) | (PolicyVersion.version_label.ilike(f"%{v1_formatted}%")) | v1_cond
             v1 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, v1_cond).first()
 
             v2_cond = PolicyVersion.version_label.ilike(f"%{v2_num}%")
             if v2_float is not None:
-                v2_cond = (PolicyVersion.version_num == v2_float) | v2_cond
+                v2_formatted = f"v{v2_float:.1f}" if v2_float.is_integer() else f"v{v2_float}"
+                v2_cond = (PolicyVersion.version_num == v2_float) | (PolicyVersion.version_label.ilike(f"%{v2_formatted}%")) | v2_cond
             v2 = PolicyVersion.query.filter(PolicyVersion.policy_id == p.id, v2_cond).first()
 
             if v1 and v2:
@@ -508,9 +539,31 @@ class QueryEngine:
 
         return None
 
-    def answer(self, query: str, user=None, session_id: str = None) -> QueryResult:
+    def _verify_candidate(self, ans_candidate: str, ranked: List[Dict[str, Any]]) -> Tuple[bool, str, float, float]:
+        """
+        Shared post-generation verification across answer() and stream_answer().
+        Checks numeric grounding and NLI entailment before accepting candidate text.
+        """
+        ctx_nums = extract_grounding_numbers(ranked[:5])
+        if not verify_numeric_grounding(ans_candidate, ctx_nums):
+            metrics.GROUNDING_REJECTIONS.inc()
+            return False, "NUMERIC_FAIL", 0.0, 0.0
+
+        if not self.config.use_nli:
+            return True, "NLI_DISABLED", 1.0, 0.0
+
+        entail_res = self.entailment_verifier.verify(ans_candidate, ranked[:5])
+        verdict = getattr(entail_res, "verdict", "UNKNOWN")
+        score = getattr(entail_res, "score", 0.0)
+        contra_score = getattr(entail_res, "contra_score", 0.0)
+        is_grounded = bool(getattr(entail_res, "is_entailed", False)) and (verdict == "ENTAILMENT")
+        if not is_grounded:
+            metrics.GROUNDING_REJECTIONS.inc()
+        return is_grounded, verdict, score, contra_score
+
+    def _execute_pipeline(self, query: str, user=None, session_id: str = None, is_streaming: bool = False) -> PipelineResult:
         t_start = time.time()
-        
+
         # 1. Normalize Query & Fast Authorization Scope
         t_ns0 = time.perf_counter()
         normalized_query = self.router.normalize(query)
@@ -546,7 +599,7 @@ class QueryEngine:
                     "llm_generate_ms": 0.0
                 }
             }
-            return QueryResult(
+            return PipelineResult(
                 answer=cached["answer"],
                 route="CACHE_HIT",
                 confidence=cached.get("confidence", 0.95),
@@ -558,15 +611,18 @@ class QueryEngine:
                 reranker_used=False,
                 abstained=False,
                 model=cached.get("model", "semantic-cache"),
-                usage=cache_usage
+                usage=cache_usage,
+                fallback=False
             )
 
         # 1.6 Classify Route BEFORE embedding (F1)
         intent, complexity, route_name, meta = self.router.route(normalized_query, pre_normalized=True)
-        if temporal_context is None and (route_name in ("TEMPORAL_COMPARISON", "TEMPORAL") or intent in (Intent.TEMPORAL, Intent.COMPARISON)):
-            temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
-            scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
-            is_diff = (route_name == "TEMPORAL_COMPARISON")
+        if route_name in ("TEMPORAL_COMPARISON", "TEMPORAL") or intent in (Intent.TEMPORAL, Intent.COMPARISON):
+            if temporal_context is None:
+                temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
+                scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
+            if route_name == "TEMPORAL_COMPARISON":
+                is_diff = True
 
         t_fact_ms = 0.0
         # 2. Level 0: Fast Structured Fact Path (Zero embedding needed!)
@@ -590,7 +646,7 @@ class QueryEngine:
                         "llm_generate_ms": 0.0
                     }
                 }
-                return QueryResult(
+                return PipelineResult(
                     answer=fact_res.answer,
                     route="FAST_PATH_FACT",
                     confidence=fact_res.confidence,
@@ -602,7 +658,8 @@ class QueryEngine:
                     reranker_used=False,
                     abstained=False,
                     model="fact-engine",
-                    usage=fact_usage
+                    usage=fact_usage,
+                    fallback=False
                 )
 
         # Fact path missed. NOW embed query for L2 vector cache, QA ANN search, and Hybrid retrieval (F1)
@@ -614,7 +671,7 @@ class QueryEngine:
             if cached:
                 metrics.CACHE_HITS.inc()
                 cits = cached.get("citations", [])
-                return QueryResult(
+                return PipelineResult(
                     answer=cached["answer"],
                     route="CACHE_HIT",
                     confidence=cached.get("confidence", 0.95),
@@ -625,7 +682,8 @@ class QueryEngine:
                     retrieval_count=cached.get("chunks_used", 0),
                     reranker_used=False,
                     abstained=False,
-                    model=cached.get("model", "semantic-cache")
+                    model=cached.get("model", "semantic-cache"),
+                    fallback=False
                 )
             metrics.CACHE_MISSES.labels(reason="miss").inc()
 
@@ -637,19 +695,20 @@ class QueryEngine:
                 ver = qa_match.get("version")
                 is_auth = True
                 conf_ok = True
-                temp_ok = True
                 if pol:
                     is_auth = self.evidence_filter.is_authorized_for_policy(scope, pol)
                     conf_ok = pol.confidentiality in scope.allowed_confidentiality
                 if ver:
                     temp_ok = (not scope.target_date) or ver.is_valid_for_date(scope.target_date)
+                else:
+                    temp_ok = not scope.target_date
 
                 if is_auth and conf_ok and temp_ok:
                     cits = self.citation_validator.enrich_only(qa_match["citations"])
                     if cits:
                         if self.config.use_cache:
                             self.cache.put(q_emb, qa_match["answer"], cits, 1, scope=scope, confidence=qa_match["confidence"], is_diff_query=is_diff, query=normalized_query)
-                        return QueryResult(
+                        return PipelineResult(
                             answer=qa_match["answer"],
                             route="FAST_PATH_COMPILED_QA",
                             confidence=qa_match["confidence"],
@@ -660,14 +719,15 @@ class QueryEngine:
                             retrieval_count=1,
                             reranker_used=False,
                             abstained=False,
-                            model="precompiled-qa"
+                            model="precompiled-qa",
+                            fallback=False
                         )
 
         # 4. Level 3: Version Comparison Path (F3 shared helper)
         comp_res = self._run_version_comparison(normalized_query, meta, temporal_context, scope, q_emb=q_emb)
         if comp_res:
             diff_summary, cits, comp_conf, p_versions = comp_res
-            return QueryResult(
+            return PipelineResult(
                 answer=diff_summary,
                 route="TEMPORAL_COMPARISON",
                 confidence=comp_conf,
@@ -678,18 +738,41 @@ class QueryEngine:
                 retrieval_count=2,
                 reranker_used=False,
                 abstained=False,
-                model="diff-engine"
+                model="diff-engine",
+                fallback=False
             )
 
         # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering (F3 shared helper)
         retrieval_query = self.router.expand_acronyms(normalized_query)
         filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff, normalized_query=normalized_query, q_emb=q_emb)
         if filters is None:
-            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000, abstain_reason="unauthorized")
+            return PipelineResult(
+                answer=DEFAULT_REFUSAL_MESSAGE,
+                route="ABSTAIN",
+                confidence=0.0,
+                citations=[],
+                latency_ms=(time.time() - t_start) * 1000,
+                llm_used=False,
+                abstained=True,
+                abstain_reason="unauthorized",
+                model="unauthorized",
+                fallback=True
+            )
 
         retrieval_pack = self._retrieve_and_rank(retrieval_query, q_emb, scope, filters, is_fallthrough=True)
         if not retrieval_pack:
-            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000, abstain_reason="low_retrieval")
+            return PipelineResult(
+                answer=DEFAULT_REFUSAL_MESSAGE,
+                route="ABSTAIN",
+                confidence=0.0,
+                citations=[],
+                latency_ms=(time.time() - t_start) * 1000,
+                llm_used=False,
+                abstained=True,
+                abstain_reason="low_retrieval",
+                model="low-retrieval",
+                fallback=True
+            )
 
         ranked, score_type, conf, citations = retrieval_pack
 
@@ -697,46 +780,59 @@ class QueryEngine:
             "summary" in normalized_query.lower() or "explain" in normalized_query.lower() or "compare" in normalized_query.lower()
         )
         if self.config.use_confidence_gate and conf.abstain and not is_synthesis_query:
-            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000, abstain_reason=conf.abstain_reason)
+            return PipelineResult(
+                answer=DEFAULT_REFUSAL_MESSAGE,
+                route="ABSTAIN",
+                confidence=conf.value,
+                citations=[],
+                latency_ms=(time.time() - t_start) * 1000,
+                llm_used=False,
+                abstained=True,
+                abstain_reason=conf.abstain_reason,
+                model="confidence-gate",
+                fallback=True
+            )
 
         # 9. Answer Generation: Grounded Evidence Extraction vs Local LLM
         ctx_nums = extract_grounding_numbers(ranked[:5])
         llm_used = False
         final_answer = None
+        raw_tokens = None
         nli_verdict = "none"
         nli_entail_score = 0.0
         nli_contra_score = 0.0
         llm_time_ms = 0.0
         llm_token_count = 0
 
-        if getattr(self.config, "use_llm", True) and (complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL or is_synthesis_query) and self.llm.health_check():
+        llm_available = getattr(self.config, "use_llm", True) and (complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL or is_synthesis_query) and self.llm.health_check()
+
+        if llm_available:
             max_tokens = 200
             t_llm = time.time()
             try:
-                llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:5], max_tokens=max_tokens)
-                llm_time_ms = (time.time() - t_llm) * 1000
-                ans_text = llm_output.get("answer", "").strip() if llm_output else ""
-                if llm_output and ans_text and ans_text != "INSUFFICIENT_EVIDENCE" and not ans_text.startswith("INSUFFICIENT_EVIDENCE"):
-                    ans_candidate = ans_text
-                    if verify_numeric_grounding(ans_candidate, ctx_nums):
-                        if self.config.use_nli:
-                            entail_res = self.entailment_verifier.verify(ans_candidate, ranked[:5])
-                            # Strict grounding: only accept positive entailment; reject contradictions and ungrounded neutral/unknown claims
-                            is_grounded = bool(getattr(entail_res, "is_entailed", False)) and (getattr(entail_res, "verdict", "UNKNOWN") == "ENTAILMENT")
-                            nli_verdict = getattr(entail_res, "verdict", "UNKNOWN")
-                            nli_entail_score = getattr(entail_res, "score", 0.0)
-                            nli_contra_score = getattr(entail_res, "contra_score", 0.0)
-                        else:
-                            is_grounded = True
-                            nli_verdict = "NLI_DISABLED"
-                            nli_entail_score = 1.0
-                            nli_contra_score = 0.0
-
+                if is_streaming:
+                    prompt = build_streaming_qa_prompt(normalized_query, ranked[:5])
+                    token_buffer = []
+                    for token in self.llm.stream(prompt, system_prompt=STREAMING_POLICY_GROUNDING_PROMPT):
+                        if token:
+                            token_buffer.append(token)
+                    candidate_text = "".join(token_buffer).strip()
+                    llm_time_ms = (time.time() - t_llm) * 1000
+                    if candidate_text and candidate_text != "INSUFFICIENT_EVIDENCE" and not candidate_text.startswith("INSUFFICIENT_EVIDENCE"):
+                        is_grounded, nli_verdict, nli_entail_score, nli_contra_score = self._verify_candidate(candidate_text, ranked[:5])
                         if is_grounded:
-                            final_answer = ans_candidate
+                            final_answer = candidate_text
                             llm_used = True
-                    else:
-                        metrics.GROUNDING_REJECTIONS.inc()
+                            raw_tokens = token_buffer
+                else:
+                    llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:5], max_tokens=max_tokens)
+                    llm_time_ms = (time.time() - t_llm) * 1000
+                    ans_text = llm_output.get("answer", "").strip() if llm_output else ""
+                    if llm_output and ans_text and ans_text != "INSUFFICIENT_EVIDENCE" and not ans_text.startswith("INSUFFICIENT_EVIDENCE"):
+                        is_grounded, nli_verdict, nli_entail_score, nli_contra_score = self._verify_candidate(ans_text, ranked[:5])
+                        if is_grounded:
+                            final_answer = ans_text
+                            llm_used = True
             except TimeoutError as te:
                 logger.warning(f"Local LLM inference timeout: {te}. Falling back to deterministic grounded extraction.")
             except Exception as e:
@@ -744,15 +840,29 @@ class QueryEngine:
 
         if not final_answer:
             final_answer = _extract_best_evidence_context(normalized_query, ranked, citations)
+            raw_tokens = None
             if not final_answer:
-                return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000, abstain_reason="insufficient_evidence")
+                return PipelineResult(
+                    answer=DEFAULT_REFUSAL_MESSAGE,
+                    route="ABSTAIN",
+                    confidence=conf.value,
+                    citations=[],
+                    latency_ms=(time.time() - t_start) * 1000,
+                    llm_used=False,
+                    abstained=True,
+                    abstain_reason="insufficient_evidence",
+                    model="no-evidence",
+                    fallback=True
+                )
 
         if llm_used and final_answer:
             llm_token_count = len(re.findall(r"\w+", final_answer))
 
+        model_name = self._model_name if llm_used else "deterministic-rag"
+
         # Cache successful verified answer (F8: both query string and embedding always passed)
         if self.config.use_cache:
-            self.cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3" if llm_used else "deterministic-rag", confidence=conf.value, is_diff_query=is_diff, query=normalized_query)
+            self.cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model=model_name, confidence=conf.value, is_diff_query=is_diff, query=normalized_query)
 
         retrieval_stats = getattr(self, "_last_retrieval_stats", {})
         usage_data = dict(retrieval_stats)
@@ -767,7 +877,7 @@ class QueryEngine:
             "llm_generate_ms": round(llm_time_ms, 2)
         }
 
-        return QueryResult(
+        return PipelineResult(
             answer=final_answer,
             route="HYBRID_RAG",
             confidence=conf.value,
@@ -778,315 +888,67 @@ class QueryEngine:
             retrieval_count=len(ranked),
             reranker_used=self.config.use_rerank,
             abstained=False,
-            model="qwen3" if llm_used else "deterministic-rag",
+            model=model_name,
             usage=usage_data,
             abstain_reason=conf.abstain_reason,
             nli_verdict=nli_verdict,
             nli_entailment_score=nli_entail_score,
             nli_contradiction_score=nli_contra_score,
             llm_token_count=llm_token_count,
-            llm_time_ms=llm_time_ms
+            llm_time_ms=llm_time_ms,
+            raw_tokens=raw_tokens,
+            fallback=not llm_used
+        )
+
+    def answer(self, query: str, user=None, session_id: str = None) -> QueryResult:
+        res = self._execute_pipeline(query, user=user, session_id=session_id, is_streaming=False)
+        return QueryResult(
+            answer=res.answer,
+            route=res.route,
+            confidence=res.confidence,
+            citations=res.citations,
+            policy_versions=res.policy_versions,
+            latency_ms=res.latency_ms,
+            llm_used=res.llm_used,
+            retrieval_count=res.retrieval_count,
+            reranker_used=res.reranker_used,
+            abstained=res.abstained,
+            abstain_reason=res.abstain_reason,
+            model=res.model,
+            usage=res.usage,
+            nli_verdict=res.nli_verdict,
+            nli_entailment_score=res.nli_entailment_score,
+            nli_contradiction_score=res.nli_contradiction_score,
+            llm_token_count=res.llm_token_count,
+            llm_time_ms=res.llm_time_ms
         )
 
     def stream_answer(self, query: str, user=None, session_id: str = None):
         """
         Token-by-token streaming response generator for low-latency interactive UI chat.
-        Implements identical multi-tier routing, security, and verified fallback.
+        Implements identical multi-tier routing, security, and verified fallback via _execute_pipeline.
         """
-        t_start = time.time()
-
-        # 1. Normalize Query & Fast Authorization Scope
-        normalized_query = self.router.normalize(query)
-        allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
-
-        # Fast temporal cues check
-        is_diff = _is_valid_diff_query(normalized_query)
-        has_temporal_cue = is_diff or bool(_HAS_TEMPORAL_CUE_RE.search(normalized_query))
-
-        temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user) if has_temporal_cue else None
-        scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
-
-        # 1.5 Scoped L1 Exact Match Cache Lookup (Sub-millisecond, zero embedding needed)
-        cached = None
-        if self.config.use_cache:
-            cached = self.cache.get(query=normalized_query, scope=scope, is_diff_query=is_diff)
-
-        if cached:
-            metrics.CACHE_HITS.inc()
-            cits = cached.get("citations", [])
-            words = cached["answer"].split(" ")
+        res = self._execute_pipeline(query, user=user, session_id=session_id, is_streaming=True)
+        if res.raw_tokens:
+            for token in res.raw_tokens:
+                yield {"type": "token", "token": token}
+        else:
+            words = res.answer.split(" ")
             for i, word in enumerate(words):
                 chunk = word if i == len(words) - 1 else word + " "
                 yield {"type": "token", "token": chunk}
-            conf_val = cached.get("confidence", 0.95)
-            yield {
-                "type": "done",
-                "result": {
-                    "answer": cached["answer"],
-                    "citations": cits,
-                    "confidence": conf_val,
-                    "route": "CACHE_HIT",
-                    "llm_used": False,
-                    "latency_ms": (time.time() - t_start) * 1000,
-                    "fallback": False,
-                    "model": cached.get("model", "semantic-cache")
-                }
-            }
-            return
 
-        # 1.6 Classify Route BEFORE embedding (F1)
-        intent, complexity, route_name, meta = self.router.route(normalized_query, pre_normalized=True)
-        if temporal_context is None and (route_name in ("TEMPORAL_COMPARISON", "TEMPORAL") or intent in (Intent.TEMPORAL, Intent.COMPARISON)):
-            temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user)
-            scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
-            is_diff = (route_name == "TEMPORAL_COMPARISON")
-
-        # 2. Level 0: Fast Structured Fact Path (Zero embedding needed!)
-        if self.config.use_fact:
-            fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
-            if fact_res.found and fact_res.answer:
-                cits = self.citation_validator.enrich_only(fact_res.citations)
-                if self.config.use_cache:
-                    self.cache.put(None, fact_res.answer, cits, 1, scope=scope, confidence=fact_res.confidence, is_diff_query=is_diff, query=normalized_query)
-                words = fact_res.answer.split(" ")
-                for i, word in enumerate(words):
-                    chunk = word if i == len(words) - 1 else word + " "
-                    yield {"type": "token", "token": chunk}
-                yield {
-                    "type": "done",
-                    "result": {
-                        "answer": fact_res.answer,
-                        "citations": cits,
-                        "confidence": fact_res.confidence,
-                        "route": "FAST_PATH_FACT",
-                        "llm_used": False,
-                        "latency_ms": (time.time() - t_start) * 1000,
-                        "fallback": False,
-                        "model": "fact-engine"
-                    }
-                }
-                return
-
-        # Fact path missed. NOW embed query for L2 vector cache, QA ANN search, and Hybrid retrieval (F1)
-        q_emb = self.embedder.embed_query(normalized_query)
-        if self.config.use_cache:
-            cached = self.cache.get(query_embedding=q_emb, scope=scope, is_diff_query=is_diff)
-            if cached:
-                metrics.CACHE_HITS.inc()
-                cits = cached.get("citations", [])
-                words = cached["answer"].split(" ")
-                for i, word in enumerate(words):
-                    chunk = word if i == len(words) - 1 else word + " "
-                    yield {"type": "token", "token": chunk}
-                conf_val = cached.get("confidence", 0.95)
-                yield {
-                    "type": "done",
-                    "result": {
-                        "answer": cached["answer"],
-                        "citations": cits,
-                        "confidence": conf_val,
-                        "route": "CACHE_HIT",
-                        "llm_used": False,
-                        "latency_ms": (time.time() - t_start) * 1000,
-                        "fallback": False,
-                        "model": cached.get("model", "semantic-cache")
-                    }
-                }
-                return
-            metrics.CACHE_MISSES.labels(reason="miss").inc()
-
-        # 3. Level 1: Precomputed Canonical QA Fast Path
-        if self.config.use_qa and not is_diff:
-            qa_match = self.qa_matcher.match(normalized_query, q_emb, scope=scope, threshold=0.80)
-            if qa_match:
-                pol = qa_match.get("policy")
-                ver = qa_match.get("version")
-                is_auth = True
-                conf_ok = True
-                temp_ok = True
-                if pol:
-                    is_auth = self.evidence_filter.is_authorized_for_policy(scope, pol)
-                    conf_ok = pol.confidentiality in scope.allowed_confidentiality
-                if ver:
-                    temp_ok = (not scope.target_date) or ver.is_valid_for_date(scope.target_date)
-
-                if is_auth and conf_ok and temp_ok:
-                    cits = self.citation_validator.enrich_only(qa_match["citations"])
-                    if cits:
-                        if self.config.use_cache:
-                            self.cache.put(q_emb, qa_match["answer"], cits, 1, scope=scope, confidence=qa_match["confidence"], is_diff_query=is_diff, query=normalized_query)
-                        words = qa_match["answer"].split(" ")
-                        for i, word in enumerate(words):
-                            chunk = word if i == len(words) - 1 else word + " "
-                            yield {"type": "token", "token": chunk}
-                        yield {
-                            "type": "done",
-                            "result": {
-                                "answer": qa_match["answer"],
-                                "citations": cits,
-                                "confidence": qa_match["confidence"],
-                                "route": "FAST_PATH_COMPILED_QA",
-                                "llm_used": False,
-                                "latency_ms": (time.time() - t_start) * 1000,
-                                "fallback": False,
-                                "model": "precompiled-qa"
-                            }
-                        }
-                        return
-
-        # 4. Level 3: Version Comparison Path (F3 shared helper)
-        comp_res = self._run_version_comparison(normalized_query, meta, temporal_context, scope, q_emb=q_emb)
-        if comp_res:
-            diff_summary, cits, comp_conf, p_versions = comp_res
-            words = diff_summary.split(" ")
-            for i, word in enumerate(words):
-                chunk = word if i == len(words) - 1 else word + " "
-                yield {"type": "token", "token": chunk}
-            yield {
-                "type": "done",
-                "result": {
-                    "answer": diff_summary,
-                    "citations": cits,
-                    "confidence": comp_conf,
-                    "route": "TEMPORAL_COMPARISON",
-                    "llm_used": False,
-                    "latency_ms": (time.time() - t_start) * 1000,
-                    "fallback": False,
-                    "model": "diff-engine"
-                }
-            }
-            return
-
-        # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering (F3 shared helper)
-        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff, normalized_query=normalized_query, q_emb=q_emb)
-        if filters is None:
-            yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
-            yield {
-                "type": "done",
-                "result": {
-                    "answer": DEFAULT_REFUSAL_MESSAGE,
-                    "citations": [],
-                    "confidence": 0.0,
-                    "route": "REFUSAL",
-                    "llm_used": False,
-                    "latency_ms": (time.time() - t_start) * 1000,
-                    "fallback": True,
-                    "model": "retrieval-filter"
-                }
-            }
-            return
-
-        retrieval_pack = self._retrieve_and_rank(normalized_query, q_emb, scope, filters, is_fallthrough=True)
-        if not retrieval_pack:
-            yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
-            yield {
-                "type": "done",
-                "result": {
-                    "answer": DEFAULT_REFUSAL_MESSAGE,
-                    "citations": [],
-                    "confidence": 0.0,
-                    "route": "REFUSAL",
-                    "llm_used": False,
-                    "latency_ms": (time.time() - t_start) * 1000,
-                    "fallback": True,
-                    "model": "retrieval-filter"
-                }
-            }
-            return
-
-        ranked, score_type, conf, citations = retrieval_pack
-
-        if self.config.use_confidence_gate and conf.abstain:
-            yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
-            yield {
-                "type": "done",
-                "result": {
-                    "answer": DEFAULT_REFUSAL_MESSAGE,
-                    "citations": [],
-                    "confidence": conf.value,
-                    "route": "ABSTAIN",
-                    "llm_used": False,
-                    "latency_ms": (time.time() - t_start) * 1000,
-                    "fallback": True,
-                    "model": "confidence-gate"
-                }
-            }
-            return
-
-        # 9. Real-time Streaming Generation (F2: buffer tokens until verified)
-        ctx_nums = extract_grounding_numbers(ranked[:5])
-        llm_used = False
-        full_answer = ""
-        # F5: health_check called once in stream_answer
-        llm_available = self.llm.health_check()
-        
-        if complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL and llm_available:
-            try:
-                prompt = build_streaming_qa_prompt(normalized_query, ranked[:5])
-                token_buffer = []
-                for token in self.llm.stream(prompt, system_prompt=STREAMING_POLICY_GROUNDING_PROMPT):
-                    if token:
-                        token_buffer.append(token)
-                candidate_text = "".join(token_buffer).strip()
-                if (
-                    candidate_text
-                    and candidate_text != "INSUFFICIENT_EVIDENCE"
-                    and not candidate_text.startswith("INSUFFICIENT_EVIDENCE")
-                    and verify_numeric_grounding(candidate_text, ctx_nums)
-                ):
-                    for token in token_buffer:
-                        yield {"type": "token", "token": token}
-                    full_answer = candidate_text
-                    llm_used = True
-                else:
-                    if candidate_text:
-                        metrics.GROUNDING_REJECTIONS.inc()
-                    full_answer = ""
-            except Exception as e:
-                logger.warning(f"Streaming LLM failure: {e}. Falling back to deterministic context.")
-                full_answer = ""
-
-        # Deterministic Grounded Fallback if LLM rejected or unavailable
-        if not full_answer.strip():
-            full_answer = _extract_best_evidence_context(normalized_query, ranked, citations)
-            if full_answer:
-                words = full_answer.split(" ")
-                for i, word in enumerate(words):
-                    chunk = word if i == len(words) - 1 else word + " "
-                    yield {"type": "token", "token": chunk}
-            else:
-                yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
-                yield {
-                    "type": "done",
-                    "result": {
-                        "answer": DEFAULT_REFUSAL_MESSAGE,
-                        "citations": [],
-                        "confidence": conf.value,
-                        "route": "ABSTAIN",
-                        "llm_used": False,
-                        "latency_ms": (time.time() - t_start) * 1000,
-                        "fallback": True,
-                        "model": "no-evidence"
-                    }
-                }
-                return
-
-        # Cache successful verified answer (F8: always pass both query string and embedding)
-        if self.config.use_cache:
-            self.cache.put(q_emb, full_answer, citations, len(ranked), scope=scope, model="qwen3" if llm_used else "deterministic-rag", confidence=conf.value, is_diff_query=is_diff, query=normalized_query)
-
-        # F9: done event carries model field
         yield {
             "type": "done",
             "result": {
-                "answer": full_answer,
-                "citations": citations,
-                "confidence": conf.value,
-                "route": "HYBRID_RAG",
-                "llm_used": llm_used,
-                "latency_ms": (time.time() - t_start) * 1000,
-                "fallback": not llm_used,
-                "model": "qwen3" if llm_used else "deterministic-rag"
+                "answer": res.answer,
+                "citations": res.citations,
+                "confidence": res.confidence,
+                "route": res.route,
+                "llm_used": res.llm_used,
+                "latency_ms": res.latency_ms,
+                "fallback": res.fallback,
+                "model": res.model
             }
         }
 

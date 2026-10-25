@@ -3,6 +3,7 @@ rag/generation/prompts.py
 Strict, structured generation prompts for factual policy grounding, version diffs, and complex reasoning.
 """
 from typing import Optional
+from config import Config
 
 SYSTEM_POLICY_GROUNDING_PROMPT = """You are an Enterprise Policy Assistant.
 Answer the user's question using ONLY the authoritative policy evidence enclosed within <evidence> XML tags.
@@ -28,6 +29,7 @@ If the evidence does not contain the answer, emit only "INSUFFICIENT_EVIDENCE", 
 Do not output JSON, markdown tags, or boilerplate; output the direct natural answer."""
 
 def build_grounded_qa_prompt(query: str, evidence_chunks: list) -> str:
+    max_chars = getattr(Config, "PROMPT_CHUNK_MAX_CHARS", 700)
     context_blocks = []
     for i, c in enumerate(evidence_chunks):
         cid = c.get("chunk_id") or c.get("id") or f"chunk-{i+1}"
@@ -36,7 +38,7 @@ def build_grounded_qa_prompt(query: str, evidence_chunks: list) -> str:
         ver = str(c.get("version") or "1.0").lstrip("v")
         status = "Active" if c.get("is_active", True) else "Superseded"
         status_label = f" ({status})" if status == "Active" else ""
-        text = c.get("text", "").strip()[:700]
+        text = c.get("text", "").strip()[:max_chars]
         context_blocks.append(f'<evidence id="{cid}" policy="{pname}" version="v{ver}{status_label}" section="{sec}">\n{text}\n</evidence>')
 
     context_str = "\n\n".join(context_blocks)
@@ -50,13 +52,14 @@ User Question:
 JSON Response:"""
 
 def build_streaming_qa_prompt(query: str, evidence_chunks: list) -> str:
+    max_chars = getattr(Config, "PROMPT_CHUNK_MAX_CHARS", 700)
     context_blocks = []
     for i, c in enumerate(evidence_chunks):
         cid = c.get("chunk_id") or c.get("id") or f"chunk-{i+1}"
         sec = c.get("section") or c.get("section_path") or "Policy Section"
         pname = c.get("policy_name") or "Policy"
         ver = c.get("version") or "1.0"
-        text = c.get("text", "").strip()[:700]
+        text = c.get("text", "").strip()[:max_chars]
         context_blocks.append(f'<evidence id="{cid}" policy="{pname} v{ver}" section="{sec}">\n{text}\n</evidence>')
 
     context_str = "\n\n".join(context_blocks)
@@ -69,6 +72,7 @@ User Question:
 Direct Answer:"""
 
 def build_comparison_prompt(policy_name: str, v1_num: str, v1_text: str, v2_num: str, v2_text: str, diff_summary: Optional[str] = None) -> str:
+    max_chars = getattr(Config, "PROMPT_CHUNK_MAX_CHARS", 700)
     if diff_summary:
         return f"""Compare Policy '{policy_name}' Version {v1_num} vs Version {v2_num}.
 Synthesize the key changes, additions, and removals clearly and concisely based on the following pre-computed structural diff:
@@ -81,9 +85,9 @@ Summary of changes:"""
 Summarize the key changes, additions, and removals clearly and concisely.
 
 Version {v1_num}:
-{v1_text[:700]}
+{v1_text[:max_chars]}
 
 Version {v2_num}:
-{v2_text[:700]}
+{v2_text[:max_chars]}
 
 Summary of changes:"""

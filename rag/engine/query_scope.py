@@ -101,7 +101,7 @@ class QueryScope:
             department_ids=tuple(dept_ids),
             departments=tuple(depts),
             allowed_policy_ids=allowed_p_tuple,
-            allowed_version_ids=None,
+            allowed_version_ids=(temporal_ctx.version_id,) if (temporal_ctx and getattr(temporal_ctx, "version_id", None)) else None,
             target_date=target_d,
             start_date=start_d,
             end_date=end_d,

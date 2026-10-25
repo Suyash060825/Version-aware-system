@@ -52,6 +52,7 @@ class Config:
     CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", REDIS_URL)
 
     # --- Local AI & LLM Inference ---
+    USE_NLI = os.environ.get("USE_NLI", "true").lower() in ("true", "1", "yes")
     LLM_BACKEND = os.environ.get("LLM_BACKEND", "ollama")
     LOCAL_LLM_MODEL = os.environ.get("LOCAL_LLM_MODEL", os.environ.get("OLLAMA_MODEL", "qwen3:4b-q4_K_M"))
     OLLAMA_MODEL = LOCAL_LLM_MODEL
@@ -59,7 +60,8 @@ class Config:
     OLLAMA_BASE_URL = LOCAL_LLM_BASE_URL
     LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", "45.0"))
     LLM_MAX_NEW_TOKENS = int(os.environ.get("LLM_MAX_NEW_TOKENS", "512"))
-    OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
+    OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "8192"))
+    PROMPT_CHUNK_MAX_CHARS = int(os.environ.get("PROMPT_CHUNK_MAX_CHARS", "700"))
     OLLAMA_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "10m")
     OLLAMA_NUM_THREADS = int(os.environ.get("OLLAMA_NUM_THREADS", "0"))
 

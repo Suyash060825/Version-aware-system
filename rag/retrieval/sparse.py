@@ -18,24 +18,41 @@ class PersistentBM25Index:
     
     def __init__(self):
         self._bm25 = None
+        self._bm25_dirty = False
         self._corpus: List[Dict[str, Any]] = []
         self._tokenized_corpus: List[List[str]] = []
         self._revision = 0
+        self._loaded_mtime = 0.0
         self._sub_bm25 = None
         self._sub_bm25_cache_key = None
         self.load()
 
+    def _sync_with_disk_if_needed(self):
+        """Cross-process sync across Gunicorn workers via disk mtime."""
+        try:
+            if os.path.exists(self.INDEX_PATH):
+                disk_mtime = os.path.getmtime(self.INDEX_PATH)
+                if disk_mtime > getattr(self, "_loaded_mtime", 0.0):
+                    self.load()
+        except Exception:
+            pass
+
     def load(self):
         if os.path.exists(self.INDEX_PATH):
             try:
+                disk_mtime = os.path.getmtime(self.INDEX_PATH)
                 with open(self.INDEX_PATH, 'rb') as f:
                     data = pickle.load(f)
-                    self._bm25 = data['bm25']
+                    self._bm25 = data.get('bm25')
+                    self._bm25_dirty = data.get('bm25_dirty', False)
                     self._corpus = data['corpus']
                     self._tokenized_corpus = data.get('tokenized_corpus')
                     if self._tokenized_corpus is None or len(self._tokenized_corpus) != len(self._corpus):
                         self._tokenized_corpus = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
                     self._revision = data.get('revision', 0)
+                self._loaded_mtime = disk_mtime
+                self._sub_bm25 = None
+                self._sub_bm25_cache_key = None
                 logger.info(f"Loaded persistent BM25 index with {len(self._corpus)} documents (revision {self._revision})")
                 return
             except Exception as e:
@@ -52,27 +69,32 @@ class PersistentBM25Index:
 
     def save(self):
         try:
-            import tempfile
+            import tempfile, fcntl
             idx_dir = os.path.dirname(self.INDEX_PATH)
             os.makedirs(idx_dir, exist_ok=True)
-            # Use unique temp file to avoid concurrent worker collision, then atomic rename
-            tmp_fd, tmp_path = tempfile.mkstemp(dir=idx_dir, prefix="bm25_", suffix=".tmp")
-            try:
-                with os.fdopen(tmp_fd, 'wb') as f:
-                    pickle.dump({
-                        'bm25': self._bm25,
-                        'corpus': self._corpus,
-                        'tokenized_corpus': self._tokenized_corpus,
-                        'revision': self._revision
-                    }, f, protocol=pickle.HIGHEST_PROTOCOL)
-                os.replace(tmp_path, self.INDEX_PATH)
-            except Exception:
-                if os.path.exists(tmp_path):
+            lock_path = self.INDEX_PATH + ".lock"
+            with open(lock_path, "w") as lock_file:
+                try:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                except Exception:
+                    pass
+                try:
+                    tmp_fd, tmp_path = tempfile.mkstemp(dir=idx_dir, prefix="bm25_", suffix=".tmp")
+                    with os.fdopen(tmp_fd, 'wb') as f:
+                        pickle.dump({
+                            'bm25': self._bm25,
+                            'bm25_dirty': self._bm25_dirty,
+                            'corpus': self._corpus,
+                            'tokenized_corpus': self._tokenized_corpus,
+                            'revision': self._revision
+                        }, f, protocol=pickle.HIGHEST_PROTOCOL)
+                    os.replace(tmp_path, self.INDEX_PATH)
+                    self._loaded_mtime = os.path.getmtime(self.INDEX_PATH)
+                finally:
                     try:
-                        os.unlink(tmp_path)
-                    except OSError:
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                    except Exception:
                         pass
-                raise
         except Exception as e:
             logger.error(f"Failed to save BM25 index: {e}")
 
@@ -141,6 +163,7 @@ class PersistentBM25Index:
                 })
                 
             self._bm25 = BM25Okapi(tokenized_corpus)
+            self._bm25_dirty = False
             self._corpus = corpus
             self._tokenized_corpus = tokenized_corpus
             self._revision += 1
@@ -152,8 +175,9 @@ class PersistentBM25Index:
     def update_policy_version(self, policy_id: int, version_id: int, new_chunks: List[Dict[str, Any]]):
         """
         Incremental delta update: replaces/inserts chunks for a single policy version
-        without re-tokenizing the entire corpus.
+        without re-tokenizing the entire corpus. Marks BM25 dirty to defer index rebuild to query time.
         """
+        self._sync_with_disk_if_needed()
         kept_indices = [
             i for i, c in enumerate(self._corpus)
             if not (c.get("policy_id") == policy_id and c.get("version_id") == version_id)
@@ -192,16 +216,14 @@ class PersistentBM25Index:
 
         self._corpus = filtered_corpus
         self._tokenized_corpus = filtered_tokens
-        if self._tokenized_corpus:
-            self._bm25 = BM25Okapi(self._tokenized_corpus)
-        else:
-            self._bm25 = None
+        self._bm25_dirty = True
         self._revision += 1
         self.save()
         logger.info(f"Incrementally updated BM25 for policy {policy_id} v{version_id} ({len(new_chunks)} chunks, rev {self._revision})")
 
     def delete_policy_version(self, policy_id: int, version_id: int):
         """Incremental deletion for a policy version without re-tokenizing unchanged corpus."""
+        self._sync_with_disk_if_needed()
         kept_indices = [
             i for i, c in enumerate(self._corpus)
             if not (c.get("policy_id") == policy_id and c.get("version_id") == version_id)
@@ -212,15 +234,13 @@ class PersistentBM25Index:
         else:
             self._tokenized_corpus = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
 
-        if self._tokenized_corpus:
-            self._bm25 = BM25Okapi(self._tokenized_corpus)
-        else:
-            self._bm25 = None
+        self._bm25_dirty = True
         self._revision += 1
         self.save()
 
     def delete_policy(self, policy_id: int):
         """Incremental deletion for an entire policy without re-tokenizing unchanged corpus."""
+        self._sync_with_disk_if_needed()
         p_val = int(policy_id) if str(policy_id).isdigit() else policy_id
         kept_indices = [
             i for i, c in enumerate(self._corpus)
@@ -232,10 +252,7 @@ class PersistentBM25Index:
         else:
             self._tokenized_corpus = [re.findall(r"\b\w+\b", c["text"].lower()) for c in self._corpus]
 
-        if self._tokenized_corpus:
-            self._bm25 = BM25Okapi(self._tokenized_corpus)
-        else:
-            self._bm25 = None
+        self._bm25_dirty = True
         self._revision += 1
         self.save()
         logger.info(f"Deleted policy {policy_id} from BM25 index (revision {self._revision})")
@@ -272,8 +289,17 @@ class PersistentBM25Index:
         return True
 
     def get_scores(self, query: str, filters: dict = None, scope: Any = None) -> List[Tuple[str, float, dict]]:
-        if not self._bm25 or not self._corpus:
-            self.load()
+        self._sync_with_disk_if_needed()
+        if self._bm25_dirty or not self._bm25 or not self._corpus:
+            if not self._corpus:
+                self.load()
+            if self._bm25_dirty or not self._bm25:
+                if self._tokenized_corpus:
+                    self._bm25 = BM25Okapi(self._tokenized_corpus)
+                else:
+                    self._bm25 = None
+                self._bm25_dirty = False
+                self.save()
         if not self._bm25 or not self._corpus:
             return []
             
@@ -298,9 +324,15 @@ class PersistentBM25Index:
         if not allowed_indices:
             return []
 
-        # Guard: only use subset scoring if len(self._corpus) > 2000 and len(allowed_indices) < len(self._corpus)
+        # Multi-worker synced sub-BM25 cache keyed by scope, revision, and disk mtime
         if len(self._corpus) > 2000 and len(allowed_indices) < len(self._corpus) and self._tokenized_corpus:
-            cache_key = (frozenset(allowed_indices), self._revision)
+            scope_key = (
+                getattr(scope, "allowed_policy_ids", None),
+                getattr(scope, "allowed_version_ids", None),
+                getattr(scope, "target_date", None),
+                str(sorted(filters.items())) if filters else ""
+            )
+            cache_key = (scope_key, self._revision, getattr(self, "_loaded_mtime", 0.0))
             if cache_key != self._sub_bm25_cache_key or self._sub_bm25 is None:
                 allowed_tokenized = [self._tokenized_corpus[i] for i in allowed_indices]
                 self._sub_bm25 = BM25Okapi(allowed_tokenized)
@@ -325,3 +357,13 @@ class PersistentBM25Index:
     @property
     def revision(self) -> int:
         return self._revision
+
+
+_BM25_INDEX: Optional[PersistentBM25Index] = None
+
+def get_bm25_index() -> PersistentBM25Index:
+    global _BM25_INDEX
+    if _BM25_INDEX is None:
+        _BM25_INDEX = PersistentBM25Index()
+    return _BM25_INDEX
+

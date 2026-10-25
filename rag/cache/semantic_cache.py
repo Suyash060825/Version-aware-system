@@ -8,17 +8,20 @@ from collections import defaultdict
 from typing import List, Dict, Optional, Any
 from config import Config
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
 def _cosine_similarity(v1: List[float], v2: List[float]) -> float:
     if not v1 or not v2 or len(v1) != len(v2):
         return 0.0
-    dot = sum(a * b for a, b in zip(v1, v2))
-    norm_a = math.sqrt(sum(a * a for a in v1))
-    norm_b = math.sqrt(sum(b * b for b in v2))
-    if norm_a == 0 or norm_b == 0:
+    a = np.asarray(v1, dtype=np.float32)
+    b = np.asarray(v2, dtype=np.float32)
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    if norm_a == 0.0 or norm_b == 0.0:
         return 0.0
-    return dot / (norm_a * norm_b)
+    return float(np.dot(a, b) / (norm_a * norm_b))
 
 class MultiLevelCache:
     """

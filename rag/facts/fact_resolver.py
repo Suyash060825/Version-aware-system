@@ -29,7 +29,11 @@ class FactResolutionResult:
 def generate_patterns_from_compiled_predicates():
     """Auto-extend FACT_PATTERNS from data/compiled_predicates.json at startup."""
     import os, json
-    pred_file = os.path.join("data", "compiled_predicates.json")
+    from config import Config
+    base_dir = getattr(Config, "BASE_DIR", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+    pred_file = os.path.join(base_dir, "data", "compiled_predicates.json")
+    if not os.path.exists(pred_file):
+        pred_file = os.path.join("data", "compiled_predicates.json")
     new_patterns = []
     if os.path.exists(pred_file):
         try:
@@ -132,7 +136,11 @@ class FactResolver:
                 now = time.time()
                 if self._cached_db_predicates is None or (now - self._predicate_cache_ts > self._PREDICATE_TTL):
                     import os, json
-                    pred_file = os.path.join("data", "compiled_predicates.json")
+                    from config import Config
+                    base_dir = getattr(Config, "BASE_DIR", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+                    pred_file = os.path.join(base_dir, "data", "compiled_predicates.json")
+                    if not os.path.exists(pred_file):
+                        pred_file = os.path.join("data", "compiled_predicates.json")
                     if os.path.exists(pred_file):
                         try:
                             with open(pred_file) as f:
@@ -276,13 +284,11 @@ class FactResolver:
         return self._format_fact_result(best_fact, policy=policies_map.get(best_fact.policy_id), version=versions_map.get(best_fact.version_id), is_dynamic=is_dynamic)
 
     def _format_fact_result(self, fact: PolicyFact, policy: Optional[Policy] = None, version: Optional[PolicyVersion] = None, is_dynamic: bool = False) -> FactResolutionResult:
-        if policy is None and fact.policy_id:
-            policy = db.session.get(Policy, fact.policy_id)
-        if version is None and fact.version_id:
-            version = db.session.get(PolicyVersion, fact.version_id)
+        if not policy or not version:
+            return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
         
-        policy_title = policy.title if policy else "Policy"
-        version_num = version.version_number if version else "1.0"
+        policy_title = policy.title
+        version_num = version.version_number
 
         # Resolve authoritative source chunk (no fact response is valid without source evidence)
         section = "General"
