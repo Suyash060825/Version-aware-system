@@ -1,0 +1,63 @@
+{
+  "audit_id": "veritas_root_cause_audit_2026_10_25",
+  "audit_timestamp": "2026-10-25T05:15:23Z",
+  "auditor": "VERITAS Root-Cause Investigation (Antigravity)",
+  "git_branch": "improv",
+  "git_head_commit": "0ebae05",
+  "git_base_commit_for_run": "8337271",
+  "working_tree_state": "dirty (multiple modified files, Chroma binary blobs deleted from index)",
+  "primary_run_audited": "ieee_publication_v1",
+  "primary_run_timestamp": "2026-10-24T19:22:55Z",
+  "secondary_run_audited": "veritas_fullstack_20261023_171900_8337271",
+  "environment": {
+    "platform": "linux",
+    "python": "3.x"
+  },
+  "inspected_files": [
+    "rag/authorization/evidence_filter.py",
+    "rag/engine/query_engine.py",
+    "rag/retrieval/hybrid.py",
+    "rag/retrieval/sparse.py",
+    "rag/retrieval/dense.py",
+    "rag/vectordb/chroma.py",
+    "rag/verification/confidence.py",
+    "rag/versions/resolver.py",
+    "rag/cache/semantic_cache.py",
+    "rag/compiler/pipeline.py",
+    "evaluation/run_comprehensive_eval.py",
+    "evaluation/results/metrics.json",
+    "evaluation/results/answer_quality_metrics.json",
+    "evaluation/results/security_results.json",
+    "experiments/ieee_publication_v1/comprehensive_metrics.json",
+    "experiments/ieee_publication_v1/query_results.jsonl",
+    "experiments/ieee_publication_v1/metrics_report.md"
+  ],
+  "file_hashes": {
+    "comprehensive_metrics.json": "5237c881eb9964cc",
+    "query_results.jsonl": "3f6c54addd2623ac",
+    "evidence_filter.py": "05694b87bb2cf6f9",
+    "query_engine.py": "901ad6962060074c",
+    "hybrid.py": "389ca32cc3b4d12a",
+    "sparse.py": "b7d79786436318bf",
+    "chroma.py": "f027d08c48360b9a",
+    "confidence.py": "f31f91e064318fa8",
+    "resolver.py": "edab0beb52e4a75a",
+    "run_comprehensive_eval.py": "f0e147db9886f68c"
+  },
+  "records_analyzed": {
+    "ieee_publication_v1_query_records": 100,
+    "evaluation_results_query_records": "3000 (per metrics.json)"
+  },
+  "skipped_tests": [
+    "pytest full suite (services not running)",
+    "Ollama inference (unavailable in audit environment)",
+    "pgvector/PostgreSQL live query plans (DB not running)",
+    "Redis live cache operations (not running)"
+  ],
+  "limitations": [
+    "Chroma binary index files deleted from working tree; index state unverifiable at runtime",
+    "BM25 index pkl is modified but not inspectable without running app context",
+    "No live Ollama available; LLM path not exercised",
+    "3,000-query run metrics from eval/results/ are for a different corpus than ieee_publication_v1"
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "total_queries": 1000,
+  "total_queries": 3000,
   "category_distribution": {
     "CAT_01_FACTUAL_LOOKUP": 30,
     "CAT_02_VERSION_LOOKUP": 57,
@@ -19,7 +19,7 @@
     "CAT_29_UNAUTHORIZED_REFUSAL": 3,
     "CAT_31_MALFORMED": 5,
     "CAT_33_CACHE_REPEATED": 20,
-    "CAT_23_HYBRID_RETRIEVAL": 330,
-    "CAT_22_DETERMINISTIC_FAST_PATH": 186
+    "CAT_23_HYBRID_RETRIEVAL": 1649,
+    "CAT_22_DETERMINISTIC_FAST_PATH": 867
   }
 }
