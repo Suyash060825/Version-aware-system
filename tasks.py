@@ -25,8 +25,22 @@ def make_celery(app_name=__name__):
         result_serializer='json',
         timezone='UTC',
         enable_utc=True,
-        broker_connection_retry_on_startup=False,
-        broker_transport_options={'max_retries': 0, 'socket_timeout': 1.0, 'socket_connect_timeout': 1.0},
+        # Resilience for multi-node Redis clusters, Sentinel, and temporary network hiccups
+        broker_connection_retry_on_startup=True,
+        broker_transport_options={
+            'max_retries': 5,
+            'interval_start': 0.2,
+            'interval_step': 0.5,
+            'interval_max': 2.0,
+            'socket_timeout': 5.0,
+            'socket_connect_timeout': 5.0,
+            'socket_keepalive': True,
+            'retry_on_timeout': True
+        },
+        # Celery worker process leak protection under high-volume document stress (>10,000 docs)
+        # Recycles worker process after 50 tasks to release C-extension heap allocations (PyMuPDF, ONNX, SQLite)
+        worker_max_tasks_per_child=50,
+        worker_max_memory_per_child=500000,  # 500 MB max RSS per worker child process
     )
     return celery
 

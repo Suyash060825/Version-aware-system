@@ -105,9 +105,9 @@ class VectorStore(VectorStoreBase):
         try:
             self._col.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
         except Exception as e:
-            logger.error(f"Error upserting into Chroma {self.col_name}: {e}. Rebuilding collection.")
-            self._client.delete_collection(name=self.col_name)
-            self._col = self._client.create_collection(name=self.col_name, metadata={"hnsw:space": "cosine"})
+            logger.warning(f"Transient error upserting into Chroma {self.col_name}: {e}. Retrying once...")
+            import time
+            time.sleep(0.5)
             self._col.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
 
     def delete_policy_version(self, policy_id: int, version: Any):

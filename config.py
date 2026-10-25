@@ -33,7 +33,15 @@ class Config:
         _raw_db = _raw_db.replace("postgres://", "postgresql://", 1)
 
     if _raw_db:
-        SQLALCHEMY_DATABASE_URI = _raw_db
+        if "@postgres:" in _raw_db:
+            import socket
+            try:
+                socket.gethostbyname("postgres")
+                SQLALCHEMY_DATABASE_URI = _raw_db
+            except Exception:
+                SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'data', 'ledger.db')}"
+        else:
+            SQLALCHEMY_DATABASE_URI = _raw_db
     else:
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'data', 'ledger.db')}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False

@@ -269,6 +269,7 @@ class PolicyVersion(db.Model):
     created_at = db.Column(db.DateTime, default=now_utc)
     approved_at = db.Column(db.DateTime)
     effective_date = db.Column(db.Date)
+    expiration_date = db.Column(db.Date, nullable=True)  # Explicit version expiry / hiatus date (prevents unwarranted gap bridging)
 
     # State
     is_active = db.Column(db.Boolean, default=False)   # only one version active at a time
@@ -290,19 +291,35 @@ class PolicyVersion(db.Model):
     @property
     def effective_to(self):
         """
-        Derive effective_to deterministically from the subsequent version's effective date.
-        Returns None if this is the active/latest version with no subsequent version.
+        Derive effective_to deterministically from explicit expiration_date, policy expiry,
+        or subsequent version's effective date.
+        Returns None if this is the active/latest version with no subsequent version or expiration date.
         Raises RuntimeError on database query failure to prevent interpreting DB errors as open-ended validity.
         """
         from datetime import timedelta
         import logging
         try:
+            # Explicit version expiration date strictly prevents unwarranted gap bridging across policy hiatuses
+            if getattr(self, "expiration_date", None):
+                return self.expiration_date
+
             next_ver = PolicyVersion.query.filter(
                 PolicyVersion.policy_id == self.policy_id,
                 PolicyVersion.version_num > self.version_num
             ).order_by(PolicyVersion.version_num.asc()).first()
             if next_ver and next_ver.effective_from:
-                return next_ver.effective_from - timedelta(days=1)
+                pol = getattr(self, "policy", None)
+                if not pol and self.policy_id:
+                    pol = db.session.get(Policy, self.policy_id)
+                subsequent_cutoff = next_ver.effective_from - timedelta(days=1)
+                if pol and getattr(pol, "expiry_date", None):
+                    return min(pol.expiry_date, subsequent_cutoff)
+                return subsequent_cutoff
+            pol = getattr(self, "policy", None)
+            if not pol and self.policy_id:
+                pol = db.session.get(Policy, self.policy_id)
+            if pol and getattr(pol, "expiry_date", None):
+                return pol.expiry_date
             return None
         except Exception as e:
             logging.getLogger("models.temporal").error(f"Failed resolving effective_to for version {self.id}: {e}")

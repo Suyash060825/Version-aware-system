@@ -302,7 +302,8 @@ def api_clear_session():
 @rag_bp.route("/admin/dashboard")
 @login_required
 def admin_rag_dashboard():
-    if not current_user.can_manage_policies():
+    # Only administrators may access internal RAG system telemetry, vector stats, and query logs
+    if not (current_user.is_admin() or current_user.role == UserRole.ADMIN):
         from flask import abort
         abort(403)
 

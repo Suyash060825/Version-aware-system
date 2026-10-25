@@ -18,7 +18,7 @@ class ParserResult:
     char_count: int = 0
     page_count: int = 0
 
-def extract_document(filepath: str, max_chars: int = 60000) -> ParserResult:
+def extract_document(filepath: str, max_chars: int = 500000) -> ParserResult:
     """
     Auto-detect file type and extract clean text with structured metadata.
     Returns ParserResult object with status, format, error, truncation info.

@@ -228,7 +228,7 @@ def generate_benchmark_queries(ledger: GroundTruthLedger) -> List[QueryGroundTru
                 user_department=target_user.department_name,
                 user_clearance=target_user.clearance,
                 query_date=None,
-                query_text=f"What was the {f2.predicate.replace('_', ' ')} under {p.title} before December 2022?",
+                query_text=f"What was the {f2.predicate.replace('_', ' ')} under {p.title} before December 2021?",
                 intended_policy_id=p.policy_id,
                 intended_policy_title=p.title,
                 intended_version_num="2.0",

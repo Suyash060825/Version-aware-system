@@ -184,16 +184,30 @@ def _split_long_section(text: str) -> list[str]:
     while start < len(text):
         end = min(start + MAX_CHUNK_CHARS, len(text))
 
-        # Try to end on a sentence boundary
+        # Try to end on a sentence boundary (avoiding decimal cuts like 4.2% or v1.0)
         if end < len(text):
-            last_period = text.rfind(".", start, end)
             last_newline = text.rfind("\n", start, end)
+            last_period = -1
+            pos = end - 1
+            while pos >= start + MIN_CHUNK_CHARS:
+                if text[pos] == ".":
+                    # Check if this period is part of a decimal number or version string
+                    before_is_digit = (pos > 0 and text[pos - 1].isdigit())
+                    after_is_digit = (pos + 1 < len(text) and text[pos + 1].isdigit())
+                    if not (before_is_digit and after_is_digit):
+                        last_period = pos
+                        break
+                pos -= 1
+
             boundary = max(last_period, last_newline)
             if boundary > start + MIN_CHUNK_CHARS:
                 end = boundary + 1
 
         chunks.append(text[start:end])
-        start = end - OVERLAP_CHARS  # sliding overlap
+        next_start = end - OVERLAP_CHARS  # sliding overlap
+        if next_start <= start:
+            next_start = end
+        start = next_start
         if start >= len(text):
             break
 

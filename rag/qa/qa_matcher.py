@@ -146,7 +146,7 @@ class QAMatcher:
             }]
 
             ans_text = getattr(ans, "answer", None) or meta.get("answer_text", "")
-            ans_conf = float(ans.confidence if ans.confidence is not None else score)
+            ans_conf = min(float(ans.confidence if ans.confidence is not None else score), 0.90)
 
             return {
                 "answer": ans_text,
@@ -222,7 +222,7 @@ class QAMatcher:
         return {
             "answer": ans.answer,
             "score": float(score),
-            "confidence": float(ans.confidence if ans.confidence is not None else score),
+            "confidence": min(float(ans.confidence if ans.confidence is not None else score), 0.90),
             "matched_question": q_obj.question,
             "citations": citations,
             "policy": policy,

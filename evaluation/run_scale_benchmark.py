@@ -253,6 +253,11 @@ def main():
             confidences.append(conf)
             correctness_list.append(is_correct)
 
+            ret_chunks = [c.get("chunk_id") for c in citations if isinstance(c, dict) and c.get("chunk_id")]
+            ret_pids = [pv.get("policy_id") for pv in (res.policy_versions if res else []) if isinstance(pv, dict) and pv.get("policy_id")]
+            if not ret_pids and citations:
+                ret_pids = [c.get("policy_id") for c in citations if isinstance(c, dict) and c.get("policy_id")]
+
             rec = {
                 "run_id": RUN_ID,
                 "query_id": q.query_id,
@@ -273,6 +278,8 @@ def main():
                 "abstained": abstained,
                 "expected_abstention": q.expected_abstention,
                 "citation_count": len(citations),
+                "retrieved_chunk_ids": ret_chunks,
+                "retrieved_policy_ids": ret_pids,
                 "latency_ms": round(elapsed_ms, 2)
             }
             query_level_records.append(rec)
@@ -308,8 +315,8 @@ def main():
             "query_id": q.query_id,
             "expected_policy_id": q.intended_policy_id,
             "expected_chunk_ids": q.expected_evidence_chunks,
-            "retrieved_policy_ids": [q.intended_policy_id] if r["answer_correctness"] and q.intended_policy_id else [],
-            "retrieved_chunk_ids": q.expected_evidence_chunks if r["answer_correctness"] else []
+            "retrieved_policy_ids": r.get("retrieved_policy_ids", []),
+            "retrieved_chunk_ids": r.get("retrieved_chunk_ids", [])
         }
         for q, r in zip(queries, query_level_records)
     ]

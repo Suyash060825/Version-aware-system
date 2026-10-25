@@ -23,9 +23,11 @@ class QueryScope:
     allowed_confidentiality: Tuple[str, ...] = ("public", "internal")
     is_admin: bool = False
     requested_version: Optional[str] = None
+    auth_epoch: int = 1
 
     @classmethod
     def from_user(cls, user: Any = None, temporal_ctx: Any = None, allowed_policy_ids: Optional[List[int]] = None) -> "QueryScope":
+        from rag.authorization.evidence_filter import get_user_auth_epoch
         tq = getattr(temporal_ctx, "temporal_query", None) if temporal_ctx else None
         target_d = getattr(temporal_ctx, "target_date", None) if temporal_ctx else None
         start_d = getattr(tq, "start_date", None) if tq else None
@@ -51,7 +53,8 @@ class QueryScope:
                 current_only=not is_hist,
                 allowed_confidentiality=("public", "internal"),
                 is_admin=False,
-                requested_version=req_ver
+                requested_version=req_ver,
+                auth_epoch=get_user_auth_epoch(None)
             )
 
         is_adm = False
@@ -106,5 +109,6 @@ class QueryScope:
             current_only=not is_hist,
             allowed_confidentiality=tuple(confidentiality),
             is_admin=is_adm,
-            requested_version=req_ver
+            requested_version=req_ver,
+            auth_epoch=get_user_auth_epoch(user_id)
         )

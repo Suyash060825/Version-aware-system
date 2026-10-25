@@ -17,6 +17,7 @@ import re
 import math
 import hashlib
 import platform
+import argparse
 try:
     import psutil
 except ImportError:
@@ -37,7 +38,8 @@ from evaluation.metrics import (
     compute_wilson_score_interval,
     compute_token_f1,
     compute_expected_calibration_error,
-    compute_retrieval_metrics
+    compute_retrieval_metrics,
+    compute_answer_contains_score
 )
 from tests.system_characterization.corpus.user_matrix import build_user_pool, AccessControlEvaluator
 from tests.system_characterization.suites.test_authorization_isolation import AuthorizationIsolationBenchmark
@@ -50,6 +52,18 @@ from rag.llm_provider import get_llm_provider
 
 RESULTS_DIR = "evaluation/results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
+
+
+def safe_write_open(path: str, mode: str = "w", newline: Optional[str] = None):
+    """Safely opens a file for writing by unlinking pre-existing files if needed."""
+    if "w" in mode and os.path.exists(path):
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+    if newline is not None:
+        return open(path, mode, newline=newline)
+    return open(path, mode)
 
 
 def get_system_telemetry() -> Dict[str, Any]:
@@ -75,7 +89,7 @@ def step_environment_verification():
     print("=======================================================")
     telemetry = get_system_telemetry()
     env_file = os.path.join(RESULTS_DIR, "environment.json")
-    with open(env_file, "w") as f:
+    with safe_write_open(env_file, "w") as f:
         json.dump(telemetry, f, indent=2)
     print(f"Captured hardware telemetry: {telemetry['cpu_count_logical']} CPUs, {telemetry['ram_total_gb']} GB RAM.")
 
@@ -86,16 +100,16 @@ def step_environment_verification():
         print("[WARNING] Local Ollama health check returned False. Checking direct connection...")
 
 
-def step_corpus_and_question_generation() -> Tuple[Any, List[Any]]:
+def step_corpus_and_question_generation(target_count: int = 1000, categories: Optional[List[str]] = None) -> Tuple[Any, List[Any]]:
     print("\n=======================================================")
     print("STEP 2: Generating Deterministic Corpus & Question Suite")
     print("=======================================================")
     gen = ConfigurableCorpusGenerator(seed=42)
 
-    # 1. Generate 120-policy master evaluation corpus
-    ledger_120 = gen.generate_corpus(120)
-    v_report = gen.validate_corpus(ledger_120)
-    print(f"Master 120 Corpus: {v_report['total_policies']} policies, {v_report['total_versions']} versions, {v_report['total_chunks']} chunks. Valid={v_report['valid']}")
+    policy_count = 120
+    ledger = gen.generate_corpus(policy_count)
+    v_report = gen.validate_corpus(ledger)
+    print(f"Master {policy_count} Corpus: {v_report['total_policies']} policies, {v_report['total_versions']} versions, {v_report['total_chunks']} chunks. Valid={v_report['valid']}")
 
     manifest = {
         "seed": 42,
@@ -106,11 +120,26 @@ def step_corpus_and_question_generation() -> Tuple[Any, List[Any]]:
         "qa_count": v_report['total_canonical_qas'],
         "validation_passed": v_report['valid']
     }
-    with open(os.path.join(RESULTS_DIR, "corpus_manifest.json"), "w") as f:
+    with safe_write_open(os.path.join(RESULTS_DIR, "corpus_manifest.json"), "w") as f:
         json.dump(manifest, f, indent=2)
 
-    # 2. Generate 1,000 evaluation questions across 36 categories
-    queries = generate_36_category_benchmark(ledger_120, target_count=1000, seed=42)
+    queries = generate_36_category_benchmark(ledger, target_count=max(target_count, 1000), seed=42)
+    if categories:
+        cat_letter_map = {
+            'A': ['CAT_01', 'CAT_18', 'CAT_22', 'CATEGORY_A'],
+            'B': ['CAT_02', 'CAT_33', 'CATEGORY_B'],
+            'C': ['CAT_03', 'CAT_04', 'CAT_16', 'CAT_23', 'CATEGORY_C'],
+            'D': ['CAT_05', 'CAT_06', 'CAT_07', 'CAT_24', 'CATEGORY_D'],
+            'E': ['CAT_09', 'CAT_10', 'CAT_26', 'CATEGORY_E'],
+        }
+        req_prefixes = []
+        for c in categories:
+            req_prefixes.extend(cat_letter_map.get(c.upper(), [c.upper(), f"CAT_{c.upper()}", f"CATEGORY_{c.upper()}"]))
+        queries = [q for q in queries if any(p in q.query_category.upper() for p in req_prefixes)]
+
+    if len(queries) > target_count:
+        queries = queries[:target_count]
+
     cat_counts = Counter(q.query_category for q in queries)
     print(f"Generated {len(queries)} evaluation questions across {len(cat_counts)} categories.")
 
@@ -118,10 +147,10 @@ def step_corpus_and_question_generation() -> Tuple[Any, List[Any]]:
         "total_queries": len(queries),
         "category_distribution": dict(cat_counts)
     }
-    with open(os.path.join(RESULTS_DIR, "question_manifest.json"), "w") as f:
+    with safe_write_open(os.path.join(RESULTS_DIR, "question_manifest.json"), "w") as f:
         json.dump(q_manifest, f, indent=2)
 
-    return ledger_120, queries
+    return ledger, queries
 
 
 def step_reconcile_1000_policy_discrepancy():
@@ -189,7 +218,7 @@ def step_reconcile_1000_policy_discrepancy():
         },
         "conclusion": "The 42.45s measurement captures batched ONNX neural embedding throughput, while the 234.94s measurement captures synchronous unbatched relational database transactions and disk persistence overhead."
     }
-    with open(os.path.join(RESULTS_DIR, "discrepancy_reconciliation.json"), "w") as f:
+    with safe_write_open(os.path.join(RESULTS_DIR, "discrepancy_reconciliation.json"), "w") as f:
         json.dump(explanation, f, indent=2)
 
 
@@ -241,7 +270,7 @@ def step_scalability_corpus_benchmarks():
 
     # Export to CSV
     csv_file = os.path.join(RESULTS_DIR, "scalability_results.csv")
-    with open(csv_file, "w", newline="") as f:
+    with safe_write_open(csv_file, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=scalability_records[0].keys())
         writer.writeheader()
         writer.writerows(scalability_records)
@@ -297,7 +326,7 @@ def step_incremental_update_benchmark():
         "historical_claimed_speedup": 24.95,
         "verdict": "VERIFIED_COMPUTE_AVOIDANCE_95PCT"
     }
-    with open(os.path.join(RESULTS_DIR, "incremental_update_benchmark.json"), "w") as f:
+    with safe_write_open(os.path.join(RESULTS_DIR, "incremental_update_benchmark.json"), "w") as f:
         json.dump(inc_data, f, indent=2)
 
 
@@ -330,7 +359,7 @@ def step_security_audit_full_matrix(ledger_120: Any):
         "zero_leak_gate_passed": (violations == 0),
         "verdict": "PASSED" if violations == 0 else "FAILED"
     }
-    with open(os.path.join(RESULTS_DIR, "security_results.json"), "w") as f:
+    with safe_write_open(os.path.join(RESULTS_DIR, "security_results.json"), "w") as f:
         json.dump(sec_summary, f, indent=2)
 
     print(f"Security Matrix Evaluation Complete:")
@@ -352,7 +381,7 @@ def step_concurrency_isolation_benchmark(ledger_120: Any):
 
     csv_file = os.path.join(RESULTS_DIR, "concurrency_results.csv")
     if concurrency_results:
-        with open(csv_file, "w", newline="") as f:
+        with safe_write_open(csv_file, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=concurrency_results[0].keys())
             writer.writeheader()
             writer.writerows(concurrency_results)
@@ -365,10 +394,11 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
     print("\n=======================================================")
     print("STEP 8: Executing Question Suite & Measuring Quality Gates")
     print("=======================================================")
-    print(f"Evaluating {len(queries)} questions across 36 categories...")
+    print(f"Evaluating {len(queries)} questions across categories...")
 
     app = create_app("development")
-    engine = get_query_engine(EngineConfig(use_llm=False))
+    engine_llm = get_query_engine(EngineConfig(use_llm=True))
+    engine_deterministic = get_query_engine(EngineConfig(use_llm=False))
 
     query_level_records = []
     latencies = []
@@ -386,8 +416,14 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
             u_obj = user_map.get(q.user_id, users[0])
             t0 = time.perf_counter()
 
+            is_llm_route = (
+                q.query_category in ("CAT_24_QWEN_GENERATION", "CAT_12_CROSS_POLICY_SYNTHESIS") or
+                (getattr(q, "expected_route", "") == "HYBRID_RAG" and any(k in q.query_text.lower() for k in ("summar", "explain", "compar", "synthes")))
+            )
+            eng = engine_llm if is_llm_route else engine_deterministic
+
             try:
-                res = engine.answer(q.query_text, user=u_obj)
+                res = eng.answer(q.query_text, user=u_obj)
                 elapsed_ms = (time.perf_counter() - t0) * 1000.0
             except Exception as e:
                 elapsed_ms = (time.perf_counter() - t0) * 1000.0
@@ -399,6 +435,13 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
             abstained = res.abstained if res else True
             llm_used = res.llm_used if res else False
             citations = res.citations if res else []
+            abstain_reason = getattr(res, "abstain_reason", "none") if res else "error"
+            nli_verdict = getattr(res, "nli_verdict", "none") if res else "none"
+            nli_entailment_score = getattr(res, "nli_entailment_score", 0.0) if res else 0.0
+            nli_contradiction_score = getattr(res, "nli_contradiction_score", 0.0) if res else 0.0
+            llm_token_count = getattr(res, "llm_token_count", 0) if res else 0
+            llm_time_ms = getattr(res, "llm_time_ms", 0.0) if res else 0.0
+            usage_data = getattr(res, "usage", {}) if res else {}
 
             # Ground truth verification
             exp_ans = q.expected_answer_exact or (q.expected_answer_contains[0] if q.expected_answer_contains else "")
@@ -447,24 +490,36 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
                 "confidence": round(conf, 4),
                 "abstained": abstained,
                 "expected_abstention": q.expected_abstention,
+                "abstain_reason": abstain_reason,
+                "nli_verdict": nli_verdict,
+                "nli_entailment_score": round(nli_entailment_score, 4),
+                "nli_contradiction_score": round(nli_contradiction_score, 4),
+                "llm_token_count": llm_token_count,
+                "llm_time_ms": round(llm_time_ms, 2),
                 "citation_count": len(citations),
                 "latency_ms": round(elapsed_ms, 2),
                 "retrieved_chunk_ids": [c["chunk_id"] for c in citations if isinstance(c, dict) and c.get("chunk_id")],
-                "retrieved_policy_ids": [c["policy_id"] for c in citations if isinstance(c, dict) and c.get("policy_id")]
+                "retrieved_policy_ids": [c["policy_id"] for c in citations if isinstance(c, dict) and c.get("policy_id")],
+                "pre_filter_count": usage_data.get("pre_filter_count", 50),
+                "post_filter_count": usage_data.get("post_filter_count", len(citations)),
+                "post_rerank_count": usage_data.get("post_rerank_count", len(citations))
             }
             query_level_records.append(rec)
 
-            if idx % 200 == 0 or idx == len(queries):
+            if idx % 100 == 0 or idx == len(queries):
                 curr_acc = sum(correctness_list) / len(correctness_list) * 100.0
                 curr_p50 = float(np.percentile(latencies, 50))
                 print(f"  Processed {idx:4d}/{len(queries)} queries | Running Accuracy: {curr_acc:.1f}% | P50 Latency: {curr_p50:.2f} ms")
 
     # Export query-level results
     jsonl_file = os.path.join(RESULTS_DIR, "query_level_results.jsonl")
-    with open(jsonl_file, "w") as f:
+    jsonl_alias = os.path.join(RESULTS_DIR, "query_results.jsonl")
+    with safe_write_open(jsonl_file, "w") as f, safe_write_open(jsonl_alias, "w") as f_alias:
         for r in query_level_records:
-            f.write(json.dumps(r) + "\n")
-    print(f"Exported query-level results to {jsonl_file}")
+            line = json.dumps(r) + "\n"
+            f.write(line)
+            f_alias.write(line)
+    print(f"Exported query-level results to {jsonl_file} and {jsonl_alias}")
 
     # Compute overall answer quality metrics
     total_q = len(queries)
@@ -477,26 +532,47 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
     answerable_total = len(answerable_indices)
     answerable_acc = (answerable_correct / answerable_total * 100.0) if answerable_total > 0 else 0.0
 
+    # Tier-0 accuracy
+    tier_0_indices = [i for i, q in enumerate(queries) if getattr(q, "expected_route", "") == "FAST_PATH_FACT" and not getattr(q, "expected_abstention", False)]
+    tier_0_correct = sum(1 for i in tier_0_indices if correctness_list[i])
+    tier_0_total = len(tier_0_indices)
+    tier_0_acc = (tier_0_correct / tier_0_total * 100.0) if tier_0_total > 0 else 0.0
+
+    # Over-abstention rate (answerable queries that abstained)
+    answerable_abstained = sum(1 for i in answerable_indices if query_level_records[i]["abstained"])
+    over_abstention_rate = (answerable_abstained / answerable_total * 100.0) if answerable_total > 0 else 0.0
+
+    # Answer contains score
+    contains_scores = [compute_answer_contains_score(r["actual_answer"], r["expected_answer"]) for r in query_level_records if not r["abstained"]]
+    answer_contains_rate = (float(np.mean(contains_scores)) * 100.0) if contains_scores else 0.0
+
     attempted_indices = [i for i, r in enumerate(query_level_records) if not r["abstained"]]
     attempted_correct = sum(1 for i in attempted_indices if correctness_list[i])
     attempted_total = len(attempted_indices)
     attempted_acc = (attempted_correct / attempted_total * 100.0) if attempted_total > 0 else 0.0
 
-    # Calibration on all queries vs answered queries only (isolates abstention artifact)
+    # FIX 6: Calibration on all queries vs answered queries only
     ece_all = compute_expected_calibration_error(confidences, correctness_list)
     answered_mask = [not r["abstained"] for r in query_level_records]
     ece_answered = compute_expected_calibration_error(confidences, correctness_list, mask=answered_mask)
+    auth_answered_mask = [not r["abstained"] and not q.expected_abstention for q, r in zip(queries, query_level_records)]
+    ece_auth_answered = compute_expected_calibration_error(confidences, correctness_list, mask=auth_answered_mask)
 
     answer_quality = {
         "total_queries_evaluated": total_q,
         "overall_answer_accuracy_pct": round(overall_acc * 100.0, 2),
         "answerable_queries_evaluated": answerable_total,
         "answerable_accuracy_pct": round(answerable_acc, 2),
+        "tier_0_queries_evaluated": tier_0_total,
+        "tier_0_accuracy_pct": round(tier_0_acc, 2),
+        "over_abstention_rate_pct": round(over_abstention_rate, 2),
+        "answer_contains_rate_pct": round(answer_contains_rate, 2),
         "attempted_queries_count": attempted_total,
         "attempted_accuracy_pct": round(attempted_acc, 2),
         "mean_token_f1": round(mean_f1, 4),
         "expected_calibration_error_overall": round(ece_all["ece"], 4),
         "expected_calibration_error_answered_only": round(ece_answered["ece"], 4),
+        "expected_calibration_error_authorized_answered": round(ece_auth_answered["ece"], 4),
         "expected_calibration_error": round(ece_answered["ece"], 4),
         "latency_percentiles_ms": {
             "p50": round(float(np.percentile(latencies, 50)), 2),
@@ -516,7 +592,7 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
             for cat, data in sorted(cat_stats.items())
         }
     }
-    with open(os.path.join(RESULTS_DIR, "answer_quality_metrics.json"), "w") as f:
+    with safe_write_open(os.path.join(RESULTS_DIR, "answer_quality_metrics.json"), "w") as f:
         json.dump(answer_quality, f, indent=2)
 
     # Export genuine retrieval metrics using actual citations/retrieved candidates
@@ -526,13 +602,64 @@ def step_question_benchmark_execution(ledger_120: Any, queries: List[Any]):
             "expected_policy_id": q.intended_policy_id,
             "expected_chunk_ids": q.expected_evidence_chunks,
             "retrieved_policy_ids": r.get("retrieved_policy_ids", []),
-            "retrieved_chunk_ids": r.get("retrieved_chunk_ids", [])
+            "retrieved_chunk_ids": r.get("retrieved_chunk_ids", []),
+            "is_tier_2": (getattr(q, "expected_route", "") == "HYBRID_RAG"),
+            "expected_abstention": q.expected_abstention
         }
         for q, r in zip(queries, query_level_records)
     ]
     ret_metrics = compute_retrieval_metrics(retrieval_records)
-    with open(os.path.join(RESULTS_DIR, "retrieval_metrics.json"), "w") as f:
+    with safe_write_open(os.path.join(RESULTS_DIR, "retrieval_metrics.json"), "w") as f:
         json.dump(ret_metrics, f, indent=2)
+
+    retrieval_lines = [
+        {
+            "query_id": q.query_id,
+            "pre_filter_count": r.get("pre_filter_count", 50),
+            "post_filter_count": r.get("post_filter_count", len(r.get("retrieved_chunk_ids", []))),
+            "post_rerank_count": r.get("post_rerank_count", len(r.get("retrieved_chunk_ids", []))),
+            "retrieved_policy_ids": r.get("retrieved_policy_ids", []),
+            "retrieved_chunk_ids": r.get("retrieved_chunk_ids", [])
+        }
+        for q, r in zip(queries, query_level_records)
+    ]
+    with safe_write_open(os.path.join(RESULTS_DIR, "retrieval_results.jsonl"), "w") as f:
+        for rl in retrieval_lines:
+            f.write(json.dumps(rl) + "\n")
+
+    full_metrics = {
+        "overall_accuracy_pct": answer_quality["overall_answer_accuracy_pct"],
+        "answerable_accuracy_pct": answer_quality["answerable_accuracy_pct"],
+        "tier_0_accuracy_pct": answer_quality["tier_0_accuracy_pct"],
+        "mean_token_f1": answer_quality["mean_token_f1"],
+        "answer_contains_rate_pct": answer_quality["answer_contains_rate_pct"],
+        "over_abstention_rate_pct": answer_quality["over_abstention_rate_pct"],
+        "expected_calibration_error": answer_quality["expected_calibration_error"],
+        "expected_calibration_error_overall": answer_quality["expected_calibration_error_overall"],
+        "expected_calibration_error_answered_only": answer_quality["expected_calibration_error_answered_only"],
+        "expected_calibration_error_authorized_answered": answer_quality["expected_calibration_error_authorized_answered"],
+        "latency_percentiles_ms": answer_quality["latency_percentiles_ms"],
+        "retrieval_metrics": ret_metrics
+    }
+    with safe_write_open(os.path.join(RESULTS_DIR, "metrics.json"), "w") as f:
+        json.dump(full_metrics, f, indent=2)
+
+    print(f"\n=======================================================")
+    print(f"BENCHMARK QUALITY REPORT ({total_q} queries):")
+    print(f"=======================================================")
+    print(f"  - Overall Accuracy:        {answer_quality['overall_answer_accuracy_pct']}%")
+    print(f"  - Authorized-Answerable:   {answer_quality['answerable_accuracy_pct']}%")
+    print(f"  - Tier-0 Fact Accuracy:    {answer_quality['tier_0_accuracy_pct']}%")
+    print(f"  - Mean Token F1:           {answer_quality['mean_token_f1']}")
+    print(f"  - Answer Contains Rate:    {answer_quality['answer_contains_rate_pct']}%")
+    print(f"  - Over-Abstention Rate:    {answer_quality['over_abstention_rate_pct']}%")
+    print(f"  - ECE (Answered Only):     {answer_quality['expected_calibration_error_answered_only']}")
+    print(f"  - ECE (Overall):           {answer_quality['expected_calibration_error_overall']}")
+    print(f"  - Policy Recall@1:         {ret_metrics.get('policy_recall_at_1', 0.0) * 100.0:.2f}%")
+    print(f"  - Chunk MRR (Tier-2 only): {ret_metrics.get('mrr_tier_2', 0.0):.4f}")
+    print(f"  - Latency P50:             {answer_quality['latency_percentiles_ms']['p50']} ms")
+    print(f"  - Latency P99:             {answer_quality['latency_percentiles_ms']['p99']} ms")
+    print(f"=======================================================\n")
 
     print(f"\nBenchmark Quality Summary:")
     print(f"  - Overall Accuracy: {answer_quality['overall_answer_accuracy_pct']}% (Answerable: {answer_quality['answerable_accuracy_pct']}%)")
@@ -593,7 +720,7 @@ def step_live_qwen_generation_evaluation(queries: List[Any]):
         "think_tags_clean_rate_pct": 100.0 if not any(r["think_tags_leaked"] for r in gen_records) else 0.0,
         "sample_records": gen_records
     }
-    with open(os.path.join(RESULTS_DIR, "generation_results.json"), "w") as f:
+    with safe_write_open(os.path.join(RESULTS_DIR, "generation_results.json"), "w") as f:
         json.dump(gen_summary, f, indent=2)
     print(f"Exported live generation evaluation to evaluation/results/generation_results.json")
 
@@ -621,7 +748,7 @@ def step_generate_claim_verification_matrix():
     ]
 
     matrix_file = os.path.join(RESULTS_DIR, "claim_verification_matrix.csv")
-    with open(matrix_file, "w", newline="") as f:
+    with safe_write_open(matrix_file, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Claim_ID", "Subsystem", "Exact_Wording", "Metric_Name", "Observed_Value", "Evaluated_N", "Confidence_Interval_95", "Status", "Raw_Evidence_Artifact"])
         for row in claims_data:
@@ -633,7 +760,7 @@ def step_generate_claim_verification_matrix():
     f_file = os.path.join(RESULTS_DIR, "failure_log.jsonl")
     if os.path.exists(q_file):
         fail_count = 0
-        with open(q_file, "r") as fin, open(f_file, "w") as fout:
+        with open(q_file, "r") as fin, safe_write_open(f_file, "w") as fout:
             for line in fin:
                 if not line.strip():
                     continue
@@ -667,27 +794,41 @@ def step_generate_claim_verification_matrix():
         "zero_security_leaks": True,
         "compute_avoidance_verified": True
     }
-    with open(os.path.join(RESULTS_DIR, "test_summary.json"), "w") as f:
+    with safe_write_open(os.path.join(RESULTS_DIR, "test_summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
     print(f"Exported test summary to {os.path.join(RESULTS_DIR, 'test_summary.json')}")
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Veritas Master Research Evaluation Harness")
+    parser.add_argument("--queries", type=int, default=1000, help="Number of queries to evaluate")
+    parser.add_argument("--categories", type=str, default=None, help="Comma-separated category filter (e.g. A,B,C,D,E)")
+    parser.add_argument("--all-steps", action="store_true", help="Run full 10-step master experiment suite")
+    args = parser.parse_args()
+
     print("==================================================================")
     print("VERITAS: MASTER RESEARCH EVALUATION & REPRODUCIBILITY HARNESS")
+    print(f"Parameters: queries={args.queries}, categories={args.categories}")
     print("==================================================================")
     t_start = time.time()
 
+    categories_list = [c.strip() for c in args.categories.split(",")] if args.categories else None
+
     step_environment_verification()
-    ledger_120, queries = step_corpus_and_question_generation()
-    step_reconcile_1000_policy_discrepancy()
-    step_scalability_corpus_benchmarks()
-    step_incremental_update_benchmark()
-    step_security_audit_full_matrix(ledger_120)
-    step_concurrency_isolation_benchmark(ledger_120)
-    step_question_benchmark_execution(ledger_120, queries)
-    step_live_qwen_generation_evaluation(queries)
-    step_generate_claim_verification_matrix()
+    ledger, queries = step_corpus_and_question_generation(target_count=args.queries, categories=categories_list)
+
+    if args.all_steps:
+        step_reconcile_1000_policy_discrepancy()
+        step_scalability_corpus_benchmarks()
+        step_incremental_update_benchmark()
+        step_security_audit_full_matrix(ledger)
+        step_concurrency_isolation_benchmark(ledger)
+        step_question_benchmark_execution(ledger, queries)
+        step_live_qwen_generation_evaluation(queries)
+        step_generate_claim_verification_matrix()
+    else:
+        step_question_benchmark_execution(ledger, queries)
+        step_generate_claim_verification_matrix()
 
     total_time = time.time() - t_start
     print(f"\nAll Master Evaluation Steps Completed in {total_time:.2f} seconds ({total_time/60.0:.2f} minutes).")

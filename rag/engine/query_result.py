@@ -15,6 +15,12 @@ class QueryResult:
     abstained: bool
     model: Optional[str] = None
     usage: dict = field(default_factory=dict)
+    abstain_reason: str = "none"
+    nli_verdict: str = "none"
+    nli_entailment_score: float = 0.0
+    nli_contradiction_score: float = 0.0
+    llm_token_count: int = 0
+    llm_time_ms: float = 0.0
 
     @property
     def cache_hit(self) -> bool:
@@ -63,7 +69,7 @@ class QueryResult:
         )
         
     @classmethod
-    def abstained(cls, reason: str, latency_ms: float):
+    def abstained(cls, reason: str, latency_ms: float, abstain_reason: str = "low_composite", usage: Optional[dict] = None):
         if reason.startswith("I cannot") or reason.startswith("I could not"):
             ans = reason
         else:
@@ -78,5 +84,7 @@ class QueryResult:
             llm_used=False,
             retrieval_count=0,
             reranker_used=False,
-            abstained=True
+            abstained=True,
+            abstain_reason=abstain_reason,
+            usage=usage or {}
         )

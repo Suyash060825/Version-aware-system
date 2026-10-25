@@ -14,7 +14,7 @@ from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
 from app import create_app
-from models import db, Policy, PolicyVersion, PolicyChunkV2, Department, User, UserRole, ConfidentialityLevel
+from models import db, Policy, PolicyVersion, PolicyChunkV2, Department, User, UserRole, ConfidentialityLevel, PolicyStatus
 from rag.engine.query_scope import QueryScope
 from rag.versions.resolver import VersionResolver, TemporalQuery
 from rag.retrieval.sparse import PersistentBM25Index
@@ -24,12 +24,28 @@ from rag.compiler.incremental import IncrementalCompiler
 class TestProductionHardening(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app = create_app("default")
+        cls.app = create_app("testing")
         cls.app_context = cls.app.app_context()
         cls.app_context.push()
+        db.create_all()
+        # Seed minimal policy, version, and chunk if empty
+        if not Policy.query.first():
+            u = User(name="Admin User", email="admin_ph@test.com", password_hash="hash", role=UserRole.ADMIN, department_id=1)
+            db.session.add(u)
+            db.session.commit()
+            p = Policy(policy_id="POL-TEST-01", title="Annual Leave Policy", confidentiality="internal", author_id=u.id, status=PolicyStatus.ACTIVE)
+            db.session.add(p)
+            db.session.commit()
+            pv = PolicyVersion(policy_id=p.id, version_num=1.0, version_label="v1.0", is_active=True, content="Annual leave entitlement is 30 days.", created_by_id=u.id)
+            db.session.add(pv)
+            db.session.commit()
+            c = PolicyChunkV2(chunk_id="chk-1", policy_id=p.id, version_id=pv.id, text="Annual leave entitlement is 30 days.", section_path="Section 1")
+            db.session.add(c)
+            db.session.commit()
 
     @classmethod
     def tearDownClass(cls):
+        db.session.rollback()
         cls.app_context.pop()
 
     def test_null_safe_version_resolver(self):

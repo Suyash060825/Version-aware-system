@@ -37,7 +37,14 @@ class StructureExtractor:
                 if not para or len(para) < 15: # skip negligible chunks (<15 chars)
                     continue
                     
-                text_hash = hashlib.sha256(para.encode()).hexdigest()
+                # Preserve section title context in chunk text to prevent contextual blindness
+                section_title = section.title.strip() if section.title else ""
+                clean_sec = section_title.split(" - ", 1)[-1] if " - " in section_title else section_title
+                chunk_text = para
+                if clean_sec and not para.lower().startswith(clean_sec.lower()) and len(clean_sec) > 3:
+                    chunk_text = f"[{clean_sec}]\n{para}"
+
+                text_hash = hashlib.sha256(chunk_text.encode()).hexdigest()
                 chunk_id = f"p{document_ir.policy_id}-v{document_ir.version_id}-s{section.section_id}-c{i}"
                 
                 chunks.append(
@@ -46,11 +53,11 @@ class StructureExtractor:
                         policy_id=document_ir.policy_id,
                         version_id=document_ir.version_id,
                         section_path=section.title,
-                        text=para,
+                        text=chunk_text,
                         page=section.page_start,
                         paragraph_num=i,
                         text_hash=text_hash,
-                        char_count=len(para)
+                        char_count=len(chunk_text)
                     )
                 )
         return chunks

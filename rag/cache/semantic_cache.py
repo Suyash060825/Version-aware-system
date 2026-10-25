@@ -186,6 +186,10 @@ class MultiLevelCache:
     def _make_scope_key(self, scope: Optional[Any] = None, allowed_depts: Optional[List[str]] = None, is_diff_query: bool = False) -> str:
         if scope is not None and hasattr(scope, "role"):
             tenant = getattr(scope, "tenant_id", "") or ""
+            u_id = getattr(scope, "user_id", "")
+            u_id_str = str(u_id) if u_id is not None else ""
+            from rag.authorization.evidence_filter import get_user_auth_epoch
+            epoch = getattr(scope, "auth_epoch", None) or get_user_auth_epoch(int(u_id_str) if u_id_str.isdigit() else None)
             role = getattr(scope, "role", "employee")
             depts = ",".join(sorted(getattr(scope, "departments", ()) or []))
             conf = ",".join(sorted(getattr(scope, "allowed_confidentiality", ()) or []))
@@ -197,7 +201,7 @@ class MultiLevelCache:
                 pids_hash = hashlib.md5(str(sorted(allowed_pids)).encode()).hexdigest()[:8]
             else:
                 pids_hash = "all"
-            return f"t={tenant}|r={role}|d={depts}|c={conf}|h={hist}|td={t_date}|v={ver}|pids={pids_hash}|diff={is_diff_query}"
+            return f"t={tenant}|u={u_id_str}|ep={epoch}|r={role}|d={depts}|c={conf}|h={hist}|td={t_date}|v={ver}|pids={pids_hash}|diff={is_diff_query}"
         scope_str = ",".join(sorted(allowed_depts or [])) + f"|diff={is_diff_query}"
         return scope_str
 
@@ -241,7 +245,8 @@ class MultiLevelCache:
             "citations": citations,
             "chunks_used": chunks_used,
             "model": model,
-            "confidence": conf_val
+            "confidence": conf_val,
+            "policy_ids": policy_ids
         }
         if query:
             q_hash = self._hash_query(query, scope_key)
@@ -277,6 +282,27 @@ class MultiLevelCache:
                 item for item in self._local_l2[sk]
                 if policy_id not in item.get("policy_ids", [])
             ]
+        if self.use_redis and self.redis:
+            try:
+                pipe = self.redis.pipeline()
+                delete_count = 0
+                for k in self.redis.scan_iter(match="l1:*", count=100):
+                    val = self.redis.get(k)
+                    if val and f'"policy_ids":' in val.decode("utf-8", errors="ignore"):
+                        try:
+                            parsed = json.loads(val)
+                            if policy_id in parsed.get("policy_ids", []):
+                                pipe.delete(k)
+                                delete_count += 1
+                                if delete_count % 50 == 0:
+                                    pipe.execute()
+                                    pipe = self.redis.pipeline()
+                        except Exception:
+                            pass
+                if delete_count % 50 != 0:
+                    pipe.execute()
+            except Exception as e:
+                logger.warning(f"Redis invalidation for policy {policy_id} failed: {e}")
         logger.info(f"Targeted invalidation for policy {policy_id}: removed {len(keys_to_remove)} L1 entries")
 
     def invalidate_version(self, policy_id: int, version_id: int):
@@ -293,7 +319,44 @@ class MultiLevelCache:
                 item for item in self._local_l2[sk]
                 if version_id not in item.get("version_ids", []) and not (policy_id in item.get("policy_ids", []) and not item.get("version_ids"))
             ]
+        if self.use_redis:
+            try:
+                for k in self.redis.scan_iter(match="l1:*"):
+                    val = self.redis.get(k)
+                    if val:
+                        parsed = json.loads(val)
+                        if version_id in parsed.get("version_ids", []) or (policy_id in parsed.get("policy_ids", []) and not parsed.get("version_ids")):
+                            self.redis.delete(k)
+            except Exception as e:
+                logger.warning(f"Redis invalidation for version {policy_id}:{version_id} failed: {e}")
         logger.info(f"Targeted invalidation for version {policy_id}:{version_id}: removed {len(keys_to_remove)} L1 entries")
+
+    def invalidate_user(self, user_id: int):
+        """Purge all cached entries associated with a specific user ID."""
+        u_str = f"|u={user_id}|"
+        keys_to_remove = [k for k in list(self._local_l1.keys()) if u_str in k]
+        for k in keys_to_remove:
+            self._local_l1.pop(k, None)
+
+        for sk in list(self._local_l2.keys()):
+            if u_str in sk:
+                self._local_l2.pop(sk, None)
+
+        if self.use_redis and self.redis:
+            try:
+                pipe = self.redis.pipeline()
+                delete_count = 0
+                for k in self.redis.scan_iter(match=f"l1:*{u_str}*", count=100):
+                    pipe.delete(k)
+                    delete_count += 1
+                    if delete_count % 100 == 0:
+                        pipe.execute()
+                        pipe = self.redis.pipeline()
+                if delete_count % 100 != 0:
+                    pipe.execute()
+            except Exception as e:
+                logger.warning(f"Redis invalidation for user {user_id} failed: {e}")
+        logger.info(f"Targeted invalidation for user {user_id}: removed {len(keys_to_remove)} L1 entries")
 
     def clear(self):
         """Purge all cached entries across L1 and L2."""

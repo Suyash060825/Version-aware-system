@@ -52,16 +52,27 @@ class PersistentBM25Index:
 
     def save(self):
         try:
-            os.makedirs(os.path.dirname(self.INDEX_PATH), exist_ok=True)
-            tmp_path = self.INDEX_PATH + ".tmp"
-            with open(tmp_path, 'wb') as f:
-                pickle.dump({
-                    'bm25': self._bm25,
-                    'corpus': self._corpus,
-                    'tokenized_corpus': self._tokenized_corpus,
-                    'revision': self._revision
-                }, f)
-            os.replace(tmp_path, self.INDEX_PATH)
+            import tempfile
+            idx_dir = os.path.dirname(self.INDEX_PATH)
+            os.makedirs(idx_dir, exist_ok=True)
+            # Use unique temp file to avoid concurrent worker collision, then atomic rename
+            tmp_fd, tmp_path = tempfile.mkstemp(dir=idx_dir, prefix="bm25_", suffix=".tmp")
+            try:
+                with os.fdopen(tmp_fd, 'wb') as f:
+                    pickle.dump({
+                        'bm25': self._bm25,
+                        'corpus': self._corpus,
+                        'tokenized_corpus': self._tokenized_corpus,
+                        'revision': self._revision
+                    }, f, protocol=pickle.HIGHEST_PROTOCOL)
+                os.replace(tmp_path, self.INDEX_PATH)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+                raise
         except Exception as e:
             logger.error(f"Failed to save BM25 index: {e}")
 

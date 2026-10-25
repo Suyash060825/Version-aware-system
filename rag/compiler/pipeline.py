@@ -14,6 +14,7 @@ from rag.compiler.answer_generator import AnswerGenerator
 from rag.compiler.answer_validator import AnswerValidator
 from rag.compiler.metadata_extractor import MetadataExtractor
 from rag.compiler.entity_extractor import EntityExtractor
+from rag.compiler.incremental import IncrementalCompiler, IncrementalDiff
 from rag.compiler.temporal_extractor import TemporalExtractor
 
 logger = logging.getLogger("rag.compiler.pipeline")
@@ -32,9 +33,10 @@ class KnowledgeCompilerPipeline:
         self.metadata_extractor = MetadataExtractor()
         self.entity_extractor = EntityExtractor()
         self.temporal_extractor = TemporalExtractor()
+        self.incremental_compiler = IncrementalCompiler()
 
     def _get_or_create_job(self, policy_id: int, version_id: int) -> CompilationJob:
-        job = CompilationJob.query.filter_by(policy_id=policy_id, version_id=version_id).first()
+        job = CompilationJob.query.filter_by(policy_id=policy_id, version_id=version_id).with_for_update().first()
         if not job:
             job = CompilationJob(policy_id=policy_id, version_id=version_id)
             db.session.add(job)
@@ -105,6 +107,27 @@ class KnowledgeCompilerPipeline:
         self._chunks = self.structure_extractor.extract(self._document_ir)
         job.chunk_count = len(self._chunks)
         
+        # Incremental diff tracking if a prior version exists for this policy
+        try:
+            prev_version = PolicyVersion.query.filter(
+                PolicyVersion.policy_id == job.policy_id,
+                PolicyVersion.id != job.version_id
+            ).order_by(PolicyVersion.version_num.desc()).first()
+            if prev_version:
+                self._incremental_diff = self.incremental_compiler.diff_versions(self._chunks, prev_version.id)
+                logger.info(
+                    f"Incremental diff for policy {job.policy_id} v{job.version_id} vs v{prev_version.id}: "
+                    f"{len(self._incremental_diff.unchanged_chunks)} unchanged, "
+                    f"{len(self._incremental_diff.changed_chunks)} changed, "
+                    f"{len(self._incremental_diff.added_chunks)} added, "
+                    f"{len(self._incremental_diff.deleted_chunk_ids)} deleted"
+                )
+            else:
+                self._incremental_diff = None
+        except Exception as e:
+            logger.warning(f"Incremental diff calculation encountered error (falling back to full compile): {e}")
+            self._incremental_diff = None
+
         PolicyChunkV2.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).delete()
         pcs = [
             PolicyChunkV2(
@@ -123,6 +146,16 @@ class KnowledgeCompilerPipeline:
         PolicyFact.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).delete()
         if facts:
             db.session.add_all(facts)
+        db.session.flush()
+
+        # FIX 8: Log all unique predicates to data/compiled_predicates.json
+        try:
+            os.makedirs("data", exist_ok=True)
+            db_preds = [p[0] for p in PolicyFact.query.with_entities(PolicyFact.predicate).distinct().all() if p[0]]
+            with open(os.path.join("data", "compiled_predicates.json"), "w") as f:
+                json.dump(sorted(list(set(db_preds))), f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed writing data/compiled_predicates.json: {e}")
 
     def _stage_qa(self, job: CompilationJob):
         self._questions = self.question_generator.generate(self._chunks)
@@ -277,6 +310,11 @@ class KnowledgeCompilerPipeline:
             get_evidence_filter().clear_cache()
         except Exception:
             pass
+        try:
+            from rag.engine.policy_title_index import rebuild_title_index
+            rebuild_title_index()
+        except Exception:
+            pass
 
 
 def auto_compile_policy_version(policy_id: int, version_id: int):
@@ -295,6 +333,11 @@ def auto_compile_policy_version(policy_id: int, version_id: int):
             f"Auto-compiled policy {policy_id} v{version_id}: {job.stage} "
             f"({job.chunk_count} chunks, {job.fact_count} facts, {job.qa_count} QAs)"
         )
+        try:
+            from rag.engine.policy_title_index import rebuild_title_index
+            rebuild_title_index()
+        except Exception:
+            pass
         return job
     except Exception as e:
         _log.exception(f"Auto-compilation failed for policy {policy_id} v{version_id}: {e}")

@@ -307,7 +307,7 @@ def policy_extract_file():
         upload.save(tmp_path)
 
         from rag.parser.pdf_parser import extract_document
-        parse_result = extract_document(tmp_path, max_chars=60000)
+        parse_result = extract_document(tmp_path, max_chars=500000)
 
         if not parse_result.success:
             err_msg = parse_result.error or "Couldn't find any readable text in that file."
@@ -892,6 +892,12 @@ def user_toggle(user_id):
     else:
         user.is_active = not user.is_active
         db.session.commit()
+        # Immediately evict cached permissions and authorization epochs
+        try:
+            from rag.authorization.evidence_filter import revoke_user_permission
+            revoke_user_permission(user.id)
+        except Exception as e:
+            current_app.logger.warning(f"Error evicting permission cache for user {user.id}: {e}")
         audit("user.toggle", "user", user.id, {"active": user.is_active})
         flash(f"{'Activated' if user.is_active else 'Deactivated'} {user.name}.", "info")
     return redirect(url_for("admin.user_list"))
@@ -907,6 +913,12 @@ def user_set_role(user_id):
         old_role = user.role
         user.role = new_role
         db.session.commit()
+        # Immediately evict cached permissions and authorization epochs
+        try:
+            from rag.authorization.evidence_filter import revoke_user_permission
+            revoke_user_permission(user.id)
+        except Exception as e:
+            current_app.logger.warning(f"Error evicting permission cache for user {user.id}: {e}")
         audit("user.role_change", "user", user.id, {"from": old_role, "to": new_role})
         flash(f"{user.name}'s role changed to {new_role}.", "success")
     return redirect(url_for("admin.user_list"))

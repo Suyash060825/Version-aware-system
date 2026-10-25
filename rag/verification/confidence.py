@@ -14,10 +14,11 @@ class ConfidenceScore:
     abstain: bool
     retrieval_score: float
     coverage_score: float
+    abstain_reason: str = "none"
 
 class ConfidenceEngine:
     HIGH_THRESHOLD = 0.65
-    LOW_THRESHOLD = 0.16
+    LOW_THRESHOLD = 0.20
     
     STOPWORDS = {
         "what", "when", "where", "which", "who", "whom", "how", "why", "does", "have",
@@ -38,10 +39,12 @@ class ConfidenceEngine:
     def score(self, query: str, evidence: EvidencePack) -> ConfidenceScore:
         if not evidence.chunks or not evidence.scores:
             return ConfidenceScore(
-                value=0.0, high=False, abstain=True, retrieval_score=0.0, coverage_score=0.0
+                value=0.0, high=False, abstain=True, retrieval_score=0.0, coverage_score=0.0,
+                abstain_reason="low_retrieval"
             )
 
         score_type = getattr(evidence, "score_type", "rerank_prob")
+        raw_max = max(evidence.scores) if evidence.scores else 0.0
         retrieval_conf = self._retrieval_confidence(evidence.scores, score_type=score_type)
         coverage_conf = self._evidence_coverage(query, evidence.chunks)
         
@@ -51,15 +54,29 @@ class ConfidenceEngine:
         # Apply Isotonic Calibration to fix overconfidence (Brier/ECE)
         final = self._isotonic_calibrate(raw_final)
         
-        # Abstain if evidence coverage is low or composite confidence is below calibrated baseline
-        abstain = (coverage_conf < 0.15) or (retrieval_conf < 0.15) or (final < self.LOW_THRESHOLD)
+        # FIX 2: Tier-2 retrieval floor and weighted composite abstention condition
+        if score_type == "rerank_prob" and raw_max > 0.60:
+            abstain = False
+            abstain_reason = "reranker_override"
+        elif (final < self.LOW_THRESHOLD) and (retrieval_conf < 0.20 or coverage_conf < 0.10):
+            abstain = True
+            if coverage_conf < 0.10 and retrieval_conf >= 0.20:
+                abstain_reason = "low_coverage"
+            elif retrieval_conf < 0.20 and coverage_conf >= 0.10:
+                abstain_reason = "low_retrieval"
+            else:
+                abstain_reason = "low_composite"
+        else:
+            abstain = False
+            abstain_reason = "none"
             
         return ConfidenceScore(
             value=float(min(1.0, max(0.0, final))),
             high=final >= self.HIGH_THRESHOLD,
             abstain=abstain,
             retrieval_score=retrieval_conf,
-            coverage_score=coverage_conf
+            coverage_score=coverage_conf,
+            abstain_reason=abstain_reason
         )
 
     def _isotonic_calibrate(self, raw_score: float) -> float:

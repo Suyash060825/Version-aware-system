@@ -96,3 +96,8 @@ def delete_policy_from_index(policy_id: int):
         clear_diff_cache()
     except Exception:
         pass
+    try:
+        from rag.engine.policy_title_index import rebuild_title_index
+        rebuild_title_index()
+    except Exception:
+        pass

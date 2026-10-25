@@ -25,6 +25,25 @@ class FactResolutionResult:
     source_chunk_id: Optional[str] = None
     confidence_score: float = 0.0
 
+
+def generate_patterns_from_compiled_predicates():
+    """Auto-extend FACT_PATTERNS from data/compiled_predicates.json at startup."""
+    import os, json
+    pred_file = os.path.join("data", "compiled_predicates.json")
+    new_patterns = []
+    if os.path.exists(pred_file):
+        try:
+            with open(pred_file) as f:
+                preds = json.load(f)
+            for p in preds:
+                phrase = p.replace("_", " ")
+                pat = re.compile(rf"\b{re.escape(phrase)}\b", re.IGNORECASE)
+                new_patterns.append((pat, [p]))
+        except Exception:
+            pass
+    return new_patterns
+
+
 class FactResolver:
     FACT_PATTERNS = [
         (re.compile(r"\b(?:annual leave|paid leave|vacation days|leave entitlement|days of leave|days of annual leave|pto)\b", re.I), ["annual_leave"]),
@@ -73,6 +92,9 @@ class FactResolver:
         self._cached_db_predicates = None
         self._predicate_cache_ts = 0.0
         self._PREDICATE_TTL = 300.0
+        extra_patterns = generate_patterns_from_compiled_predicates()
+        if extra_patterns:
+            self.FACT_PATTERNS = list(self.FACT_PATTERNS) + extra_patterns
 
     def invalidate(self):
         """Invalidate cached predicate list so newly compiled facts are recognized immediately."""
@@ -94,30 +116,42 @@ class FactResolver:
             if re.match(r"^(?:\d+[\.\)]\s*)?[a-z\s&—\-]+(?:\bpolicy\b|\bguidelines\b|\bcode\b|\boverview\b)$", query_lower) or re.match(r"^\d+(?:[\.\)]\d*)*[\.\)]?\s+[a-z\s]+$", query_lower):
                 return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
-        # Guard against broad explanatory/procedural queries that require full RAG retrieval
-        if re.search(r"\b(?:explain|summary|summarize|details of|overview|describe|procedure|process|steps to)\b", query_lower):
+        # Guard against broad explanatory/procedural, negation, or exception queries that require full RAG retrieval
+        if re.search(r"\b(?:explain|summary|summarize|details of|overview|describe|procedure|process|steps to|not|except|exception|exceptions|ineligible|who cannot|exempt)\b", query_lower):
             return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
         target_predicates = []
+        is_dynamic = False
         for pattern, preds in self.FACT_PATTERNS:
             if pattern.search(query_lower):
                 target_predicates.extend(preds)
 
-        # Dynamic predicate matching from registered PolicyFact predicates
-        try:
-            now = time.time()
-            if self._cached_db_predicates is None or (now - self._predicate_cache_ts > self._PREDICATE_TTL):
-                self._cached_db_predicates = [
-                    p[0] for p in PolicyFact.query.with_entities(PolicyFact.predicate).distinct().all() if p[0]
-                ]
-                self._predicate_cache_ts = now
-            for pred in self._cached_db_predicates:
-                phrase = pred.replace("_", " ")
-                if re.search(rf"\b{re.escape(phrase)}\b", query_lower):
-                    if pred not in target_predicates:
-                        target_predicates.append(pred)
-        except Exception:
-            pass
+        # Dynamic fallback after static FACT_PATTERNS loop
+        if not target_predicates:
+            try:
+                now = time.time()
+                if self._cached_db_predicates is None or (now - self._predicate_cache_ts > self._PREDICATE_TTL):
+                    import os, json
+                    pred_file = os.path.join("data", "compiled_predicates.json")
+                    if os.path.exists(pred_file):
+                        try:
+                            with open(pred_file) as f:
+                                self._cached_db_predicates = json.load(f)
+                        except Exception:
+                            self._cached_db_predicates = None
+                    if not self._cached_db_predicates:
+                        self._cached_db_predicates = [
+                            p[0] for p in PolicyFact.query.with_entities(PolicyFact.predicate).distinct().all() if p[0]
+                        ]
+                    self._predicate_cache_ts = now
+                for pred in (self._cached_db_predicates or []):
+                    phrase = pred.replace("_", " ")
+                    if phrase in query_lower or re.search(rf"\b{re.escape(phrase)}\b", query_lower):
+                        if pred not in target_predicates:
+                            target_predicates.append(pred)
+                            is_dynamic = True
+            except Exception:
+                pass
 
         if not target_predicates:
             return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
@@ -239,9 +273,9 @@ class FactResolver:
                 if semantic_divergence and (best_score - second_score) < 10:
                     return FactResolutionResult(found=False, answer=None, citations=[], fact=None, confidence=0.0)
 
-        return self._format_fact_result(best_fact, policy=policies_map.get(best_fact.policy_id), version=versions_map.get(best_fact.version_id))
+        return self._format_fact_result(best_fact, policy=policies_map.get(best_fact.policy_id), version=versions_map.get(best_fact.version_id), is_dynamic=is_dynamic)
 
-    def _format_fact_result(self, fact: PolicyFact, policy: Optional[Policy] = None, version: Optional[PolicyVersion] = None) -> FactResolutionResult:
+    def _format_fact_result(self, fact: PolicyFact, policy: Optional[Policy] = None, version: Optional[PolicyVersion] = None, is_dynamic: bool = False) -> FactResolutionResult:
         if policy is None and fact.policy_id:
             policy = db.session.get(Policy, fact.policy_id)
         if version is None and fact.version_id:
@@ -266,11 +300,10 @@ class FactResolver:
         page = chunk.page or page
         source_cid = chunk.chunk_id
 
-        # Format deterministic natural language answer
+        # FIX 3 Item 4: Format Tier-0 (FAST_PATH_FACT) answers: "{value} {unit}" first, then "according to {policy} (v{version})"
         unit_str = f" {fact.unit}" if fact.unit and not fact.value.endswith(fact.unit) and not fact.value.startswith("Rs") else ""
-        scope_str = f" ({fact.scope})" if fact.scope else ""
-        
-        answer = f"According to the {policy_title} (v{version_num}), the {fact.subject or fact.predicate.replace('_', ' ')} is {fact.value}{unit_str}{scope_str}."
+        val_unit = f"{fact.value}{unit_str}".strip()
+        answer = f"{val_unit} according to {policy_title} (v{version_num})."
 
         citations = [{
             "policy_id": fact.policy_id,
@@ -282,7 +315,8 @@ class FactResolver:
             "chunk_id": source_cid
         }]
 
-        conf = float(fact.confidence) if fact.confidence is not None else 0.85
+        # FIX 8 Item 3: Score dynamic match at confidence=0.75, static at 0.90 (not 1.0)
+        conf = 0.75 if is_dynamic else 0.90
         return FactResolutionResult(
             found=True,
             answer=answer,

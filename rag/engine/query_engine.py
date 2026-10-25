@@ -217,11 +217,13 @@ class QueryEngine:
         temporal_context: Any,
         has_temporal_cue: bool,
         is_diff: bool,
-        normalized_query: str = ""
+        normalized_query: str = "",
+        q_emb: Optional[List[float]] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Builds authorization and temporal pre-filters for hybrid retrieval.
         Returns None if authorization is impossible (fail-closed).
+        Uses semantic policy title identification (FIX 1) to eliminate false substring anchors.
         """
         filters: Dict[str, Any] = {}
         if scope.allowed_policy_ids is not None:
@@ -232,32 +234,33 @@ class QueryEngine:
                     return None
                 filters["policy_id"] = temporal_context.policy_id
             else:
-                # If query explicitly mentions an authorized policy by title, anchor to that policy
                 matched_pid = None
-                if normalized_query:
-                    q_lower = normalized_query.lower()
-                    active_policies = Policy.query.all()
-                    active_policies.sort(key=lambda p: len(p.title), reverse=True)
-                    for p in active_policies:
-                        if len(p.title) > 3 and p.title.lower() in q_lower:
-                            if p.id not in scope.allowed_policy_ids:
-                                return None  # Explicit request for unauthorized policy -> fail closed
-                            matched_pid = p.id
-                            break
+                if q_emb is None and normalized_query:
+                    q_emb = self.embedder.embed_query(normalized_query)
+                if q_emb is not None:
+                    from rag.engine.policy_title_index import get_policy_title_index
+                    title_idx = get_policy_title_index()
+                    top_pid, top_sim = title_idx.find_top_policy_similarity(q_emb)
+                    if top_sim > 0.75 and top_pid is not None:
+                        if top_pid in scope.allowed_policy_ids:
+                            matched_pid = top_pid
+                        else:
+                            return None  # Explicit request for unauthorized policy -> fail closed
                 if matched_pid is not None:
                     filters["policy_id"] = matched_pid
                 else:
                     filters["policy_id"] = list(scope.allowed_policy_ids)
         elif temporal_context and temporal_context.policy_id:
             filters["policy_id"] = temporal_context.policy_id
-        elif normalized_query:
-            q_lower = normalized_query.lower()
-            active_policies = Policy.query.all()
-            active_policies.sort(key=lambda p: len(p.title), reverse=True)
-            for p in active_policies:
-                if len(p.title) > 3 and p.title.lower() in q_lower:
-                    filters["policy_id"] = p.id
-                    break
+        else:
+            if q_emb is None and normalized_query:
+                q_emb = self.embedder.embed_query(normalized_query)
+            if q_emb is not None:
+                from rag.engine.policy_title_index import get_policy_title_index
+                title_idx = get_policy_title_index()
+                top_pid, top_sim = title_idx.find_top_policy_similarity(q_emb)
+                if top_sim > 0.75 and top_pid is not None:
+                    filters["policy_id"] = top_pid
 
         if self.config.use_temporal_filter:
             if scope.target_date:
@@ -279,31 +282,69 @@ class QueryEngine:
         normalized_query: str,
         q_emb: List[float],
         scope: QueryScope,
-        filters: Dict[str, Any]
+        filters: Dict[str, Any],
+        is_fallthrough: bool = False
     ) -> Optional[Tuple[List[Dict[str, Any]], str, Any, List[Dict[str, Any]]]]:
         """
         Shared retrieval, authorization filtering, cross-encoder reranking,
         confidence scoring, and citation extraction.
         Returns (ranked_chunks, score_type, conf, citations) or None if evidence absent.
         """
-        with metrics.RETRIEVAL_LATENCY.time():
-            raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=50, query_embedding=q_emb)
+        # FIX 7: Adaptive top_k scaling
+        if scope.allowed_policy_ids is not None:
+            effective_top_k = min(50, max(20, len(scope.allowed_policy_ids) * 15))
+        else:
+            effective_top_k = 50
 
+        t_search0 = time.perf_counter()
+        with metrics.RETRIEVAL_LATENCY.time():
+            raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=effective_top_k, query_embedding=q_emb)
+        t_search_ms = (time.perf_counter() - t_search0) * 1000
+
+        pre_filter_count = len(raw_candidates)
         authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
+        if len(authorized_candidates) < 5:
+            logger.warning("Fewer than 5 authorized candidates (%d); re-querying with top_k=100", len(authorized_candidates))
+            t_search_re0 = time.perf_counter()
+            with metrics.RETRIEVAL_LATENCY.time():
+                raw_candidates = self.hybrid_retriever.search(normalized_query, filters=filters, top_k=100, query_embedding=q_emb)
+            t_search_ms += (time.perf_counter() - t_search_re0) * 1000
+            pre_filter_count = len(raw_candidates)
+            authorized_candidates = self.evidence_filter.filter_chunks(raw_candidates, scope)
+
+        post_filter_count = len(authorized_candidates)
         if not authorized_candidates:
+            self._last_retrieval_stats = {
+                "pre_filter_count": pre_filter_count,
+                "post_filter_count": 0,
+                "post_rerank_count": 0,
+                "pre_filter_chunk_ids": [c.get("chunk_id") or c.get("id") for c in raw_candidates if (c.get("chunk_id") or c.get("id"))],
+                "authorized_chunk_ids": [],
+                "post_rerank_chunk_ids": [],
+                "timing_hybrid_retrieve_ms": t_search_ms,
+                "timing_rerank_ms": 0.0,
+                "timing_confidence_score_ms": 0.0
+            }
             return None
 
+        # FIX 7: Reduce rerank_top_k from 8 to 5 for Tier-0/Tier-1 fallthrough
+        target_rerank_k = 5 if is_fallthrough else self.config.rerank_top_k
+
+        t_rerank0 = time.perf_counter()
         if self.config.use_rerank:
             with metrics.RERANK_LATENCY.time():
-                ranked = self.reranker.rank(normalized_query, authorized_candidates, top_k=min(len(authorized_candidates), self.config.rerank_top_k))
+                ranked = self.reranker.rank(normalized_query, authorized_candidates, top_k=min(len(authorized_candidates), target_rerank_k))
             score_type = "rerank_prob"
         else:
-            ranked = authorized_candidates[:min(len(authorized_candidates), self.config.rerank_top_k)]
+            ranked = authorized_candidates[:min(len(authorized_candidates), target_rerank_k)]
             score_type = "rrf"
 
         if not ranked:
-            ranked = authorized_candidates[:8]
+            ranked = authorized_candidates[:target_rerank_k]
             score_type = "rrf"
+        t_rerank_ms = (time.perf_counter() - t_rerank0) * 1000
+
+        post_rerank_count = len(ranked)
 
         evidence = EvidencePack(
             query=normalized_query,
@@ -312,7 +353,21 @@ class QueryEngine:
             scores=[c.get("rerank_score", c.get("hybrid_score", 0.5)) for c in ranked],
             score_type=score_type
         )
+        t_conf0 = time.perf_counter()
         conf = self.confidence_engine.score(normalized_query, evidence)
+        t_conf_ms = (time.perf_counter() - t_conf0) * 1000
+
+        self._last_retrieval_stats = {
+            "pre_filter_count": pre_filter_count,
+            "post_filter_count": post_filter_count,
+            "post_rerank_count": post_rerank_count,
+            "pre_filter_chunk_ids": [c.get("chunk_id") or c.get("id") for c in raw_candidates if (c.get("chunk_id") or c.get("id"))],
+            "authorized_chunk_ids": [c.get("chunk_id") or c.get("id") for c in authorized_candidates if (c.get("chunk_id") or c.get("id"))],
+            "post_rerank_chunk_ids": [c.get("chunk_id") or c.get("id") for c in ranked if (c.get("chunk_id") or c.get("id"))],
+            "timing_hybrid_retrieve_ms": t_search_ms,
+            "timing_rerank_ms": t_rerank_ms,
+            "timing_confidence_score_ms": t_conf_ms
+        }
 
         # Build clean citations deduplicated by (policy_id, section)
         seen_cit_keys = set()
@@ -457,6 +512,7 @@ class QueryEngine:
         t_start = time.time()
         
         # 1. Normalize Query & Fast Authorization Scope
+        t_ns0 = time.perf_counter()
         normalized_query = self.router.normalize(query)
         allowed_pids = self.evidence_filter.get_allowed_policy_ids(user)
 
@@ -466,15 +522,30 @@ class QueryEngine:
 
         temporal_context = self.version_resolver.resolve_temporal_context(normalized_query, user) if has_temporal_cue else None
         scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
+        t_ns_ms = (time.perf_counter() - t_ns0) * 1000
 
         # 1.5 Scoped L1 Exact Match Cache Lookup (Sub-millisecond, zero embedding needed)
+        t_c0 = time.perf_counter()
         cached = None
         if self.config.use_cache:
             cached = self.cache.get(query=normalized_query, scope=scope, is_diff_query=is_diff)
+        t_c_ms = (time.perf_counter() - t_c0) * 1000
 
         if cached:
             metrics.CACHE_HITS.inc()
             cits = cached.get("citations", [])
+            cache_usage = {
+                "timing_ms": {
+                    "normalize_scope_ms": round(t_ns_ms, 2),
+                    "cache_lookup_ms": round(t_c_ms, 2),
+                    "fact_lookup_ms": 0.0,
+                    "embed_query_ms": 0.0,
+                    "hybrid_retrieve_ms": 0.0,
+                    "rerank_ms": 0.0,
+                    "confidence_score_ms": 0.0,
+                    "llm_generate_ms": 0.0
+                }
+            }
             return QueryResult(
                 answer=cached["answer"],
                 route="CACHE_HIT",
@@ -486,7 +557,8 @@ class QueryEngine:
                 retrieval_count=cached.get("chunks_used", 0),
                 reranker_used=False,
                 abstained=False,
-                model=cached.get("model", "semantic-cache")
+                model=cached.get("model", "semantic-cache"),
+                usage=cache_usage
             )
 
         # 1.6 Classify Route BEFORE embedding (F1)
@@ -496,13 +568,28 @@ class QueryEngine:
             scope = QueryScope.from_user(user, temporal_context, allowed_policy_ids=allowed_pids)
             is_diff = (route_name == "TEMPORAL_COMPARISON")
 
+        t_fact_ms = 0.0
         # 2. Level 0: Fast Structured Fact Path (Zero embedding needed!)
         if self.config.use_fact:
+            t_f0 = time.perf_counter()
             fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
+            t_fact_ms = (time.perf_counter() - t_f0) * 1000
             if fact_res.found and fact_res.answer:
                 cits = self.citation_validator.enrich_only(fact_res.citations)
                 if self.config.use_cache:
                     self.cache.put(None, fact_res.answer, cits, 1, scope=scope, confidence=fact_res.confidence, is_diff_query=is_diff, query=normalized_query)
+                fact_usage = {
+                    "timing_ms": {
+                        "normalize_scope_ms": round(t_ns_ms, 2),
+                        "cache_lookup_ms": round(t_c_ms, 2),
+                        "fact_lookup_ms": round(t_fact_ms, 2),
+                        "embed_query_ms": 0.0,
+                        "hybrid_retrieve_ms": 0.0,
+                        "rerank_ms": 0.0,
+                        "confidence_score_ms": 0.0,
+                        "llm_generate_ms": 0.0
+                    }
+                }
                 return QueryResult(
                     answer=fact_res.answer,
                     route="FAST_PATH_FACT",
@@ -514,11 +601,14 @@ class QueryEngine:
                     retrieval_count=1,
                     reranker_used=False,
                     abstained=False,
-                    model="fact-engine"
+                    model="fact-engine",
+                    usage=fact_usage
                 )
 
         # Fact path missed. NOW embed query for L2 vector cache, QA ANN search, and Hybrid retrieval (F1)
+        t_e0 = time.perf_counter()
         q_emb = self.embedder.embed_query(normalized_query)
+        t_emb_ms = (time.perf_counter() - t_e0) * 1000
         if self.config.use_cache:
             cached = self.cache.get(query_embedding=q_emb, scope=scope, is_diff_query=is_diff)
             if cached:
@@ -592,13 +682,14 @@ class QueryEngine:
             )
 
         # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering (F3 shared helper)
-        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff, normalized_query=normalized_query)
+        retrieval_query = self.router.expand_acronyms(normalized_query)
+        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff, normalized_query=normalized_query, q_emb=q_emb)
         if filters is None:
-            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000)
+            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000, abstain_reason="unauthorized")
 
-        retrieval_pack = self._retrieve_and_rank(normalized_query, q_emb, scope, filters)
+        retrieval_pack = self._retrieve_and_rank(retrieval_query, q_emb, scope, filters, is_fallthrough=True)
         if not retrieval_pack:
-            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000)
+            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000, abstain_reason="low_retrieval")
 
         ranked, score_type, conf, citations = retrieval_pack
 
@@ -606,41 +697,75 @@ class QueryEngine:
             "summary" in normalized_query.lower() or "explain" in normalized_query.lower() or "compare" in normalized_query.lower()
         )
         if self.config.use_confidence_gate and conf.abstain and not is_synthesis_query:
-            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000)
+            return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000, abstain_reason=conf.abstain_reason)
 
         # 9. Answer Generation: Grounded Evidence Extraction vs Local LLM
         ctx_nums = extract_grounding_numbers(ranked[:5])
         llm_used = False
         final_answer = None
+        nli_verdict = "none"
+        nli_entail_score = 0.0
+        nli_contra_score = 0.0
+        llm_time_ms = 0.0
+        llm_token_count = 0
 
-        if getattr(self.config, "use_llm", True) and self.llm.health_check():
+        if getattr(self.config, "use_llm", True) and (complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL or is_synthesis_query) and self.llm.health_check():
+            max_tokens = 200
+            t_llm = time.time()
             try:
-                llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:5])
+                llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:5], max_tokens=max_tokens)
+                llm_time_ms = (time.time() - t_llm) * 1000
                 ans_text = llm_output.get("answer", "").strip() if llm_output else ""
                 if llm_output and ans_text and ans_text != "INSUFFICIENT_EVIDENCE" and not ans_text.startswith("INSUFFICIENT_EVIDENCE"):
                     ans_candidate = ans_text
                     if verify_numeric_grounding(ans_candidate, ctx_nums):
                         if self.config.use_nli:
                             entail_res = self.entailment_verifier.verify(ans_candidate, ranked[:5])
-                            is_grounded = bool(getattr(entail_res, "is_entailed", False))
+                            # Strict grounding: only accept positive entailment; reject contradictions and ungrounded neutral/unknown claims
+                            is_grounded = bool(getattr(entail_res, "is_entailed", False)) and (getattr(entail_res, "verdict", "UNKNOWN") == "ENTAILMENT")
+                            nli_verdict = getattr(entail_res, "verdict", "UNKNOWN")
+                            nli_entail_score = getattr(entail_res, "score", 0.0)
+                            nli_contra_score = getattr(entail_res, "contra_score", 0.0)
                         else:
                             is_grounded = True
+                            nli_verdict = "NLI_DISABLED"
+                            nli_entail_score = 1.0
+                            nli_contra_score = 0.0
+
                         if is_grounded:
                             final_answer = ans_candidate
                             llm_used = True
                     else:
                         metrics.GROUNDING_REJECTIONS.inc()
+            except TimeoutError as te:
+                logger.warning(f"Local LLM inference timeout: {te}. Falling back to deterministic grounded extraction.")
             except Exception as e:
                 logger.warning(f"Local LLM inference encountered error: {e}. Falling back to deterministic grounded extraction.")
 
         if not final_answer:
             final_answer = _extract_best_evidence_context(normalized_query, ranked, citations)
             if not final_answer:
-                return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000)
+                return QueryResult.abstained(DEFAULT_REFUSAL_MESSAGE, (time.time() - t_start) * 1000, abstain_reason="insufficient_evidence")
+
+        if llm_used and final_answer:
+            llm_token_count = len(re.findall(r"\w+", final_answer))
 
         # Cache successful verified answer (F8: both query string and embedding always passed)
         if self.config.use_cache:
             self.cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model="qwen3" if llm_used else "deterministic-rag", confidence=conf.value, is_diff_query=is_diff, query=normalized_query)
+
+        retrieval_stats = getattr(self, "_last_retrieval_stats", {})
+        usage_data = dict(retrieval_stats)
+        usage_data["timing_ms"] = {
+            "normalize_scope_ms": round(t_ns_ms, 2),
+            "cache_lookup_ms": round(t_c_ms, 2),
+            "fact_lookup_ms": round(t_fact_ms, 2),
+            "embed_query_ms": round(t_emb_ms, 2),
+            "hybrid_retrieve_ms": round(retrieval_stats.get("timing_hybrid_retrieve_ms", 0.0), 2),
+            "rerank_ms": round(retrieval_stats.get("timing_rerank_ms", 0.0), 2),
+            "confidence_score_ms": round(retrieval_stats.get("timing_confidence_score_ms", 0.0), 2),
+            "llm_generate_ms": round(llm_time_ms, 2)
+        }
 
         return QueryResult(
             answer=final_answer,
@@ -653,7 +778,14 @@ class QueryEngine:
             retrieval_count=len(ranked),
             reranker_used=self.config.use_rerank,
             abstained=False,
-            model="qwen3" if llm_used else "deterministic-rag"
+            model="qwen3" if llm_used else "deterministic-rag",
+            usage=usage_data,
+            abstain_reason=conf.abstain_reason,
+            nli_verdict=nli_verdict,
+            nli_entailment_score=nli_entail_score,
+            nli_contradiction_score=nli_contra_score,
+            llm_token_count=llm_token_count,
+            llm_time_ms=llm_time_ms
         )
 
     def stream_answer(self, query: str, user=None, session_id: str = None):
@@ -826,7 +958,7 @@ class QueryEngine:
             return
 
         # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering (F3 shared helper)
-        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff, normalized_query=normalized_query)
+        filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff, normalized_query=normalized_query, q_emb=q_emb)
         if filters is None:
             yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
             yield {
@@ -844,7 +976,7 @@ class QueryEngine:
             }
             return
 
-        retrieval_pack = self._retrieve_and_rank(normalized_query, q_emb, scope, filters)
+        retrieval_pack = self._retrieve_and_rank(normalized_query, q_emb, scope, filters, is_fallthrough=True)
         if not retrieval_pack:
             yield {"type": "token", "token": DEFAULT_REFUSAL_MESSAGE}
             yield {

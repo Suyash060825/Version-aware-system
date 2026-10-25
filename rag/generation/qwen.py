@@ -26,9 +26,9 @@ class QwenLocalProvider(OllamaProvider):
             return True
         return False
 
-    def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
+    def generate(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: float = 15.0) -> Optional[str]:
         if super().health_check():
-            res = super().generate(prompt, system_prompt)
+            res = super().generate(prompt, system_prompt, num_predict=num_predict, timeout=timeout)
             if res:
                 return res
         core = self._get_core_provider()
@@ -41,10 +41,10 @@ class QwenLocalProvider(OllamaProvider):
                 logger.debug(f"Core LLM provider generation failed: {e}")
         return None
 
-    def stream(self, prompt: str, system_prompt: Optional[str] = None):
+    def stream(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: float = 15.0):
         if super().health_check():
             has_tokens = False
-            for tok in super().stream(prompt, system_prompt):
+            for tok in super().stream(prompt, system_prompt, num_predict=num_predict, timeout=timeout):
                 has_tokens = True
                 yield tok
             if has_tokens:
@@ -60,9 +60,9 @@ class QwenLocalProvider(OllamaProvider):
             except Exception as e:
                 logger.debug(f"Core LLM provider streaming failed: {e}")
 
-    def generate_grounded_answer(self, query: str, chunks: list) -> Optional[Dict[str, Any]]:
+    def generate_grounded_answer(self, query: str, chunks: list, max_tokens: int = 500) -> Optional[Dict[str, Any]]:
         prompt = build_grounded_qa_prompt(query, chunks)
-        raw_output = self.generate(prompt, system_prompt=SYSTEM_POLICY_GROUNDING_PROMPT)
+        raw_output = self.generate(prompt, system_prompt=SYSTEM_POLICY_GROUNDING_PROMPT, num_predict=max_tokens, timeout=15.0)
         if not raw_output:
             return None
 

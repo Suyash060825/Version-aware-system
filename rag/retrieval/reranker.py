@@ -102,7 +102,7 @@ class FlashRankReranker:
         if not self._ranker:
             return candidates[:top_k]
         try:
-            eval_candidates = candidates[:min(len(candidates), 15)]
+            eval_candidates = candidates[:min(len(candidates), 35)]
             passages = [{"id": i, "text": _format_candidate_for_rerank(c)} for i, c in enumerate(eval_candidates)]
             req = self._rerank_request_cls(query=query, passages=passages)
             ranked_passages = self._ranker.rerank(req)

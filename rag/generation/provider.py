@@ -107,33 +107,35 @@ class OllamaProvider(LocalLLMProvider):
         self._last_health_time = 0
         self._is_healthy = None
 
-    def _ollama_options(self) -> dict:
+    def _ollama_options(self, num_predict: Optional[int] = None) -> dict:
         """Centralized Ollama runtime configuration options."""
         return {
             "temperature": 0.1,
-            "num_predict": Config.LLM_MAX_NEW_TOKENS,
+            "num_predict": num_predict or Config.LLM_MAX_NEW_TOKENS,
             "num_ctx": Config.OLLAMA_NUM_CTX,
             "num_thread": Config.OLLAMA_NUM_THREADS,
             "keep_alive": Config.OLLAMA_KEEP_ALIVE,
+            "think": False,
         }
 
-    def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
+    def generate(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: float = 15.0) -> Optional[str]:
         import requests, time, re
         if not self.health_check():
             return None
 
+        effective_timeout = min(float(self.timeout), float(timeout))
         try:
             payload = {
                 "model": self.model,
                 "prompt": prompt,
                 "stream": False,
                 "think": False,
-                "options": self._ollama_options()
+                "options": self._ollama_options(num_predict=num_predict)
             }
             if system_prompt:
                 payload["system"] = system_prompt
 
-            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(3.0, float(self.timeout)))
+            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(3.0, effective_timeout))
             resp.raise_for_status()
             data = resp.json()
             self._is_healthy = True
@@ -143,29 +145,36 @@ class OllamaProvider(LocalLLMProvider):
                 raw_res = data.get("thinking", "")
             cleaned = re.sub(r"<think>.*?</think>", "", raw_res, flags=re.DOTALL).strip()
             return cleaned
+        except requests.exceptions.Timeout as te:
+            self._is_healthy = False
+            self._last_health_time = time.time()
+            logger.warning(f"Ollama generation timed out after {effective_timeout}s: {te}")
+            raise TimeoutError(f"Qwen3 generation timed out after {effective_timeout}s") from te
         except Exception as e:
             self._is_healthy = False
             self._last_health_time = time.time()
             logger.warning(f"Ollama offline/busy ({self.model} at {self.base_url}): {e}. Fast failover active.")
             return None
 
-    def stream(self, prompt: str, system_prompt: Optional[str] = None):
+    def stream(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: float = 15.0):
         import requests, json, time
         if self._is_healthy is False and (time.time() - self._last_health_time < self.negative_cache_window):
             return
 
+        effective_timeout = min(float(self.timeout), float(timeout))
         def raw_token_generator():
             try:
                 payload = {
                     "model": self.model,
                     "prompt": prompt,
                     "stream": True,
-                    "options": self._ollama_options()
+                    "think": False,
+                    "options": self._ollama_options(num_predict=num_predict)
                 }
                 if system_prompt:
                     payload["system"] = system_prompt
 
-                with requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(3.0, float(self.timeout)), stream=True) as resp:
+                with requests.post(f"{self.base_url}/api/generate", json=payload, timeout=(3.0, effective_timeout), stream=True) as resp:
                     if resp.status_code == 200:
                         self._is_healthy = True
                         self._last_health_time = time.time()

@@ -39,3 +39,6 @@ data/huggingface/
 *.fdb_latexmk
 *.synctex.gz
 
+data/chroma_backup/
+experiments/test_clean_run/
+experiments/veritas_eval_clean/

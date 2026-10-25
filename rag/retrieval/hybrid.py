@@ -12,11 +12,19 @@ class HybridRetriever:
         self.sparse = PersistentBM25Index()
 
     def search(self, query: str, filters: dict = None, top_k: int = 25, query_embedding: List[float] = None) -> List[Dict[str, Any]]:
-        dense_results = self.dense.search(query, filters, top_k=top_k, query_embedding=query_embedding)
-        sparse_results = self.sparse.get_scores(query, filters)
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            fut_dense = executor.submit(self.dense.search, query, filters, top_k=top_k, query_embedding=query_embedding)
+            fut_sparse = executor.submit(self.sparse.get_scores, query, filters)
+            dense_results = fut_dense.result()
+            sparse_results = fut_sparse.result()
         
-        # RRF Fusion
-        K = 60
+        # Adaptive RRF Fusion parameterization:
+        # For concise keyword-heavy queries (<4 words), weight BM25 exact matches higher (K=30)
+        # For natural conversational queries, standard K=60 balances semantic and lexical signals
+        q_tokens = [t for t in query.strip().split() if len(t) > 1]
+        K = 30 if len(q_tokens) <= 3 else 60
         combined = {}
         
         for i, doc in enumerate(dense_results):

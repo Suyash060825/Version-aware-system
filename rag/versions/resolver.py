@@ -225,19 +225,29 @@ class VersionResolver:
             return None
 
         if start_date or end_date:
-            for v in versions:
-                if v.is_valid_for_interval(start_date, end_date):
-                    return v
+            valid_interval = [v for v in versions if v.is_valid_for_interval(start_date, end_date)]
+            if valid_interval:
+                if len(valid_interval) > 1:
+                    import logging
+                    logging.getLogger("rag.versions.resolver").warning(
+                        f"Multiple versions {[v.version_num for v in valid_interval]} overlap for policy {policy_id} interval {start_date} to {end_date}. Selecting highest version."
+                    )
+                return valid_interval[0]
+            # When requested interval does not match any version interval, fail closed/abstain
+            return None
 
         if target_date:
-            for v in versions:
-                if v.is_valid_for_date(target_date):
-                    return v
-            # If target date is before all versions, return the earliest version
-            earliest = versions[-1]
-            if earliest.effective_from is not None and target_date < earliest.effective_from:
-                return earliest
-            return versions[0]
+            valid_date = [v for v in versions if v.is_valid_for_date(target_date)]
+            if valid_date:
+                if len(valid_date) > 1:
+                    import logging
+                    logging.getLogger("rag.versions.resolver").warning(
+                        f"Multiple versions {[v.version_num for v in valid_date]} valid for policy {policy_id} date {target_date}. Selecting highest version."
+                    )
+                return valid_date[0]
+            # Acceptance criterion: No query can silently receive a version that was not effective on its requested date.
+            # Pre-dating earliest version, gaps, or post-expiration returns None to trigger abstention.
+            return None
 
         active = PolicyVersion.query.filter_by(policy_id=policy_id, is_active=True).first()
         if not active:

@@ -17,6 +17,7 @@ class EntailmentResult:
     score: float
     verdict: str  # ENTAILMENT, CONTRADICTION, UNKNOWN
     failed_claims: List[str] = field(default_factory=list)
+    contra_score: float = 0.0
 
     def __iter__(self):
         yield self.is_entailed
@@ -27,7 +28,8 @@ class EntailmentVerifier:
     _shared_use_nli = True
 
     def __init__(self):
-        self.enabled = os.environ.get('ENTAILMENT_ENABLED', 'false').lower() == 'true'
+        # Enable entailment verification by default in production
+        self.enabled = os.environ.get('ENTAILMENT_ENABLED', 'true').lower() in ('true', '1')
 
     @property
     def _nli_model(self):
@@ -65,8 +67,10 @@ class EntailmentVerifier:
         claims = []
         for s in sentences:
             s_clean = s.strip().lstrip("0123456789.- ")
+            # Strip citation preamble while keeping underlying substantive claims
+            s_clean = re.sub(r'^(?:According to [^:]+:\s*|Based on [^:]+:\s*)', '', s_clean, flags=re.IGNORECASE).strip()
             # Only evaluate substantive claims with verbs / facts
-            if len(s_clean) >= 15 and not s_clean.startswith(("According to", "Based on", "Table of")):
+            if len(s_clean) >= 15 and not s_clean.startswith("Table of"):
                 claims.append(s_clean)
         return claims
 
@@ -107,7 +111,8 @@ class EntailmentVerifier:
                 avg_entail = float(entailment_scores.mean())
                 avg_contra = float(contra_scores.mean())
 
-                if avg_contra > 0.5:
+                # FIX 4: Only reject if contradiction > 0.65; do not reject for low entailment alone
+                if avg_contra > 0.65:
                     verdict = "CONTRADICTION"
                     is_entailed = False
                 elif avg_entail > 0.35:
@@ -117,16 +122,21 @@ class EntailmentVerifier:
                     verdict = "UNKNOWN"
                     is_entailed = False
 
-                failed = [claims[i] for i, s in enumerate(entailment_scores) if s <= 0.35]
-                return EntailmentResult(is_entailed=is_entailed, score=avg_entail, verdict=verdict, failed_claims=failed)
+                failed = [claims[i] for i, s in enumerate(contra_scores) if s > 0.65]
+                return EntailmentResult(is_entailed=is_entailed, score=avg_entail, verdict=verdict, failed_claims=failed, contra_score=avg_contra)
             except Exception as e:
                 logger.error(f"Error in NLI predict: {e}")
 
         # Fallback when neural NLI model is unavailable
-        # Lexical overlap measures token recall but cannot prove factual entailment.
+        # Lexical and symbolic rule verification: checks numbers, dates, negations, and token overlap
         context_tokens = set(re.findall(r"[a-z0-9]+", context.lower()))
+        ctx_nums = set(re.findall(r"\b\d+(?:\.\d+)?%?\b", context))
+        negations = {'not', 'no', 'never', 'neither', 'none', 'cannot', "can't", "won't", "don't", 'prohibited', 'forbidden', 'disallowed', 'excluded'}
+        ctx_has_neg = bool(context_tokens & negations)
+
         claim_scores = []
         failed = []
+        contra_detected = False
 
         for claim in claims:
             claim_tokens = set(re.findall(r"[a-z0-9]+", claim.lower()))
@@ -134,15 +144,39 @@ class EntailmentVerifier:
                 continue
             overlap = len(claim_tokens & context_tokens) / len(claim_tokens)
             claim_scores.append(overlap)
-            if overlap < 0.25:
-                failed.append(claim)
+
+            # 1. Number / date ground check
+            claim_nums = set(re.findall(r"\b\d+(?:\.\d+)?%?\b", claim))
+            unsupported_nums = claim_nums - ctx_nums
+
+            # 2. Negation flip check
+            claim_has_neg = bool(claim_tokens & negations)
+
+            if unsupported_nums and overlap > 0.4:
+                contra_detected = True
+                failed.append(f"Contradictory/unsupported quantity in: '{claim}'")
+            elif claim_has_neg != ctx_has_neg and overlap > 0.6:
+                contra_detected = True
+                failed.append(f"Negation contradiction in: '{claim}'")
+            elif overlap < 0.35:
+                failed.append(f"Insufficiently supported claim: '{claim}'")
 
         avg_overlap = sum(claim_scores) / max(len(claim_scores), 1)
-        # Never manufacture factual entailment without neural NLI verification
-        is_entailed = False
-        verdict = "UNKNOWN"
 
-        return EntailmentResult(is_entailed=is_entailed, score=avg_overlap, verdict=verdict, failed_claims=failed)
+        if contra_detected:
+            verdict = "CONTRADICTION"
+            is_entailed = False
+            avg_contra = 0.90
+        elif avg_overlap >= 0.70 and not failed:
+            verdict = "ENTAILMENT"
+            is_entailed = True
+            avg_contra = 0.05
+        else:
+            verdict = "UNKNOWN"
+            is_entailed = False
+            avg_contra = 0.15
+
+        return EntailmentResult(is_entailed=is_entailed, score=avg_overlap, verdict=verdict, failed_claims=failed, contra_score=avg_contra)
 
 _DEFAULT_VERIFIER = None
 

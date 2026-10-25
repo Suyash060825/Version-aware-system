@@ -141,24 +141,67 @@ class TestPhase5TemporalCorrectness:
     def test_query_date_before_effective_date_behavior(self, audit_app):
         """
         AUDIT CHECK: What does get_active_version do if date is 2020 (before policy created in 2022)?
-        Discovered behavior: returns earliest version instead of None.
+        Expected behavior: Fail-closed / returns None so engine abstains rather than returning an invalid version.
         """
         resolver = VersionResolver()
         early_ver = resolver.get_active_version(policy_id=1, target_date=date(2020, 1, 1))
-        # Veritas implementation currently returns versions[-1] (earliest) rather than None
-        # Recording this design limitation:
-        assert early_ver is not None
-        assert early_ver.version_num == 1.0
+        # Veritas must not return anachronistic/pre-dated policy versions
+        assert early_ver is None
 
     def test_query_date_after_expiration_behavior(self, audit_app):
         """
         AUDIT CHECK: Query date in 2025 for a policy that expired in 2021 (Policy 3).
-        Discovered behavior: returns versions[0] rather than None.
+        Expected behavior: Fail-closed / returns None when policy is expired on target date.
         """
         resolver = VersionResolver()
         exp_ver = resolver.get_active_version(policy_id=3, target_date=date(2025, 1, 1))
-        # Records that VersionResolver does not fail closed/abstain on expired intervals
-        assert exp_ver is not None
+        # VersionResolver fails closed/abstains on expired intervals
+        assert exp_ver is None
+
+    def test_temporal_gap_between_versions_behavior(self, audit_app):
+        """
+        AUDIT CHECK: If there is an unbridged gap between version intervals, resolver returns None.
+        """
+        # Create policy with gap: v1 effective 2018-01-01 to 2019-12-31, v2 effective 2021-01-01
+        p_gap = Policy(id=10, policy_id="POL-GAP", title="Remote Work Protocol", author_id=1, department_id=1,
+                       status=PolicyStatus.ACTIVE, confidentiality=ConfidentialityLevel.INTERNAL)
+        v1_gap = PolicyVersion(id=101, policy_id=10, version_num=1.0, version_label="v1.0",
+                               content="Old remote work rule", is_active=False, status="approved", created_by_id=1,
+                               effective_date=date(2018, 1, 1), expiration_date=date(2019, 12, 31))
+        v2_gap = PolicyVersion(id=102, policy_id=10, version_num=2.0, version_label="v2.0",
+                               content="New remote work rule", is_active=True, status="approved", created_by_id=1,
+                               effective_date=date(2021, 1, 1))
+        db.session.add_all([p_gap, v1_gap, v2_gap])
+        db.session.commit()
+
+        resolver = VersionResolver()
+        # Pre-dating earliest version:
+        before_ver = resolver.get_active_version(policy_id=10, target_date=date(2017, 6, 1))
+        assert before_ver is None
+
+        # Query in policy hiatus (2020-06-01): with explicit expiration_date, gap is not bridged
+        gap_ver = resolver.get_active_version(policy_id=10, target_date=date(2020, 6, 1))
+        assert gap_ver is None
+
+    def test_temporal_overlap_resolution_rule(self, audit_app):
+        """
+        AUDIT CHECK: If multiple versions overlap unexpectedly on target date, apply deterministic rule (highest version).
+        """
+        p_ov = Policy(id=11, policy_id="POL-OVL", title="Overlapping Policy", author_id=1, department_id=1,
+                      status=PolicyStatus.ACTIVE, confidentiality=ConfidentialityLevel.INTERNAL)
+        v1 = PolicyVersion(id=111, policy_id=11, version_num=1.0, version_label="v1.0",
+                           content="Rule v1", is_active=False, status="approved", created_by_id=1,
+                           effective_date=date(2023, 1, 1))
+        v2 = PolicyVersion(id=112, policy_id=11, version_num=2.0, version_label="v2.0",
+                           content="Rule v2", is_active=True, status="approved", created_by_id=1,
+                           effective_date=date(2023, 1, 1))
+        db.session.add_all([p_ov, v1, v2])
+        db.session.commit()
+
+        resolver = VersionResolver()
+        resolved = resolver.get_active_version(policy_id=11, target_date=date(2023, 6, 1))
+        assert resolved is not None
+        assert resolved.version_num == 2.0
 
     def test_version_diff_clause_level(self, audit_app):
         """Version comparison where clauses were modified and added."""
@@ -238,18 +281,13 @@ class TestPhase5AuthorizationCorrectness:
 
 class TestPhase6GroundingAndAbstention:
     def test_direct_question_answered_by_valid_evidence(self, audit_app):
-        """Question with valid evidence is verified (or safely UNKNOWN if no neural NLI)."""
+        """Question with valid evidence is verified."""
         verifier = EntailmentVerifier()
         premise = "Employees may work remotely up to 3 days per week."
         hypothesis = "Employees may work remotely up to 3 days per week."
         res = verifier.verify(hypothesis, [{"text": premise}])
-        if verifier._nli_model is not None:
-            assert res.is_entailed is True
-            assert res.verdict == "ENTAILMENT"
-        else:
-            # Fallback fail-closed behavior without PyTorch
-            assert res.verdict == "UNKNOWN"
-            assert res.is_entailed is False
+        assert res.verdict == "ENTAILMENT"
+        assert res.is_entailed is True
 
     def test_question_with_contradictory_evidence(self, audit_app):
         """Contradictory hypothesis must be flagged as non-entailed/contradiction."""
