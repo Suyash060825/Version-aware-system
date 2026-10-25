@@ -24,10 +24,13 @@ def _compute_compliance_data():
     frameworks = ComplianceFramework.query.filter_by(is_active=True).order_by(ComplianceFramework.name).all()
     active_policies = Policy.query.filter_by(status=PolicyStatus.ACTIVE).all()
     # Filter out restricted policies if user not authorized
-    if not (current_user.is_admin() if callable(getattr(current_user, "is_admin", None)) else getattr(current_user, "is_admin", False)):
-        user_clearance = getattr(current_user, "clearance", None)
-        if user_clearance != "restricted":
-            active_policies = [p for p in active_policies if p.confidentiality != "restricted"]
+    can_view = (
+        (callable(getattr(current_user, "can_view_restricted", None)) and current_user.can_view_restricted()) or
+        (callable(getattr(current_user, "is_admin", None)) and current_user.is_admin()) or
+        getattr(current_user, "clearance", None) == "restricted"
+    )
+    if not can_view:
+        active_policies = [p for p in active_policies if p.confidentiality != "restricted"]
     all_framework_policies = active_policies
     total_active = len(active_policies)
 
@@ -48,17 +51,18 @@ def _compute_compliance_data():
     # Violations & Acks: mandatory active policies with unacknowledged employees (Batched)
     from sqlalchemy import func
     total_employees = User.query.filter_by(role=UserRole.EMPLOYEE, is_active=True).count()
+    mand_policy_ids = [p.id for p in active_policies if p.is_mandatory]
     acked_counts = dict(
         db.session.query(PolicyAcknowledgement.policy_id, func.count(PolicyAcknowledgement.id))
         .join(User, PolicyAcknowledgement.user_id == User.id)
         .filter(
             User.role == UserRole.EMPLOYEE,
             User.is_active == True,
-            PolicyAcknowledgement.is_mandatory == True,
+            PolicyAcknowledgement.policy_id.in_(mand_policy_ids),
             PolicyAcknowledgement.acknowledged_at.isnot(None),
         )
         .group_by(PolicyAcknowledgement.policy_id).all()
-    )
+    ) if mand_policy_ids else {}
     violations = []
     ack_scores = []
     for p in active_policies:
@@ -72,11 +76,15 @@ def _compute_compliance_data():
     violations.sort(key=lambda v: -v["outstanding"])
 
     # Aggregated AI compliance issues (from Module 3's PolicyAIReview, already computed elsewhere)
+    from sqlalchemy.orm import joinedload
+    reviews = (PolicyAIReview.query
+               .join(Policy, PolicyAIReview.policy_id == Policy.id)
+               .options(joinedload(PolicyAIReview.policy))
+               .filter(Policy.status == PolicyStatus.ACTIVE).all())
     ai_issues = []
-    for review in PolicyAIReview.query.all():
-        if review.policy and review.policy.status == PolicyStatus.ACTIVE:
-            for issue in review.compliance_issues:
-                ai_issues.append({"policy": review.policy, "issue": issue, "risk_score": review.risk_score})
+    for review in reviews:
+        for issue in (review.compliance_issues or []):
+            ai_issues.append({"policy": review.policy, "issue": issue, "risk_score": review.risk_score})
     ai_issues.sort(key=lambda x: -x["risk_score"])
 
     # Audit readiness score (composite, 0-100)
@@ -84,7 +92,6 @@ def _compute_compliance_data():
     ack_score = round(sum(ack_scores) / len(ack_scores)) if ack_scores else 100
     expiry_score = round(100 * (len(active_policies) - len(expired_policies)) / len(active_policies)) if active_policies else 100
     review_score = round(100 * (len(active_policies) - len(overdue_review)) / len(active_policies)) if active_policies else 100
-    reviews = [r for r in PolicyAIReview.query.all() if r.policy and r.policy.status == PolicyStatus.ACTIVE]
     avg_ai_risk = sum(r.risk_score for r in reviews) / len(reviews) if reviews else 0
     ai_risk_score = round(100 - avg_ai_risk)
 
@@ -111,10 +118,13 @@ def _compute_compliance_data():
 def compliance_center():
     data = _compute_compliance_data()
     all_policies_q = Policy.query.filter_by(status=PolicyStatus.ACTIVE)
-    if not (current_user.is_admin() if callable(getattr(current_user, "is_admin", None)) else getattr(current_user, "is_admin", False)):
-        user_clearance = getattr(current_user, "clearance", None)
-        if user_clearance != "restricted":
-            all_policies_q = all_policies_q.filter(Policy.confidentiality != "restricted")
+    can_view = (
+        (callable(getattr(current_user, "can_view_restricted", None)) and current_user.can_view_restricted()) or
+        (callable(getattr(current_user, "is_admin", None)) and current_user.is_admin()) or
+        getattr(current_user, "clearance", None) == "restricted"
+    )
+    if not can_view:
+        all_policies_q = all_policies_q.filter(Policy.confidentiality != "restricted")
     all_policies = all_policies_q.order_by(Policy.title).all()
     return render_template("admin/compliance_center.html", all_policies=all_policies, **data)
 

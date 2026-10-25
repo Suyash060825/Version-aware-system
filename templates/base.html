@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>{% block title %}Policy Ledger{% endblock %}</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -366,6 +367,31 @@ function confirmAction(msg,form){if(confirm(msg)){form.submit()}return false}
       window.location.href = "{{ url_for('employee.search') }}?q=" + encodeURIComponent(input.value.trim());
     }
   });
+})();
+
+// Automatic CSRF injection on state-modifying fetch requests
+(function() {
+  const _origFetch = window.fetch;
+  window.fetch = function(url, init = {}) {
+    if (init && init.method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(init.method.toUpperCase())) {
+      const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      if (token) {
+        init.headers = init.headers || {};
+        if (init.headers instanceof Headers) {
+          if (!init.headers.has('X-CSRFToken')) init.headers.set('X-CSRFToken', token);
+        } else if (Array.isArray(init.headers)) {
+          if (!init.headers.some(([k]) => k.toLowerCase() === 'x-csrftoken')) {
+            init.headers.push(['X-CSRFToken', token]);
+          }
+        } else {
+          if (!init.headers['X-CSRFToken'] && !init.headers['x-csrftoken']) {
+            init.headers['X-CSRFToken'] = token;
+          }
+        }
+      }
+    }
+    return _origFetch.call(this, url, init);
+  };
 })();
 </script>
 {% block scripts %}{% endblock %}

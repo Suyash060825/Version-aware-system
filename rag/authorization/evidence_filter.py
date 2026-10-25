@@ -168,7 +168,7 @@ class EvidenceFilter:
             if conf_str not in scope.allowed_confidentiality:
                 return False
 
-            if conf_str in ("internal", "confidential") and policy.department_id is not None and scope.role not in ("admin", "executive", "legal", "hr"):
+            if conf_str in ("internal", "confidential") and policy.department_id is not None and not getattr(policy, "is_mandatory", False) and scope.role not in ("admin", "executive", "legal", "hr"):
                 if not scope.department_ids or policy.department_id not in scope.department_ids:
                     return False
 
@@ -221,15 +221,15 @@ class EvidenceFilter:
             return False
         elif conf_str == "confidential":
             user_clearance = getattr(user, "clearance", None)
-            if user_role not in ("admin", "executive", "legal", "hr"):
+            if user_role not in ("admin", "executive", "legal", "hr", "manager"):
                 if user_clearance and user_clearance not in ("confidential", "restricted"):
                     return False
                 user_dept = getattr(user, "department_id", None)
                 if user_dept is None or (policy.department_id is not None and user_dept != policy.department_id):
                     return False
 
-        # General Department restriction for standard employees
-        if conf_str in ("internal", "confidential") and policy.department_id is not None and user_role not in ("admin", "executive", "legal", "hr"):
+        # General Department restriction for standard employees (mandatory policies are company-wide)
+        if conf_str in ("internal", "confidential") and policy.department_id is not None and not getattr(policy, "is_mandatory", False) and user_role not in ("admin", "executive", "legal", "hr", "manager"):
             user_dept = getattr(user, "department_id", None)
             if user_dept is None or user_dept != policy.department_id:
                 return False

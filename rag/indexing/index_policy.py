@@ -52,9 +52,21 @@ def delete_policy_from_index(policy_id: int):
 
     # 2. Database artifacts
     try:
-        from models import db, PolicyChunkV2, PolicyFact, CanonicalQuestion, CompiledAnswer
+        from models import (
+            db, PolicyChunkV2, PolicyFact, CanonicalQuestion, CompiledAnswer,
+            PolicyEntity, PolicyRelationship, CompilationJob, IndexingJob,
+            ContradictionFlag, OnboardingChecklistItem
+        )
         PolicyChunkV2.query.filter_by(policy_id=policy_id).delete(synchronize_session=False)
         PolicyFact.query.filter_by(policy_id=policy_id).delete(synchronize_session=False)
+        PolicyRelationship.query.filter_by(policy_id=policy_id).delete(synchronize_session=False)
+        PolicyEntity.query.filter_by(policy_id=policy_id).delete(synchronize_session=False)
+        CompilationJob.query.filter_by(policy_id=policy_id).delete(synchronize_session=False)
+        IndexingJob.query.filter_by(policy_id=policy_id).delete(synchronize_session=False)
+        ContradictionFlag.query.filter(
+            (ContradictionFlag.policy_a_id == policy_id) | (ContradictionFlag.policy_b_id == policy_id)
+        ).delete(synchronize_session=False)
+        OnboardingChecklistItem.query.filter_by(policy_id=policy_id).delete(synchronize_session=False)
         q_ids = [q.id for q in CanonicalQuestion.query.filter_by(policy_id=policy_id).all()]
         if q_ids:
             CompiledAnswer.query.filter(CompiledAnswer.question_id.in_(q_ids)).delete(synchronize_session=False)
@@ -62,6 +74,10 @@ def delete_policy_from_index(policy_id: int):
         db.session.commit()
     except Exception as e:
         logger.error(f"Failed deleting policy {policy_id} database artifacts: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
     # 3. BM25 Sparse Index
     try:

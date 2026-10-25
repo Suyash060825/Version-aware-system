@@ -78,18 +78,9 @@ class QAMatcher:
                             ans = db.session.get(CompiledAnswer, answer_id)
                             found_in_results = True
                             break
-                if not found_in_results and pol_id:
-                    act_ver = PolicyVersion.query.filter_by(policy_id=pol_id, is_active=True).first()
-                    if act_ver:
-                        cq_act = CanonicalQuestion.query.filter_by(policy_id=pol_id, version_id=act_ver.id).first()
-                        if cq_act:
-                            ans_act = CompiledAnswer.query.filter_by(question_id=cq_act.id, status="validated").first()
-                            if ans_act:
-                                ver_id = act_ver.id
-                                v_num = str(act_ver.version_num)
-                                c_id = cq_act.source_chunk_id or f"p{pol_id}-v{act_ver.id}-s1-c1"
-                                question_text = cq_act.question
-                                ans = ans_act
+                if not found_in_results:
+                    # Do not substitute an unrelated question; escalate to RAG pipeline
+                    return None
 
         evidence_filter = get_evidence_filter()
 

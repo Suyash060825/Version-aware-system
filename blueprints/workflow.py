@@ -258,8 +258,11 @@ def workflow_analytics():
     # Average time-in-stage, grouped by stage name (bottleneck detection)
     stage_times = {}
     for s in completed:
-        hours = (s.completed_at.replace(tzinfo=None) - s.created_at).total_seconds() / 3600
-        stage_times.setdefault(s.name, []).append(hours)
+        if s.completed_at and s.created_at:
+            c_at = s.completed_at.replace(tzinfo=None) if s.completed_at.tzinfo else s.completed_at
+            cr_at = s.created_at.replace(tzinfo=None) if s.created_at.tzinfo else s.created_at
+            hours = (c_at - cr_at).total_seconds() / 3600
+            stage_times.setdefault(s.name, []).append(hours)
     bottlenecks = sorted(
         [{"name": name, "avg_hours": round(sum(v) / len(v), 1), "count": len(v)}
          for name, v in stage_times.items()],
@@ -273,7 +276,9 @@ def workflow_analytics():
     approved_count = WorkflowStageInstance.query.filter_by(status=WorkflowStageStatus.APPROVED).count()
     rejected_count = WorkflowStageInstance.query.filter_by(status=WorkflowStageStatus.REJECTED).count()
 
+    from sqlalchemy.orm import joinedload
     pending_stages = (WorkflowStageInstance.query.filter_by(status=WorkflowStageStatus.PENDING)
+                      .options(joinedload(WorkflowStageInstance.policy))
                       .order_by(WorkflowStageInstance.sla_due_at.asc().nullslast()).all())
 
     templates = WorkflowTemplate.query.order_by(WorkflowTemplate.name).all()

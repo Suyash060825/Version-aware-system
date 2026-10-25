@@ -306,6 +306,11 @@ class MultiLevelCache:
                     pipe.execute()
             except Exception as e:
                 logger.warning(f"Redis invalidation for policy {policy_id} failed: {e}")
+        try:
+            from rag import metrics
+            metrics.CACHE_INVALIDATIONS.labels(reason="explicit_drift").inc(max(1, len(keys_to_remove)))
+        except Exception:
+            pass
         logger.info(f"Targeted invalidation for policy {policy_id}: removed {len(keys_to_remove)} L1 entries")
 
     def invalidate_version(self, policy_id: int, version_id: int):
@@ -332,6 +337,11 @@ class MultiLevelCache:
                             self.redis.delete(k)
             except Exception as e:
                 logger.warning(f"Redis invalidation for version {policy_id}:{version_id} failed: {e}")
+        try:
+            from rag import metrics
+            metrics.CACHE_INVALIDATIONS.labels(reason="explicit_drift").inc(max(1, len(keys_to_remove)))
+        except Exception:
+            pass
         logger.info(f"Targeted invalidation for version {policy_id}:{version_id}: removed {len(keys_to_remove)} L1 entries")
 
     def invalidate_user(self, user_id: int):

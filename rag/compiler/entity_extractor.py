@@ -54,7 +54,10 @@ class EntityExtractor:
                 db.session.add_all(entities)
                 db.session.flush()
             except Exception:
-                pass
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
 
         # Build relationships between flushed entities
         for i in range(len(entities)):

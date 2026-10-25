@@ -971,6 +971,9 @@ class QueryEngine:
                 "llm_used": res.llm_used,
                 "latency_ms": res.latency_ms,
                 "fallback": res.fallback,
+                "abstained": res.abstained,
+                "abstain_reason": res.abstain_reason,
+                "retrieval_count": res.retrieval_count,
                 "model": res.model,
                 "source": token_source
             }

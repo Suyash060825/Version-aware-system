@@ -62,15 +62,18 @@ def build_onboarding_checklist(user):
 @login_required
 def dashboard():
     from rag.authorization.evidence_filter import get_evidence_filter
+    from sqlalchemy.orm import joinedload
     ev_filter = get_evidence_filter()
 
     # Recent active policies
     recent_raw = Policy.query.filter_by(status=PolicyStatus.ACTIVE)\
+        .options(joinedload(Policy.category))\
         .order_by(Policy.updated_at.desc()).limit(12).all()
     recent = [p for p in recent_raw if ev_filter.is_authorized_for_policy(current_user, p)][:6]
 
     # Trending (most viewed)
     trending_raw = Policy.query.filter_by(status=PolicyStatus.ACTIVE)\
+        .options(joinedload(Policy.category))\
         .order_by(Policy.view_count.desc()).limit(12).all()
     trending = [p for p in trending_raw if ev_filter.is_authorized_for_policy(current_user, p)][:6]
 
@@ -88,13 +91,19 @@ def dashboard():
     # Notifications
     notifs = Notification.query.filter_by(user_id=current_user.id, is_read=False)\
         .order_by(Notification.created_at.desc()).limit(5).all()
-    # Categories
-    categories = PolicyCategory.query.all()
+    # Categories & Authorized policy counts per category (Batched)
+    from sqlalchemy import func
+    categories = PolicyCategory.query.order_by(PolicyCategory.name).all()
+    allowed_pids = ev_filter.get_allowed_policy_ids(current_user)
+    cat_query = db.session.query(Policy.category_id, func.count(Policy.id)).filter(Policy.status == PolicyStatus.ACTIVE)
+    if allowed_pids is not None:
+        cat_query = cat_query.filter(Policy.id.in_(allowed_pids))
+    category_counts = dict(cat_query.group_by(Policy.category_id).all())
     unread_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
 
     return render_template("employee/dashboard.html",
         recent=recent, trending=trending, pending_acks=pending_acks,
-        saved=saved, notifs=notifs, categories=categories,
+        saved=saved, notifs=notifs, categories=categories, category_counts=category_counts,
         unread_count=unread_count,
     )
 
@@ -153,7 +162,9 @@ def policy_view(policy_id):
         flash("This policy is not currently available.", "warning")
         return redirect(url_for("employee.dashboard"))
 
-    policy.view_count += 1
+    db.session.execute(
+        db.update(Policy).where(Policy.id == policy.id).values(view_count=Policy.view_count + 1)
+    )
     db.session.commit()
 
     version = policy.versions.filter_by(is_active=True).first()
@@ -567,11 +578,11 @@ def policy_as_of(policy_id):
 
     all_versions = policy.versions.order_by(PolicyVersion.version_num.desc()).all()
 
-    def version_date(v):
-        return v.effective_date or (v.created_at.date() if v.created_at else None)
-
-    eligible = [v for v in all_versions if version_date(v) and version_date(v) <= as_of_date]
-    version = max(eligible, key=lambda v: v.version_num) if eligible else None
+    from rag.versions.resolver import VersionResolver
+    version = VersionResolver().get_active_version(policy.id, target_date=as_of_date)
+    if not version:
+        eligible = [v for v in all_versions if v.is_valid_for_date(as_of_date)]
+        version = max(eligible, key=lambda v: v.version_num) if eligible else None
 
     audit("policy.view_as_of", "policy", policy.id, {"as_of": date_str})
     unread_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()

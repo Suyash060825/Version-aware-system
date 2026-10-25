@@ -4,7 +4,7 @@ Flask blueprint for all RAG endpoints. Preserves original layout, updated to Que
 """
 import uuid
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, render_template, session, Response, stream_with_context
 from flask_login import login_required, current_user
 from models import (db, ChatSession, ChatMessage, SearchHistory, Feedback, IndexingJob,
@@ -99,15 +99,17 @@ def api_chat_stream():
 
                         is_cache_hit = final_result_data.get("route") in ("CACHE_HIT", "L1_CACHE", "L2_CACHE") or bool(final_result_data.get("cache_hit"))
                         fallback_model = getattr(Config, "LOCAL_LLM_MODEL", "qwen3")
+                        chunks_used_val = final_result_data.get("retrieval_count") or final_result_data.get("chunks_used") or len(formatted_citations)
                         message_id = _save_message(
                             session_id, query, sanitized_answer, formatted_citations,
-                            len(formatted_citations), model_name=final_result_data.get("model") or fallback_model,
+                            chunks_used_val, model_name=final_result_data.get("model") or fallback_model,
                             cache_hit=is_cache_hit
                         )
 
                         _save_search_history(query, {
                             "fallback": final_result_data.get("fallback", False),
-                            "chunks_used": len(formatted_citations)
+                            "chunks_used": chunks_used_val,
+                            "abstained": final_result_data.get("abstained", False)
                         })
 
                         event_payload = {
@@ -122,7 +124,8 @@ def api_chat_stream():
                             "session_id": session_id,
                             "message_id": message_id,
                             "cache_hit": is_cache_hit,
-                            "fallback": final_result_data.get("fallback", False)
+                            "fallback": final_result_data.get("abstained", False),
+                            "abstained": final_result_data.get("abstained", False)
                         }
                         yield f"data: {json.dumps(event_payload)}\n\n"
                 except GeneratorExit:
@@ -253,7 +256,7 @@ def api_feedback():
         message_id=msg_id,
         vote=vote,
         comment=comment,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     db.session.add(fb)
     db.session.commit()
@@ -392,7 +395,8 @@ def admin_rag_dashboard():
     # Observability Panel (Prometheus & Costs)
     from prometheus_client import REGISTRY
     cache_hits = REGISTRY.get_sample_value('rag_cache_hits_total') or 0
-    cache_misses = (REGISTRY.get_sample_value('rag_cache_misses_total', {'reason': 'version_drift'}) or 0) + \
+    cache_misses = (REGISTRY.get_sample_value('rag_cache_misses_total', {'reason': 'miss'}) or 0) + \
+                   (REGISTRY.get_sample_value('rag_cache_misses_total', {'reason': 'version_drift'}) or 0) + \
                    (REGISTRY.get_sample_value('rag_cache_misses_total', {'reason': 'not_found'}) or 0)
     total_cache = cache_hits + cache_misses
     if total_cache == 0:
@@ -411,6 +415,10 @@ def admin_rag_dashboard():
     total_llm_count = (REGISTRY.get_sample_value('rag_llm_latency_seconds_count', {'backend': 'OllamaProvider'}) or 0)
     llm_avg_ms = round((total_llm_sum / total_llm_count) * 1000) if total_llm_count else 0
     
+    cache_lat_sum = REGISTRY.get_sample_value('rag_cache_lookup_latency_seconds_sum') or 0
+    cache_lat_cnt = REGISTRY.get_sample_value('rag_cache_lookup_latency_seconds_count') or 0
+    cache_avg_ms = round((cache_lat_sum / cache_lat_cnt) * 1000, 1) if cache_lat_cnt else None
+
     from blueprints.ai_analytics import _token_usage
     token_stats = _token_usage()
     cost_usd = token_stats.get("cost_est_usd", 0)
@@ -434,6 +442,7 @@ def admin_rag_dashboard():
         ollama_req=ollama_req,
         grounding_rej=grounding_rej,
         llm_avg_ms=llm_avg_ms,
+        cache_avg_ms=cache_avg_ms,
         cost_usd=cost_usd,
     )
 
@@ -568,7 +577,7 @@ def health_check():
         "status": "healthy" if healthy else "degraded",
         "database": db_status,
         "chromadb": chroma_status,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }), (200 if healthy else 503)
 
 
@@ -582,7 +591,7 @@ def llm_health_check():
         is_healthy = False
     return jsonify({
         "healthy": is_healthy,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }), (200 if is_healthy else 503)
 
 
@@ -596,7 +605,7 @@ def _get_or_create_session() -> str:
         cs = ChatSession(
             id=sid,
             user_id=current_user.id,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         db.session.add(cs)
         db.session.commit()
@@ -608,7 +617,7 @@ def _save_message(session_id, query, answer, citations, chunks_used, model_name=
     try:
         msg_user = ChatMessage(
             session_id=session_id, role="user", content=query,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         db.session.add(msg_user)
         db.session.flush()
@@ -622,7 +631,7 @@ def _save_message(session_id, query, answer, citations, chunks_used, model_name=
             cache_hit=cache_hit,
             prompt_tokens=usage.get("prompt_tokens", 0),
             completion_tokens=usage.get("completion_tokens", 0),
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         db.session.add(msg_asst)
         db.session.commit()
@@ -639,17 +648,22 @@ def _save_message(session_id, query, answer, citations, chunks_used, model_name=
 
 def _save_search_history(query, result):
     try:
+        chunks_used = result.get("chunks_used", 0)
+        answered = chunks_used > 0 and not result.get("abstained", False)
         sh = SearchHistory(
             user_id=current_user.id,
             query_text=query[:500],
-            answered=not result["fallback"],
-            chunks_found=result["chunks_used"],
-            created_at=datetime.utcnow(),
+            answered=answered,
+            chunks_found=chunks_used,
+            created_at=datetime.now(timezone.utc),
         )
         db.session.add(sh)
         db.session.commit()
     except Exception:
-        pass
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
 
 def _unread_count():

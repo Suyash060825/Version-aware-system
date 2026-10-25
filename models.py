@@ -71,6 +71,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(200), nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(20), nullable=False, default=UserRole.EMPLOYEE)
+    clearance = db.Column(db.String(30), default="internal")
     department_id = db.Column(db.Integer, db.ForeignKey("department.id"), nullable=True, index=True)
     designation = db.Column(db.String(100))
     phone = db.Column(db.String(20))
@@ -123,7 +124,7 @@ class User(db.Model, UserMixin):
         return False
 
     def can_view_restricted(self, policy=None) -> bool:
-        return self.is_admin() or self.role in ("executive", "legal")
+        return self.is_admin() or getattr(self, "clearance", None) == "restricted" or self.role in ("executive", "legal")
 
     def can_approve_policy(self, policy=None) -> bool:
         if self.is_admin() or self.role == UserRole.HR:
@@ -498,10 +499,14 @@ class ChatMessage(db.Model):
 class SearchHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
-    query_text = db.Column(db.String(500), nullable=False)
-    answered = db.Column(db.Boolean, default=True)
+    query_text = db.Column(db.String(500), nullable=False, index=True)
+    answered = db.Column(db.Boolean, default=True, index=True)
     chunks_found = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=now_utc)
+    created_at = db.Column(db.DateTime, default=now_utc, index=True)
+
+    __table_args__ = (
+        db.Index("ix_searchhistory_answered_date", "answered", "created_at"),
+    )
 
 
 # ================================================================

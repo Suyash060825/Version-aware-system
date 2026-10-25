@@ -50,7 +50,7 @@
       <a href="{{ url_for('employee.policy_browse', category=c.id) }}" class="card" style="padding:.85rem;text-decoration:none;transition:border-color .15s" onmouseover="this.style.borderColor='var(--archive)'" onmouseout="this.style.borderColor='var(--rule)'">
         <div style="width:12px;height:12px;border-radius:50%;background:{{ c.color }};margin-bottom:.5rem"></div>
         <div style="font-weight:600;font-size:13px;color:var(--ink)">{{ c.name }}</div>
-        <div style="font-size:11.5px;color:var(--faint)">{{ c.policies.filter_by(status='active').count() }} policies</div>
+        <div style="font-size:11.5px;color:var(--faint)">{{ category_counts.get(c.id, 0) }} polic{{ 'y' if category_counts.get(c.id, 0) == 1 else 'ies' }}</div>
       </a>
       {% endfor %}
     </div>

@@ -92,8 +92,12 @@ def scan_contradictions() -> dict:
                 existing.status = ContradictionScanStatus.RESOLVED
                 existing.resolved_at = now
 
-    db.session.commit()
-    return {"checked": checked, "flagged": flagged}
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    return {"checked": checked, "checked_pairs": checked, "flagged": flagged}
 
 
 if __name__ == "__main__":

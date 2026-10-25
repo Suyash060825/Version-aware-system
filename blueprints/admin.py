@@ -78,22 +78,29 @@ def dashboard():
     ).all()
 
     # Recent activity
+    from sqlalchemy.orm import joinedload
     recent_policies = Policy.query.order_by(Policy.updated_at.desc()).limit(8).all()
-    recent_logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(10).all()
+    recent_logs = AuditLog.query.options(joinedload(AuditLog.user)).order_by(AuditLog.timestamp.desc()).limit(10).all()
 
-    # Category breakdown
+    # Category breakdown (Batched)
+    from sqlalchemy import func
+    cat_counts = dict(
+        db.session.query(Policy.category_id, func.count(Policy.id))
+        .filter(Policy.status == PolicyStatus.ACTIVE)
+        .group_by(Policy.category_id).all()
+    )
     categories = PolicyCategory.query.all()
-    cat_data = []
-    for c in categories:
-        count = Policy.query.filter_by(category_id=c.id, status=PolicyStatus.ACTIVE).count()
-        if count:
-            cat_data.append({"name": c.name, "count": count, "icon": c.icon, "color": c.color})
+    cat_data = [
+        {"name": c.name, "count": cat_counts.get(c.id, 0), "icon": c.icon, "color": c.color}
+        for c in categories if cat_counts.get(c.id, 0) > 0
+    ]
     cat_data.sort(key=lambda x: x["count"], reverse=True)
 
     # Pending approvals for this user across both modern WorkflowStageInstance and legacy ApprovalWorkflow
     pending_approvals = []
     modern_pending_stages = (WorkflowStageInstance.query
                              .filter_by(status=WorkflowStageStatus.PENDING)
+                             .options(joinedload(WorkflowStageInstance.policy))
                              .order_by(WorkflowStageInstance.created_at.desc()).all())
     for st in modern_pending_stages:
         if st.can_user_act(current_user) or current_user.is_admin():
@@ -106,7 +113,7 @@ def dashboard():
 
     legacy_approvals = ApprovalWorkflow.query.filter_by(
         actor_id=current_user.id, status=ApprovalStatus.PENDING
-    ).all()
+    ).options(joinedload(ApprovalWorkflow.policy)).all()
     for la in legacy_approvals:
         pending_approvals.append({
             "policy_id": la.policy_id,
@@ -436,12 +443,14 @@ def policy_edit(policy_id):
         policy.is_mandatory = bool(request.form.get("is_mandatory"))
 
         for field in ("effective_date", "review_date", "expiry_date"):
-            val = request.form.get(field)
+            val = request.form.get(field, "").strip()
             if val:
                 try:
                     setattr(policy, field, datetime.strptime(val, "%Y-%m-%d").date())
                 except ValueError:
                     pass
+            else:
+                setattr(policy, field, None)
 
         # Tags
         policy.tags.clear()
@@ -685,10 +694,15 @@ def policy_delete(policy_id):
     from rag.indexing.index_policy import delete_policy_from_index
     delete_policy_from_index(policy_id)
     title = policy.title
-    db.session.delete(policy)
-    db.session.commit()
-    audit("policy.delete", "policy", policy_id, {"title": title})
-    flash(f'"{title}" permanently deleted.', "warning")
+    try:
+        db.session.delete(policy)
+        db.session.commit()
+        audit("policy.delete", "policy", policy_id, {"title": title})
+        flash(f'"{title}" permanently deleted.', "warning")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Error deleting policy {policy_id}: {e}")
+        flash(f'Failed to delete "{title}": {e}', "danger")
     return redirect(url_for("admin.policy_list"))
 
 
@@ -1006,9 +1020,10 @@ def api_documents():
     policy id) so it can be indexed correctly.
     """
     policies = Policy.query.order_by(Policy.title).all()
+    active_vers = {v.policy_id: v for v in PolicyVersion.query.filter_by(is_active=True).all()}
     docs = []
     for p in policies:
-        active_ver = p.versions.filter_by(is_active=True).first()
+        active_ver = active_vers.get(p.id)
         docs.append({
             "id": p.id,
             "title": p.title,
@@ -1026,3 +1041,47 @@ def mark_notifications_read():
     Notification.query.filter_by(user_id=current_user.id, is_read=False).update({"is_read": True})
     db.session.commit()
     return jsonify({"ok": True})
+
+
+# ================================================================
+# Human-in-the-Loop AI Review Queue
+# ================================================================
+@admin_bp.route("/ai-review-queue")
+@login_required
+@hr_required
+def ai_review_queue():
+    from models import MeetingMinutes, PolicyAIInsight
+    pending_minutes = MeetingMinutes.query.filter_by(review_status="ai_generated").all()
+    pending_insights = PolicyAIInsight.query.filter_by(review_status="ai_generated").all()
+    return render_template(
+        "admin/ai_review_queue.html",
+        pending_minutes=pending_minutes,
+        pending_insights=pending_insights
+    )
+
+
+@admin_bp.route("/ai-review/approve/<item_type>/<int:item_id>", methods=["POST"])
+@login_required
+@hr_required
+def ai_review_approve(item_type, item_id):
+    from models import MeetingMinutes, PolicyAIInsight
+    now = datetime.now(timezone.utc)
+    if item_type == "minutes":
+        item = db.session.get(MeetingMinutes, item_id)
+        if item:
+            item.review_status = "approved"
+            item.reviewed_by_id = current_user.id
+            item.reviewed_at = now
+            db.session.commit()
+            audit("ai_review.approve_minutes", "meeting_minutes", item.id)
+            flash("Meeting minutes approved.", "success")
+    elif item_type == "insights":
+        item = db.session.get(PolicyAIInsight, item_id)
+        if item:
+            item.review_status = "approved"
+            item.reviewed_by_id = current_user.id
+            item.reviewed_at = now
+            db.session.commit()
+            audit("ai_review.approve_insights", "policy_ai_insight", item.id)
+            flash("Policy insights approved.", "success")
+    return redirect(url_for("admin.ai_review_queue"))

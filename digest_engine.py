@@ -119,3 +119,9 @@ def send_weekly_digests() -> dict:
 
     db.session.commit()
     return {"sent": sent, "skipped": skipped}
+
+
+def generate_digest_for_all_users(frequency: str = "weekly") -> int:
+    """Compatibility alias for background worker tasks."""
+    summary = send_weekly_digests()
+    return summary.get("sent", 0)

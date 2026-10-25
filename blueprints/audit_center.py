@@ -74,11 +74,9 @@ def audit_dashboard():
     top_users = (db.session.query(AuditLog.user_id, func.count(AuditLog.id).label("cnt"))
                 .filter(AuditLog.timestamp >= thirty_days_ago, AuditLog.user_id.isnot(None))
                 .group_by(AuditLog.user_id).order_by(func.count(AuditLog.id).desc()).limit(10).all())
-    top_users_data = []
-    for uid, cnt in top_users:
-        u = db.session.get(User, uid)
-        if u:
-            top_users_data.append({"user": u, "count": cnt})
+    user_ids = [uid for uid, _ in top_users]
+    user_map = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+    top_users_data = [{"user": user_map[uid], "count": cnt} for uid, cnt in top_users if uid in user_map]
 
     recent_rows = AuditLog.query.filter(AuditLog.timestamp >= now - timedelta(days=14)).all()
     by_day = defaultdict(int)
@@ -171,6 +169,13 @@ def security_report():
     )
 
 
+def _sanitize_csv_cell(val) -> str:
+    s = str(val) if val is not None else ""
+    if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return f"'{s}"
+    return s
+
+
 @audit_center_bp.route("/audit-center/export")
 @login_required
 @role_required(UserRole.ADMIN, UserRole.HR)
@@ -184,8 +189,13 @@ def export_csv():
     for r in rows:
         user_name = r.user.name if r.user else ""
         writer.writerow([
-            r.timestamp.strftime("%Y-%m-%d %H:%M:%S"), user_name, r.action,
-            r.resource_type or "", r.resource_id or "", r.ip_address or "", r.detail or "",
+            _sanitize_csv_cell(r.timestamp.strftime("%Y-%m-%d %H:%M:%S")),
+            _sanitize_csv_cell(user_name),
+            _sanitize_csv_cell(r.action),
+            _sanitize_csv_cell(r.resource_type or ""),
+            _sanitize_csv_cell(r.resource_id or ""),
+            _sanitize_csv_cell(r.ip_address or ""),
+            _sanitize_csv_cell(r.detail or ""),
         ])
 
     return Response(output.getvalue(), mimetype="text/csv",

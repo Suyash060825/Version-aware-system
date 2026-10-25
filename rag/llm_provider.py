@@ -95,45 +95,6 @@ class GeminiProvider(LLMProvider):
             "are disabled. Veritas must execute using local Ollama models (qwen3:4b-q4_K_M)."
         )
 
-        # 1. Native Google Generative AI API via GEMINI_API_KEY
-        if self.gemini_api_key and not self.openrouter_api_key:
-            try:
-                import urllib.request
-                import json
-                
-                model_name = self.model if "gemini" in self.model else "gemini-2.0-flash"
-                if "/" in model_name:
-                    model_name = model_name.split("/")[-1]
-                
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.gemini_api_key}"
-                
-                user_text = prompt if isinstance(prompt, str) else "\n".join([m.get("content", "") for m in prompt if m.get("role") != "system"])
-                payload = {
-                    "contents": [{"parts": [{"text": user_text}]}],
-                    "generationConfig": {
-                        "temperature": temperature,
-                        "maxOutputTokens": max_tokens
-                    }
-                }
-                if system:
-                    payload["systemInstruction"] = {"parts": [{"text": system}]}
-                
-                data = json.dumps(payload).encode("utf-8")
-                req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    res_json = json.loads(resp.read().decode("utf-8"))
-                    text = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    return LLMResponse(text=text, model=model_name, fallback=False)
-            except Exception as e:
-                logger.error(f"[GeminiProvider] Native Google API error: {e}")
-                # Try fallback to OpenAI/OpenRouter if available below
-
-        # Cloud inference APIs are strictly prohibited in Veritas local deployment
-        raise RuntimeError(
-            "[Security Policy Violation] External cloud LLM inference APIs (OpenAI/OpenRouter/Gemini) "
-            "are disabled. Veritas must execute using local Ollama models (qwen3:4b-q4_K_M)."
-        )
-
     def embed(self, texts: List[str]) -> List[List[float]]:
         # Fall back or return empty if not supported
         return []

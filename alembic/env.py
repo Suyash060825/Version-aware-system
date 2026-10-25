@@ -27,8 +27,10 @@ target_metadata = db.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-config.set_main_option("sqlalchemy.url", 
-    os.environ.get("DATABASE_URL", "sqlite:///data/ledger.db"))
+db_url = os.environ.get("DATABASE_URL", "sqlite:///data/ledger.db")
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+config.set_main_option("sqlalchemy.url", db_url)
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.

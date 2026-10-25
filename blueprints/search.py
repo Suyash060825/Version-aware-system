@@ -141,14 +141,20 @@ def advanced_search():
             meeting_results = _search_meetings(f)
 
         total = len(policy_results) + len(meeting_results)
-        sh = SearchHistory(
-            user_id=current_user.id,
-            query_text=(f["q"] or f"[filters: {scope}]")[:500],
-            answered=total > 0,
-            chunks_found=total,
-        )
-        db.session.add(sh)
-        db.session.commit()
+        try:
+            sh = SearchHistory(
+                user_id=current_user.id,
+                query_text=(f["q"] or f"[filters: {scope}]")[:500],
+                answered=total > 0,
+                chunks_found=total,
+            )
+            db.session.add(sh)
+            db.session.commit()
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
 
     categories = PolicyCategory.query.order_by(PolicyCategory.name).all()
     departments = Department.query.order_by(Department.name).all()

@@ -99,7 +99,7 @@ def _build_graph(limit_policies: int = 60, user=None) -> dict:
     policies = policies_query.order_by(Policy.updated_at.desc()).limit(limit_policies).all()
     for p in policies:
         pid = f"policy-{p.id}"
-        add_node(pid, p.title, "policy", policy_id=p.id, url=f"/policies/{p.id}")
+        add_node(pid, p.title, "policy", policy_id=p.id, url=f"/admin/policies/{p.id}")
         if p.department_id:
             add_edge(f"dept-{p.department_id}", pid, "manages")
 

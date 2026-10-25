@@ -74,11 +74,10 @@ def scan_contradictions_task(self):
     from app import create_app
     app = create_app()
     with app.app_context():
-        from models import Policy
-        active_policies = Policy.query.all()
-        logger.info(f"Scanning {len(active_policies)} policies for contradictions...")
-        # Cross-compare policies and refresh open flags
-        return {"scanned": len(active_policies), "status": "completed"}
+        from scripts.scan_contradictions import scan_contradictions
+        res = scan_contradictions()
+        logger.info(f"Contradiction scan completed: {res}")
+        return res
 
 @celery_app.task(name="tasks.dispatch_policy_digest_task", bind=True)
 def dispatch_policy_digest_task(self, frequency: str = "weekly"):

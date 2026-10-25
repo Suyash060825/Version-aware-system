@@ -178,6 +178,21 @@ def record_action(stage_instance, actor, decision: str, comment: str = ""):
         result["workflow_status"] = WorkflowInstanceStatus.APPROVED
         db.session.commit()
 
+        # Cache invalidation & RAG indexing
+        try:
+            from rag.cache.semantic_cache import get_cache
+            from rag.authorization.evidence_filter import get_evidence_filter
+            get_cache().invalidate_policy(policy.id)
+            get_evidence_filter().clear_cache()
+            from tasks import compile_policy_version_task
+            compile_policy_version_task.delay(policy.id, version.id)
+        except Exception:
+            try:
+                from rag.compiler.pipeline import auto_compile_policy_version
+                auto_compile_policy_version(policy.id, version.id)
+            except Exception:
+                pass
+
     audit("workflow.approve", "policy", policy.id, {"stage": stage_instance.name})
     return result
 

@@ -66,13 +66,13 @@ Please write a corrected, highly accurate answer to the user's question based st
 
         from rag.verification.entailment import EntailmentVerifier
         verifier = EntailmentVerifier()
-        is_grounded, _ = verifier.verify(corrected_answer, hits[:5])
-        if not is_grounded:
+        res = verifier.verify(corrected_answer, hits[:5])
+        if not getattr(res, "is_entailed", False):
             logger.info(f"[Self-Healing] Corrected answer failed entailment check; aborting cache patch.")
             return
             
         from rag.chatbot.citations import build_citations
-        from rag.authorization.citation_validator import CitationValidator
+        from rag.verification.citation_validator import CitationValidator
         from rag.engine.query_scope import QueryScope
 
         raw_citations = build_citations(hits[:5]) if hits else []
@@ -81,7 +81,10 @@ Please write a corrected, highly accurate answer to the user's question based st
         # Inject into Semantic Cache only with verified real citations and scope
         if real_citations:
             cache = get_cache()
-            scope = QueryScope.from_user(getattr(user_msg, "user", None)) if hasattr(user_msg, "user") else None
+            from models import ChatSession
+            chat_session = db.session.get(ChatSession, user_msg.session_id) if hasattr(user_msg, "session_id") else None
+            user_obj = getattr(chat_session, "user", None) if chat_session else None
+            scope = QueryScope.from_user(user_obj) if user_obj else None
             cache.put(
                 query_embedding=q_vec,
                 answer=corrected_answer,

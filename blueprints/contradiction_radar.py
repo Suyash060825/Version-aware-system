@@ -33,11 +33,14 @@ contradiction_radar_bp = Blueprint("contradiction_radar", __name__, url_prefix="
 @login_required
 @role_required(UserRole.ADMIN, UserRole.HR)
 def dashboard():
+    from sqlalchemy.orm import joinedload
     open_flags = (ContradictionFlag.query.filter_by(status=ContradictionScanStatus.OPEN)
+                 .options(joinedload(ContradictionFlag.policy_a), joinedload(ContradictionFlag.policy_b))
                  .order_by(ContradictionFlag.last_confirmed_at.desc()).all())
     resolved_flags = (ContradictionFlag.query
                      .filter(ContradictionFlag.status.in_(
                          [ContradictionScanStatus.RESOLVED, ContradictionScanStatus.DISMISSED]))
+                     .options(joinedload(ContradictionFlag.policy_a), joinedload(ContradictionFlag.policy_b))
                      .order_by(ContradictionFlag.detected_at.desc()).limit(20).all())
     has_ever_scanned = ContradictionFlag.query.count() > 0
     return render_template("admin/contradictions.html",
@@ -65,7 +68,8 @@ def trigger_scan():
     from scripts.scan_contradictions import scan_contradictions
     try:
         summary = scan_contradictions()
-        flash(f"Contradiction scan complete: checked {summary.get('checked_pairs', 0)} policy pairs, {summary.get('flagged', 0)} flags active.", "success")
+        checked_cnt = summary.get('checked_pairs', summary.get('checked', 0))
+        flash(f"Contradiction scan complete: checked {checked_cnt} policy pairs, {summary.get('flagged', 0)} flags active.", "success")
         audit("contradiction.scan", "contradiction_flag", None, summary)
     except Exception as e:
         flash(f"Scan error: {e}", "danger")

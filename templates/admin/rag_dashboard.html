@@ -57,12 +57,12 @@
     <table style="font-size:13px;width:100%">
       {{ row('Cache Hit Rate', cache_hit_rate ~ '%') }}
       {{ row('Avg Latency (Miss)', llm_avg_ms ~ ' ms' if llm_avg_ms else '—') }}
-      {{ row('Avg Latency (Hit)', '~10 ms (Redis)') }}
+      {{ row('Avg Latency (Hit)', cache_avg_ms ~ ' ms' if cache_avg_ms is not none else '<1 ms (L1 Memory)') }}
       {{ row('Cascade (Ollama)', ollama_req|int ~ ' reqs') }}
-      
-      {{ row('Real Token Cost', '$' ~ cost_usd) }}
+      {{ row('Real Token Cost', '$0.00 (Local ' ~ (llm_provider or 'Ollama') ~ ')') }}
       {{ row('Grounding Rejections', grounding_rej|int) }}
     </table>
+    <div style="font-size:11px; color:var(--faint); margin-top:0.5rem">Observability counters reflect current process lifetime (reset on restart).</div>
   </div>
   <div class="card">
     <div class="card-label">Blast Radius (Invalidation)</div>

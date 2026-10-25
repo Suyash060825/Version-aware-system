@@ -13,8 +13,11 @@
 <div class="stat-grid mb3">
   <div class="stat-card"><div class="stat-val">{{ compliance_rate }}%</div><div class="stat-label">Employee compliance</div></div>
   <div class="stat-card"><div class="stat-val">{{ read_rate }}%</div><div class="stat-label">Read rate</div></div>
+  <div class="stat-card"><div class="stat-val">{{ total_employees }}</div><div class="stat-label">Active employees</div></div>
+  <div class="stat-card"><div class="stat-val">{{ mandatory_policies }}</div><div class="stat-label">Mandatory policies</div></div>
   <div class="stat-card"><div class="stat-val">{{ total_ai_calls }}</div><div class="stat-label">AI actions (30d)</div></div>
   <div class="stat-card"><div class="stat-val">{{ pending_review_count }}</div><div class="stat-label">Pending reviews</div></div>
+  <div class="stat-card {% if review_due_soon > 0 %}amber{% endif %}"><div class="stat-val">{{ review_due_soon }}</div><div class="stat-label">Reviews due (30d)</div></div>
   <div class="stat-card {% if overdue_stages > 0 %}amber{% endif %}"><div class="stat-val">{{ overdue_stages }}</div><div class="stat-label">Overdue approvals</div></div>
 </div>
 
@@ -62,9 +65,11 @@
       {% for row in heatmap %}
       <tr>
         <td style="font-weight:600">{{ row.category }}</td>
+        {% set row_max = namespace(v=1) %}
+        {% for c in row.cells %}{% if c > row_max.v %}{% set row_max.v = c %}{% endif %}{% endfor %}
         {% for cell in row.cells %}
-        {% set intensity = (cell / (row.cells|max) if row.cells|max else 0) %}
-        <td style="text-align:center;background:rgba(178,58,72,{{ (0.08 + intensity * 0.45)|round(2) }})">{{ cell if cell else '' }}</td>
+        {% set intensity = (cell / row_max.v if row_max.v else 0) %}
+        <td style="text-align:center;{% if cell %}background:rgba(178,58,72,{{ (0.12 + intensity * 0.45)|round(2) }});font-weight:600{% else %}color:var(--faint){% endif %}">{{ cell if cell else '—' }}</td>
         {% endfor %}
       </tr>
       {% endfor %}
@@ -122,7 +127,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
-const inkColor = getComputedStyle(document.documentElement).getPropertyValue('--ink2').trim() || '#555';
+if (typeof Chart !== 'undefined') {
+const inkColor = getComputedStyle(document.documentElement).getPropertyValue('--ink2').trim() || '#888';
 const archiveColor = getComputedStyle(document.documentElement).getPropertyValue('--archive').trim() || '#2f5233';
 const amberColor = getComputedStyle(document.documentElement).getPropertyValue('--amber').trim() || '#b8860b';
 Chart.defaults.font.family = "'Inter', sans-serif";
@@ -154,5 +160,6 @@ lineChart('searchTrendChart', {{ search_trend|map(attribute='label')|list|tojson
 lineChart('meetingTrendChart', {{ meeting_trend|map(attribute='label')|list|tojson }}, {{ meeting_trend|map(attribute='value')|list|tojson }}, amberColor);
 {% if ai_usage %}barChart('aiUsageChart', {{ ai_usage|map(attribute='action')|list|tojson }}, {{ ai_usage|map(attribute='count')|list|tojson }}, archiveColor);{% endif %}
 {% if bottlenecks %}barChart('bottlenecksChart', {{ bottlenecks|map(attribute='name')|list|tojson }}, {{ bottlenecks|map(attribute='avg_hours')|list|tojson }}, amberColor);{% endif %}
+}
 </script>
 {% endblock %}

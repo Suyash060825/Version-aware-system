@@ -3,6 +3,7 @@ blueprints/auth.py
 Phase 1 — Authentication
 Handles: login, logout, register, email verification, forgot/reset password, MFA setup/verify.
 """
+import os
 import io
 import base64
 import pyotp
@@ -76,8 +77,9 @@ def sso_login(provider):
 
     sso_enabled = os.environ.get("SSO_ENABLED", "false").lower() == "true"
     
-    # In development or if mock SSO is triggered
-    if not sso_enabled or request.args.get("mock") == "1":
+    # Mock SSO is only permitted in development/testing mode when explicitly requested
+    is_dev_or_test = current_app.debug or current_app.testing or os.environ.get("FLASK_ENV") in ("development", "testing")
+    if is_dev_or_test and request.args.get("mock") == "1":
         # Match or auto-provision standard SSO test user
         email = f"sso.user@{provider}.corp"
         user = User.query.filter_by(email=email).first()
@@ -94,8 +96,12 @@ def sso_login(provider):
             db.session.commit()
         
         _complete_login(user)
-        flash(f"Successfully authenticated via {provider.title()} SSO.", "success")
+        flash(f"Successfully authenticated via {provider.title()} SSO (development mock).", "success")
         return redirect(_dashboard_url())
+
+    if not sso_enabled:
+        flash("Enterprise SSO is not configured for this instance.", "warning")
+        return redirect(url_for("auth.login"))
 
     # Production OIDC / SAML redirect
     sso_redirect_url = os.environ.get(f"SSO_{provider.upper()}_AUTH_URL", f"https://login.company.com/{provider}")

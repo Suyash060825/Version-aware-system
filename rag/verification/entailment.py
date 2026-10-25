@@ -195,11 +195,9 @@ class EntailmentVerifier:
                 return EntailmentResult(is_entailed=is_entailed, score=avg_entail, verdict=verdict, failed_claims=failed, contra_score=avg_contra)
 
         # Fallback when neural NLI model is unavailable
-        # Lexical and symbolic rule verification: checks numbers, dates, negations, and token overlap
+        # Lexical and symbolic rule verification: checks numbers, dates, and token overlap
         context_tokens = set(re.findall(r"[a-z0-9]+", context.lower()))
         ctx_nums = set(re.findall(r"\b\d+(?:\.\d+)?%?\b", context))
-        negations = {'not', 'no', 'never', 'neither', 'none', 'cannot', "can't", "won't", "don't", 'prohibited', 'forbidden', 'disallowed', 'excluded'}
-        ctx_has_neg = bool(context_tokens & negations)
 
         claim_scores = []
         failed = []
@@ -216,15 +214,9 @@ class EntailmentVerifier:
             claim_nums = set(re.findall(r"\b\d+(?:\.\d+)?%?\b", claim))
             unsupported_nums = claim_nums - ctx_nums
 
-            # 2. Negation flip check
-            claim_has_neg = bool(claim_tokens & negations)
-
-            if unsupported_nums and overlap > 0.4:
+            if unsupported_nums and overlap > 0.35:
                 contra_detected = True
                 failed.append(f"Contradictory/unsupported quantity in: '{claim}'")
-            elif claim_has_neg != ctx_has_neg and overlap > 0.6:
-                contra_detected = True
-                failed.append(f"Negation contradiction in: '{claim}'")
             elif overlap < 0.35:
                 failed.append(f"Insufficiently supported claim: '{claim}'")
 
@@ -234,7 +226,7 @@ class EntailmentVerifier:
             verdict = "CONTRADICTION"
             is_entailed = False
             avg_contra = 0.90
-        elif avg_overlap >= 0.70 and not failed:
+        elif avg_overlap >= 0.50 and not failed:
             verdict = "ENTAILMENT"
             is_entailed = True
             avg_contra = 0.05

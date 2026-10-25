@@ -97,9 +97,12 @@ def _knowledge_gaps(unknown_rows, min_repeat=2):
 def _failed_answers(limit=15):
     downs = (Feedback.query.filter_by(vote="down")
              .order_by(Feedback.created_at.desc()).limit(200).all())
+    target_downs = downs[:limit]
+    msg_ids = [f.message_id for f in target_downs if f.message_id]
+    msgs = {m.id: m for m in ChatMessage.query.filter(ChatMessage.id.in_(msg_ids)).all()} if msg_ids else {}
     out = []
-    for f in downs[:limit]:
-        msg = db.session.get(ChatMessage, f.message_id) if f.message_id else None
+    for f in target_downs:
+        msg = msgs.get(f.message_id) if f.message_id else None
         out.append({
             "answer": (msg.content[:220] if msg else "(message not found)"),
             "comment": f.comment,
@@ -141,10 +144,12 @@ def _popular_policies(limit=10, user=None):
         from rag.authorization.evidence_filter import get_evidence_filter
         allowed_ids = get_evidence_filter().get_allowed_policy_ids(user)
 
+    target_pids = [pid for pid, _ in ranked[:limit * 2]]
+    policy_map = {p.id: p for p in Policy.query.filter(Policy.id.in_(target_pids)).all()} if target_pids else {}
     for pid, cnt in ranked:
         if allowed_ids is not None and pid not in allowed_ids:
             continue
-        p = db.session.get(Policy, pid)
+        p = policy_map.get(pid)
         if p:
             out.append({"policy": p, "citation_count": cnt})
         if len(out) >= limit:

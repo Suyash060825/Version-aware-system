@@ -117,6 +117,25 @@ class OllamaProvider(LocalLLMProvider):
         self.positive_cache_window = 60.0
         self.negative_cache_window = 45.0
 
+        if "://localhost:" in self.base_url or "://127.0.0.1:" in self.base_url:
+            if not self._test_connection():
+                alt_url = self.base_url.replace("://localhost:", "://127.0.0.1:") if "://localhost:" in self.base_url else self.base_url.replace("://127.0.0.1:", "://localhost:")
+                try:
+                    if self._session.get(f"{alt_url}/api/tags", timeout=(0.5, 1.0)).status_code == 200:
+                        self.base_url = alt_url
+                except Exception:
+                    pass
+
+    def _test_connection(self) -> bool:
+        try:
+            headers = {}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+            resp = self._session.get(f"{self.base_url}/api/tags", headers=headers, timeout=(1.0, 2.0))
+            return resp.status_code == 200
+        except Exception:
+            return False
+
     def _ollama_options(self, num_predict: Optional[int] = None, temperature: float = 0.1) -> dict:
         """Centralized Ollama runtime configuration options."""
         options = {
