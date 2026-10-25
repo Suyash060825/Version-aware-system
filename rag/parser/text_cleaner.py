@@ -20,7 +20,8 @@ def _fix_encoding(text: str) -> str:
     """Fix common encoding artifacts from PDF extraction."""
     replacements = {
         "\u2019": "'", "\u2018": "'", "\u201c": '"', "\u201d": '"',
-        "\u2013": "-", "\u2014": "--", "\u00a0": " ", "\u2022": "•",
+        "\u2013": "-", "\u2014": "--", "\u00a0": " ", "\u2022": "-",
+        "\u2026": "...", "\u00b7": "-", "\u25cf": "-",
         "\ufb01": "fi", "\ufb02": "fl", "\u0000": "",
     }
     for bad, good in replacements.items():
@@ -63,8 +64,8 @@ def _remove_noise(text: str) -> str:
     """Remove page numbers, watermarks, and other common PDF noise."""
     # Standalone page numbers like "— 8 —" or just "8" on a line
     text = re.sub(r"\n\s*[-–—]*\s*\d+\s*[-–—]*\s*\n", "\n", text)
-    # Repeated "CONFIDENTIAL" watermarks
-    text = re.sub(r"\bCONFIDENTIAL\b", "", text, flags=re.IGNORECASE)
+    # Standalone "CONFIDENTIAL" watermark lines
+    text = re.sub(r"(?m)^\s*CONFIDENTIAL\s*$\n?", "", text, flags=re.IGNORECASE)
     # Long sequences of dots (table of contents artifacts)
     text = re.sub(r"\.{5,}", " ", text)
     return text

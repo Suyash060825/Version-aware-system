@@ -5,7 +5,7 @@ Entailment-based grounding check for RAG responses.
 import re
 import os
 
-ENTAILMENT_ENABLED = os.environ.get('ENTAILMENT_ENABLED', 'false').lower() == 'true'
+ENTAILMENT_ENABLED = os.environ.get('ENTAILMENT_ENABLED', 'true').lower() in ('true', '1')
 
 _nli_model = None
 _use_nli = True
@@ -16,7 +16,8 @@ def get_nli_model():
         try:
             from sentence_transformers import CrossEncoder
             # Lightweight NLI model
-            _nli_model = CrossEncoder("cross-encoder/nli-deberta-v3-base")
+            device = os.environ.get("NLI_DEVICE", os.environ.get("RERANKER_DEVICE", "cpu"))
+            _nli_model = CrossEncoder("cross-encoder/nli-deberta-v3-base", device=device)
         except Exception as e:
             print(f"[Entailment] Failed to load NLI model, falling back to lexical overlap: {e}")
             _use_nli = False
@@ -25,8 +26,10 @@ def get_nli_model():
 def split_into_claims(text: str) -> list[str]:
     """Split text into sentence claims, stripping citations."""
     text = re.sub(r'\[Policy:[^\]]+\]', '', text)
-    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
-    return [s.strip() for s in sentences if len(s.strip()) > 10]
+    t = re.sub(r'\b(e\.g|i\.e|vs|sec|fig|no|dr|mr|ms)\.', lambda m: m.group(1) + '@DOT@', text, flags=re.IGNORECASE)
+    t = re.sub(r'(\d+)\.(\d+)', r'\1@DOT@\2', t)
+    sentences = re.split(r'(?<=[.!?])\s+', t.strip())
+    return [s.replace('@DOT@', '.').strip() for s in sentences if len(s.strip()) > 10]
 
 def verify_entailment(answer: str, chunks: list[dict]) -> tuple[bool, float]:
     """

@@ -5,6 +5,7 @@ CrossEncoder reranker with device control and CPU fallback.
 import os
 import logging
 from typing import List, Dict, Any
+from config import Config
 
 logger = logging.getLogger("rag.retrieval.reranker")
 
@@ -31,7 +32,7 @@ def _format_candidate_for_rerank(c: Dict[str, Any]) -> str:
     prefix_parts = []
     if p_name and str(p_name) not in ("Policy", "None", "Unknown", ""):
         prefix_parts.append(f"Policy: {p_name}")
-    if sec and str(sec) not in ("General", "None", ""):
+    if sec and str(sec) not in ("None", ""):
         prefix_parts.append(f"Section: {sec}")
     if prefix_parts:
         return f"[{' | '.join(prefix_parts)}]\n{text}"
@@ -65,7 +66,8 @@ class Qwen3Reranker:
 
         try:
             # Score top candidates to keep CPU latency low
-            eval_candidates = candidates[:min(len(candidates), 16)]
+            eval_window = getattr(Config, "RERANKER_EVAL_WINDOW", 25)
+            eval_candidates = candidates[:min(len(candidates), eval_window)]
             pairs = [(query, _format_candidate_for_rerank(c)) for c in eval_candidates]
             scores = self._model.predict(pairs)
             
@@ -102,7 +104,8 @@ class FlashRankReranker:
         if not self._ranker:
             return candidates[:top_k]
         try:
-            eval_candidates = candidates[:min(len(candidates), 35)]
+            eval_window = getattr(Config, "RERANKER_EVAL_WINDOW", 25)
+            eval_candidates = candidates[:min(len(candidates), eval_window)]
             passages = [{"id": i, "text": _format_candidate_for_rerank(c)} for i, c in enumerate(eval_candidates)]
             req = self._rerank_request_cls(query=query, passages=passages)
             ranked_passages = self._ranker.rerank(req)

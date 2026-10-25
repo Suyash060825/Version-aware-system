@@ -39,9 +39,10 @@ class QwenLocalProvider(OllamaProvider):
             return True
         return False
 
-    def generate(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: float = 15.0) -> Optional[str]:
+    def generate(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> Optional[str]:
+        llm_timeout = timeout or getattr(Config, "LLM_TIMEOUT", 45.0)
         if super().health_check():
-            res = super().generate(prompt, system=system_prompt, max_tokens=num_predict, timeout=timeout)
+            res = super().generate(prompt, system=system_prompt, max_tokens=num_predict, timeout=llm_timeout)
             if res:
                 if hasattr(res, "text"):
                     return res.text if not (getattr(res, "fallback", False) or getattr(res, "error", None)) else None
@@ -56,10 +57,11 @@ class QwenLocalProvider(OllamaProvider):
                 logger.debug(f"Core LLM provider generation failed: {e}")
         return None
 
-    def stream(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: float = 15.0):
+    def stream(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None):
+        llm_timeout = timeout or getattr(Config, "LLM_TIMEOUT", 45.0)
         if super().health_check():
             has_tokens = False
-            for tok in super().stream(prompt, system=system_prompt, max_tokens=num_predict, timeout=timeout):
+            for tok in super().stream(prompt, system=system_prompt, max_tokens=num_predict, timeout=llm_timeout):
                 has_tokens = True
                 yield tok
             if has_tokens:
@@ -77,7 +79,8 @@ class QwenLocalProvider(OllamaProvider):
 
     def generate_grounded_answer(self, query: str, chunks: list, max_tokens: int = 500) -> Optional[Dict[str, Any]]:
         prompt = build_grounded_qa_prompt(query, chunks)
-        raw_output = self.generate(prompt, system_prompt=SYSTEM_POLICY_GROUNDING_PROMPT, num_predict=max_tokens, timeout=15.0)
+        llm_timeout = getattr(Config, "LLM_TIMEOUT", 45.0)
+        raw_output = self.generate(prompt, system_prompt=SYSTEM_POLICY_GROUNDING_PROMPT, num_predict=max_tokens, timeout=llm_timeout)
         if not raw_output:
             return None
 
@@ -98,9 +101,14 @@ class QwenLocalProvider(OllamaProvider):
         except Exception:
             pass
 
-        # Fallback to raw text
+        # Fallback to raw text after cleaning conversational preambles
+        clean_raw = raw_output.strip()
+        for preamble in ("here is the answer:", "sure,", "here's the answer:", "based on the policy evidence:"):
+            if clean_raw.lower().startswith(preamble):
+                clean_raw = clean_raw[len(preamble):].strip()
+
         return {
-            "answer": raw_output,
+            "answer": clean_raw,
             "reasoning_summary": "Extracted from local LLM response.",
             "used_evidence_ids": [c.get("chunk_id") for c in chunks if c.get("chunk_id")],
             "needs_clarification": False

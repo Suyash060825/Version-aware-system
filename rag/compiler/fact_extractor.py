@@ -8,6 +8,16 @@ from models import PolicyFact, now_utc
 from rag.compiler.document_ir import ChunkIR
 
 class FactExtractor:
+    @staticmethod
+    def _get_confidence(text: str, match_start: int) -> float:
+        window_start = max(0, match_start - 60)
+        preceding = text[window_start:match_start].lower()
+        negations = {"not", "no", "never", "without", "except", "prohibited", "disallowed", "cannot"}
+        words = set(re.findall(r'\b\w+\b', preceding))
+        if words.intersection(negations):
+            return 0.5
+        return 1.0
+
     def extract(self, chunks: List[ChunkIR]) -> List[PolicyFact]:
         facts = []
         for chunk in chunks:
@@ -87,12 +97,18 @@ class FactExtractor:
                 ))
 
             # 6. Hotel Limit & Travel Daily Allowances
-            for m in re.finditer(r"(?:maximum|max)\s*(?:rs\.?|inr|₹)?\s*([\d,]+)(?:/night)?\s*for\s*domestic\s*travel", text, re.I):
+            for m in re.finditer(
+                r"(?:(?:maximum|max)\s*(?:rs\.?|inr|₹)?\s*([\d,]+)(?:/night)?\s*for\s*domestic\s*travel|"
+                r"(?:domestic\s+hotel\s+(?:cap|limit|allowance):?\s*(?:rs\.?|inr|₹)?\s*([\d,]+))|"
+                r"(?:hotel\s+(?:cap|limit|allowance|maximum|max):?\s*(?:rs\.?|inr|₹)?\s*([\d,]+)))",
+                text, re.I
+            ):
+                val = m.group(1) or m.group(2) or m.group(3)
                 facts.append(PolicyFact(
                     policy_id=chunk.policy_id, version_id=chunk.version_id,
                     subject="Travel Hotel", predicate="hotel_limit",
-                    value=f"Rs. {m.group(1)}", unit="INR per night", scope="domestic travel",
-                    source_chunk_id=chunk.chunk_id, confidence=1.0, created_at=now_utc()
+                    value=f"Rs. {val}", unit="INR per night", scope="domestic travel",
+                    source_chunk_id=chunk.chunk_id, confidence=self._get_confidence(text, m.start()), created_at=now_utc()
                 ))
             for m in re.finditer(r"(?:rs\.?|inr|₹)?\s*([\d,]+)(?:/day)?\s*for\s*metro\s*cities", text, re.I):
                 facts.append(PolicyFact(

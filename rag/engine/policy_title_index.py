@@ -4,6 +4,7 @@ Lightweight semantic policy title index for accurate policy identification and a
 Eliminates wrong policy selection caused by substring collisions across large policy corpora.
 """
 import logging
+import threading
 from typing import Optional, List, Tuple, Set
 import numpy as np
 
@@ -16,46 +17,55 @@ class PolicyTitleIndex:
         self.titles: List[str] = []
         self.embeddings: Optional[np.ndarray] = None  # shape: (N, D), unit normalized
         self._is_building: bool = False
+        self._lock = threading.Lock()
+
+    def invalidate(self) -> None:
+        """Clear cached title index embeddings so next request rebuilds."""
+        with self._lock:
+            self.embeddings = None
+            self.policy_ids = []
+            self.titles = []
 
     def build_or_rebuild(self) -> None:
         """
         Embeds all distinct policy titles in the database and caches as a normalized numpy matrix.
         """
-        if self._is_building:
-            return
-        self._is_building = True
-        try:
-            from models import Policy, db
-            from rag.embeddings.embedder import get_embedder
-
-            policies = Policy.query.all()
-            if not policies:
-                self.policy_ids = []
-                self.titles = []
-                self.embeddings = None
+        with self._lock:
+            if self._is_building:
                 return
+            self._is_building = True
+            try:
+                from models import Policy, db
+                from rag.embeddings.embedder import get_embedder
 
-            valid = [(p.id, p.title.strip()) for p in policies if p.title and p.title.strip()]
-            if not valid:
-                self.policy_ids = []
-                self.titles = []
-                self.embeddings = None
-                return
+                policies = Policy.query.all()
+                if not policies:
+                    self.policy_ids = []
+                    self.titles = []
+                    self.embeddings = None
+                    return
 
-            self.policy_ids = [v[0] for v in valid]
-            self.titles = [v[1] for v in valid]
+                valid = [(p.id, p.title.strip()) for p in policies if p.title and p.title.strip()]
+                if not valid:
+                    self.policy_ids = []
+                    self.titles = []
+                    self.embeddings = None
+                    return
 
-            embedder = get_embedder()
-            raw_embs = embedder.embed(self.titles)
-            arr = np.array(raw_embs, dtype=np.float32)
-            norms = np.linalg.norm(arr, axis=1, keepdims=True)
-            norms[norms == 0] = 1.0
-            self.embeddings = arr / norms
-            logger.info("PolicyTitleIndex built successfully with %d policies", len(self.policy_ids))
-        except Exception as e:
-            logger.warning("PolicyTitleIndex build_or_rebuild error: %s", e)
-        finally:
-            self._is_building = False
+                self.policy_ids = [v[0] for v in valid]
+                self.titles = [v[1] for v in valid]
+
+                embedder = get_embedder()
+                raw_embs = embedder.embed(self.titles)
+                arr = np.array(raw_embs, dtype=np.float32)
+                norms = np.linalg.norm(arr, axis=1, keepdims=True)
+                norms[norms == 0] = 1.0
+                self.embeddings = arr / norms
+                logger.info("PolicyTitleIndex built successfully with %d policies", len(self.policy_ids))
+            except Exception as e:
+                logger.warning("PolicyTitleIndex build_or_rebuild error: %s", e)
+            finally:
+                self._is_building = False
 
     def find_top_policy_similarity(self, q_emb: List[float]) -> Tuple[Optional[int], float]:
         """

@@ -6,12 +6,14 @@ Called after HR uploads/publishes a policy.
 from datetime import datetime
 
 def index_policy_version(policy_id: int, version_id: int, app=None) -> dict:
+    if app:
+        with app.app_context():
+            return _do_index_policy_version(policy_id, version_id)
+    return _do_index_policy_version(policy_id, version_id)
+
+def _do_index_policy_version(policy_id: int, version_id: int) -> dict:
     result = {"success": False, "chunks": 0, "error": None}
     try:
-        if app:
-            ctx = app.app_context()
-            ctx.push()
-
         from rag.compiler.pipeline import KnowledgeCompilerPipeline
         pipeline = KnowledgeCompilerPipeline()
         job = pipeline.compile(policy_id, version_id)

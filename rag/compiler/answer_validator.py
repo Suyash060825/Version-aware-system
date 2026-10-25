@@ -14,6 +14,6 @@ class AnswerValidator:
             return False, 0.0
 
         res = self.verifier.verify(answer, source_chunks)
-        # Valid as long as there is no contradiction with authoritative source
-        is_valid = (res.verdict != "CONTRADICTION")
+        # Valid as long as there is no contradiction and sufficient grounding support
+        is_valid = (res.verdict != "CONTRADICTION" and res.score >= 0.40)
         return is_valid, float(res.score)

@@ -26,7 +26,7 @@ def answer(
     # Resolve or create user proxy representation if raw role/dept strings passed
     if user is None:
         user = type('UserProxy', (), {
-            'id': session_id or 0,
+            'id': None,
             'role': user_role,
             'department': type('DeptProxy', (), {'name': user_department, 'id': None})() if user_department else None,
             'department_id': None,

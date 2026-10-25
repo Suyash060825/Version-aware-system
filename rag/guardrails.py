@@ -29,7 +29,7 @@ _STRICT_ADVISORY_PATTERNS = [
 
 # Legitimate enterprise policy inquiry cues that permit policy exploration
 _POLICY_INQUIRY_RE = re.compile(
-    r"\b(policy|standard|guidelines?|clause|section|procedure|rule|requirement|what is|what does|how do we|are we allowed|entitled)\b",
+    r"\b(policy|standard|guidelines?|clause|section|procedure|rule|requirement|what is|what does|how do we|are we allowed|entitled|can i|am i|will i|allowed to)\b",
     re.IGNORECASE
 )
 
@@ -46,7 +46,7 @@ PII_PATTERNS = [
     (re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"), "[REDACTED_PHONE]"),
     (re.compile(r"\b(?:\d[ -]*?){13,16}\b"), "[REDACTED_CREDIT_CARD]"),
     (re.compile(r"\bEMP-\d{5,8}\b", re.IGNORECASE), "[REDACTED_EMP_ID]"),
-    (re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"), "[REDACTED_IP]")
+    (re.compile(r"(?<![vV\d\.])\b(?:\d{1,3}\.){3}\d{1,3}\b(?!\.\d)"), "[REDACTED_IP]")
 ]
 
 def check_input_guardrails(query: str) -> tuple[bool, str]:
@@ -95,8 +95,8 @@ def apply_output_guardrails(text: str, top_chunks: list[dict] = None) -> str:
         for cited_policy in citations:
             cited_clean = cited_policy.strip().lower()
             if not any(cited_clean in vp or vp in cited_clean for vp in valid_policies):
-                # Flag hallucinated citation
-                return "The generated response was blocked because it contained a hallucinated citation."
+                # Sanitize the unverified citation tag rather than dropping the whole answer
+                text = re.sub(r"\[Policy:\s*" + re.escape(cited_policy) + r"(?:,\s*Section:.*?)?\]", "[Policy: Unverified]", text)
                 
     # 3. Toxicity check
     if GUARDRAILS_CONFIG["OUTPUT_BLOCK_TOXICITY"]:

@@ -63,15 +63,21 @@ class SentenceTransformerEmbedder(BaseEmbedder):
         batch_size = int(os.environ.get("EMBEDDING_BATCH_SIZE", "64"))
         all_embeddings = []
         for i in range(0, len(texts), batch_size):
-            batch = [t if (t and t.strip()) else "empty" for t in texts[i:i + batch_size]]
-            batch_vecs = self._model.encode(batch, normalize_embeddings=True, show_progress_bar=False).tolist()
-            for v in batch_vecs:
-                all_embeddings.append(_validate_vector(v, self.dimension))
+            raw_batch = texts[i:i + batch_size]
+            batch = [t if (t and t.strip()) else " " for t in raw_batch]
+            batch_vecs = self._model.encode(batch, normalize_embeddings=True, show_progress_bar=False, convert_to_tensor=False).tolist()
+            for idx, v in enumerate(batch_vecs):
+                if not raw_batch[idx] or not raw_batch[idx].strip():
+                    all_embeddings.append([0.0] * self.dimension)
+                else:
+                    all_embeddings.append(_validate_vector(v, self.dimension))
         return all_embeddings
         
     def embed_query(self, query: str) -> List[float]:
-        q = (query or "").strip() or "empty"
-        vec = self._model.encode(q, normalize_embeddings=True, show_progress_bar=False).tolist()
+        q = (query or "").strip()
+        if not q:
+            return [0.0] * self.dimension
+        vec = self._model.encode(q, normalize_embeddings=True, show_progress_bar=False, convert_to_tensor=False).tolist()
         return _validate_vector(vec, self.dimension)
 
 class Qwen3Embedder(BaseEmbedder):
@@ -96,18 +102,24 @@ class Qwen3Embedder(BaseEmbedder):
         batch_size = int(os.environ.get("EMBEDDING_BATCH_SIZE", "64"))
         all_embeddings = []
         for i in range(0, len(texts), batch_size):
-            batch = [t if (t and t.strip()) else "empty" for t in texts[i:i + batch_size]]
-            batch_vecs = self._model.encode(batch, normalize_embeddings=True, show_progress_bar=False).tolist()
-            for v in batch_vecs:
-                all_embeddings.append(_validate_vector(v, self.dimension))
+            raw_batch = texts[i:i + batch_size]
+            batch = [t if (t and t.strip()) else " " for t in raw_batch]
+            batch_vecs = self._model.encode(batch, normalize_embeddings=True, show_progress_bar=False, convert_to_tensor=False).tolist()
+            for idx, v in enumerate(batch_vecs):
+                if not raw_batch[idx] or not raw_batch[idx].strip():
+                    all_embeddings.append([0.0] * self.dimension)
+                else:
+                    all_embeddings.append(_validate_vector(v, self.dimension))
         return all_embeddings
         
     def embed_query(self, query: str) -> List[float]:
-        q = (query or "").strip() or "empty"
+        q = (query or "").strip()
+        if not q:
+            return [0.0] * self.dimension
         try:
-            vec = self._model.encode(q, prompt_name="query", normalize_embeddings=True).tolist()
+            vec = self._model.encode(q, prompt_name="query", normalize_embeddings=True, convert_to_tensor=False).tolist()
         except Exception:
-            vec = self._model.encode(q, normalize_embeddings=True).tolist()
+            vec = self._model.encode(q, normalize_embeddings=True, convert_to_tensor=False).tolist()
         return _validate_vector(vec, self.dimension)
 
 class FastEmbedEmbedder(BaseEmbedder):

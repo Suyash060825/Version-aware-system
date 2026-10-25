@@ -18,6 +18,10 @@ logger = logging.getLogger("rag.qa.qa_index")
 class CanonicalQAIndex:
     INDEX_FILE = getattr(Config, "FAISS_INDEX_PATH", "data/canonical_qa_faiss.index")
     META_FILE = getattr(Config, "FAISS_INDEX_PATH", "data/canonical_qa_faiss.index").replace(".index", ".meta.pkl")
+    DELTA_INDEX_FILE = getattr(Config, "FAISS_DELTA_INDEX_PATH", None) or os.path.join(
+        os.path.dirname(os.path.abspath(getattr(Config, "FAISS_INDEX_PATH", "data/canonical_qa_faiss.index"))),
+        "canonical_qa_faiss_delta.index"
+    )
 
     def __init__(self, dimension: int = None):
         from rag.embeddings.embedder import get_embedder
@@ -41,7 +45,7 @@ class CanonicalQAIndex:
             import faiss
             self._base_index = faiss.IndexHNSWFlat(self.dimension, 32, faiss.METRIC_INNER_PRODUCT)
             if hasattr(self._base_index, "hnsw"):
-                self._base_index.hnsw.efSearch = 64
+                self._base_index.hnsw.efSearch = int(getattr(Config, "FAISS_EF_SEARCH", 128))
         except Exception:
             import faiss
             self._base_index = faiss.IndexFlatIP(self.dimension)
@@ -55,15 +59,13 @@ class CanonicalQAIndex:
             self._delta_index = None
         self._delta_metadata = []
 
-    DELTA_INDEX_FILE = "data/canonical_qa_faiss_delta.index"
-
     def load(self):
         if os.path.exists(self.INDEX_FILE) and os.path.exists(self.META_FILE):
             try:
                 import faiss
                 self._base_index = faiss.read_index(self.INDEX_FILE)
                 if hasattr(self._base_index, "hnsw"):
-                    self._base_index.hnsw.efSearch = 64
+                    self._base_index.hnsw.efSearch = int(getattr(Config, "FAISS_EF_SEARCH", 128))
                 with open(self.META_FILE, "rb") as f:
                     meta_data = pickle.load(f)
                     self._metadata = meta_data.get("items", [])

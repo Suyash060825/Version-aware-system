@@ -19,6 +19,7 @@ GUARDRAIL_LATENCY = Histogram("rag_guardrail_latency_seconds", "Guardrail execut
 GENERATION_LATENCY = Histogram("rag_generation_latency_seconds", "End-to-end generation stage latency")
 
 GROUNDING_REJECTIONS = Counter("rag_grounding_rejections_total", "Number of answers rejected due to zero citations")
+ROUTE_COUNTER = Counter("rag_route_total", "Queries per execution route", ["route"])
 
 @contextlib.contextmanager
 def trace_span(name: str, attributes: dict = None):

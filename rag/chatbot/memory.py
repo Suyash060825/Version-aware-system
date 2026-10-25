@@ -1,20 +1,44 @@
-"""rag/chatbot/memory.py - in-memory conversation store keyed by session_id"""
+"""rag/chatbot/memory.py - in-memory conversation store keyed by session_id with LRU eviction and thread-safety"""
 from datetime import datetime
-from collections import defaultdict
+from collections import OrderedDict
+import threading
 
-_sessions: dict[str, list[dict]] = defaultdict(list)
+_sessions: OrderedDict = OrderedDict()
+_lock = threading.Lock()
 MAX_TURNS = 10
+MAX_SESSIONS = 5000
 
 
 def add_message(session_id: str, role: str, content: str):
-    _sessions[session_id].append({"role": role, "content": content, "time": datetime.now().isoformat()})
-    if len(_sessions[session_id]) > MAX_TURNS * 2:
-        _sessions[session_id] = _sessions[session_id][-(MAX_TURNS * 2):]
+    if not session_id:
+        return
+    with _lock:
+        if session_id in _sessions:
+            history = _sessions[session_id]
+            _sessions.move_to_end(session_id)
+        else:
+            if len(_sessions) >= MAX_SESSIONS:
+                _sessions.popitem(last=False)
+            history = []
+            _sessions[session_id] = history
+
+        history.append({"role": role, "content": content, "time": datetime.now().isoformat()})
+        if len(history) > MAX_TURNS * 2:
+            _sessions[session_id] = history[-(MAX_TURNS * 2):]
 
 
 def get_history(session_id: str) -> list[dict]:
-    return _sessions.get(session_id, [])
+    if not session_id:
+        return []
+    with _lock:
+        if session_id in _sessions:
+            _sessions.move_to_end(session_id)
+            return list(_sessions[session_id])
+        return []
 
 
 def clear_session(session_id: str):
-    _sessions.pop(session_id, None)
+    if not session_id:
+        return
+    with _lock:
+        _sessions.pop(session_id, None)

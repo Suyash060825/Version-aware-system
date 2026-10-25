@@ -51,7 +51,7 @@ class EntailmentVerifier:
         if EntailmentVerifier._shared_nli_model is None and EntailmentVerifier._shared_use_nli:
             try:
                 from sentence_transformers import CrossEncoder
-                device = os.environ.get("RERANKER_DEVICE", "cpu")
+                device = os.environ.get("NLI_DEVICE", os.environ.get("RERANKER_DEVICE", "cpu"))
                 EntailmentVerifier._shared_nli_model = CrossEncoder("cross-encoder/nli-deberta-v3-base", device=device)
             except Exception as e:
                 logger.warning(f"Failed to load NLI model, falling back to lexical overlap: {e}")
@@ -63,10 +63,15 @@ class EntailmentVerifier:
         t = re.sub(r'\[Policy:[^\]]+\]', '', text)
         t = re.sub(r'^(?:[A-Z\s&—\-]+(?:POLICY|v\d+\.\d+))', '', t, flags=re.MULTILINE)
         t = re.sub(r'Effective Date:\s*[0-9\-]+', '', t)
-        sentences = re.split(r'(?<=[.!?\n])\s+', t.strip())
+
+        # Protect abbreviations and decimal numbers from premature sentence splitting
+        t = re.sub(r'\b(e\.g|i\.e|vs|sec|fig|no|dr|mr|ms)\.', lambda m: m.group(1) + '@DOT@', t, flags=re.IGNORECASE)
+        t = re.sub(r'(\d+)\.(\d+)', r'\1@DOT@\2', t)
+
+        raw_sentences = re.split(r'(?<=[.!?\n])\s+', t.strip())
         claims = []
-        for s in sentences:
-            s_clean = s.strip().lstrip("0123456789.- ")
+        for s in raw_sentences:
+            s_clean = s.replace('@DOT@', '.').strip().lstrip("0123456789.- ")
             # Strip citation preamble while keeping underlying substantive claims
             s_clean = re.sub(r'^(?:According to [^:]+:\s*|Based on [^:]+:\s*)', '', s_clean, flags=re.IGNORECASE).strip()
             # Only evaluate substantive claims with verbs / facts

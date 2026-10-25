@@ -77,8 +77,10 @@ class ConfidenceEngine:
         retrieval_conf = self._retrieval_confidence(evidence.scores, score_type=score_type)
         coverage_conf = self._evidence_coverage(query, evidence.chunks)
         
-        # Weighted combination: 55% retrieval rank, 45% evidence coverage
-        raw_final = (retrieval_conf * 0.55) + (coverage_conf * 0.45)
+        # Weighted combination: configurable retrieval rank vs evidence coverage
+        retrieval_weight = float(getattr(Config, "CONFIDENCE_RETRIEVAL_WEIGHT", 0.55))
+        coverage_weight = 1.0 - retrieval_weight
+        raw_final = (retrieval_conf * retrieval_weight) + (coverage_conf * coverage_weight)
         
         # Apply Isotonic Calibration to fix overconfidence (Brier/ECE)
         final = self._isotonic_calibrate(raw_final)

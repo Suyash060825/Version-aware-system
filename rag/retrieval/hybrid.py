@@ -2,8 +2,10 @@
 rag/retrieval/hybrid.py
 Hybrid Dense + BM25 retrieval with calibrated Reciprocal Rank Fusion (RRF).
 """
+import atexit
 from typing import List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor
+from config import Config
 from rag.retrieval.dense import DenseRetriever
 from rag.retrieval.sparse import PersistentBM25Index, get_bm25_index
 
@@ -12,6 +14,7 @@ class HybridRetriever:
         self.dense = DenseRetriever()
         self.sparse = get_bm25_index()
         self._executor = ThreadPoolExecutor(max_workers=2)
+        atexit.register(lambda: self._executor.shutdown(wait=False))
 
     def search(self, query: str, filters: dict = None, top_k: int = 25, query_embedding: List[float] = None) -> List[Dict[str, Any]]:
         fut_dense = self._executor.submit(self.dense.search, query, filters, top_k=top_k, query_embedding=query_embedding)
@@ -23,7 +26,9 @@ class HybridRetriever:
         # For concise keyword-heavy queries (<4 words), weight BM25 exact matches higher (K=30)
         # For natural conversational queries, standard K=60 balances semantic and lexical signals
         q_tokens = [t for t in query.strip().split() if len(t) > 1]
-        K = 30 if len(q_tokens) <= 3 else 60
+        k_short = getattr(Config, "RRF_K_SHORT", 30)
+        k_default = getattr(Config, "RRF_K_DEFAULT", 60)
+        K = k_short if len(q_tokens) <= 3 else k_default
         combined = {}
         
         for i, doc in enumerate(dense_results):

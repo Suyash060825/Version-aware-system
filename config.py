@@ -47,9 +47,18 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # --- Redis & Celery ---
-    REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
-    CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", REDIS_URL)
-    CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", REDIS_URL)
+    _raw_redis = os.environ.get("REDIS_URL")
+    if _raw_redis:
+        REDIS_URL = _raw_redis
+    else:
+        import socket
+        try:
+            socket.gethostbyname("redis")
+            REDIS_URL = "redis://redis:6379/0"
+        except Exception:
+            REDIS_URL = None
+    CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", REDIS_URL or "redis://127.0.0.1:6379/0")
+    CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", REDIS_URL or "redis://127.0.0.1:6379/0")
 
     # --- Local AI & LLM Inference ---
     USE_NLI = os.environ.get("USE_NLI", "true").lower() in ("true", "1", "yes")
@@ -86,7 +95,7 @@ class Config:
     SEMANTIC_CACHE_THRESHOLD = float(os.environ.get("SEMANTIC_CACHE_THRESHOLD", "0.95"))
     CACHE_TTL_SECONDS = int(os.environ.get("CACHE_TTL_SECONDS", "3600"))
     DEFAULT_TOP_K = int(os.environ.get("DEFAULT_TOP_K", "5"))
-    RERANK_TOP_K = int(os.environ.get("RERANK_TOP_K", "3"))
+    RERANK_TOP_K = int(os.environ.get("RERANK_TOP_K", "5"))
 
     # --- Deterministic Evaluation Constants ---
     EVAL_CORPUS_SEED = 42

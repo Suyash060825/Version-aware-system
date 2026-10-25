@@ -57,10 +57,14 @@ def build_prompt(
     """
     Construct model-agnostic chat messages array with injection guards & role context.
     """
+    safe_company = str(company_name).replace("{", "(").replace("}", ")")
+    safe_role = str(user_role or "employee").replace("{", "(").replace("}", ")")
+    safe_dept = str(user_department or "General").replace("{", "(").replace("}", ")")
+
     system_content = SYSTEM_PROMPT_TEMPLATE.format(
-        company_name=company_name,
-        user_role=user_role or "employee",
-        user_department=user_department or "General"
+        company_name=safe_company,
+        user_role=safe_role,
+        user_department=safe_dept
     )
 
     context_blocks = []

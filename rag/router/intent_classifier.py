@@ -26,7 +26,7 @@ class IntentClassifier:
     TEMPORAL_PATTERNS = [
         re.compile(r"\b(?:in 20\d\d|as of|effective date|historical|previous version|prior policy|back in|when was .* enacted|old version)\b", re.IGNORECASE),
         re.compile(r"\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+20\d\d\b", re.IGNORECASE),
-        re.compile(r"\bv\d+\b", re.IGNORECASE)
+        re.compile(r"\b(?:version\s+\d+|v\d+\.\d+|as of v\d+|under v\d+)\b", re.IGNORECASE)
     ]
     
     FACT_PATTERNS = [
@@ -49,6 +49,12 @@ class IntentClassifier:
 
     def classify(self, query: str) -> Tuple[Intent, float]:
         q = query.lower()
+
+        # Multi-policy comparison check (comparing distinct policies)
+        if any(w in q for w in [" and ", " across ", " vs ", " versus "]):
+            domains = [d for d in ["leave", "travel", "security", "expense", "conduct", "remote work", "attendance"] if d in q]
+            if len(domains) >= 2:
+                return Intent.MULTI_POLICY, 0.85
         
         # 1. Comparison
         for pattern in self.COMPARISON_PATTERNS:
@@ -81,7 +87,8 @@ class IntentClassifier:
                 return Intent.SEARCH, 0.85
 
         # 6. Default to Search / Semantic QA
-        if q.startswith(("what is", "how to", "who is", "where is", "can i", "do i", "does ", "is it", "am i", "are employees", "how do", "what are", "when is", "when can")) or q.endswith("?"):
+        qa_cues = r"\b(what is|how to|who is|where is|can i|do i|does |is it|am i|are employees|how do|what are|when is|when can)\b"
+        if re.search(qa_cues, q) or q.endswith("?"):
             return Intent.COMPILED_QA, 0.75
             
         return Intent.SEARCH, 0.70

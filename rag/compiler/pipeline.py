@@ -129,12 +129,26 @@ class KnowledgeCompilerPipeline:
             logger.warning(f"Incremental diff calculation encountered error (falling back to full compile): {e}")
             self._incremental_diff = None
 
+        pv = db.session.get(PolicyVersion, job.version_id)
+        pol = db.session.get(Policy, job.policy_id)
+        v_active = bool(pv.is_active) if pv else True
+        v_from_ts = 0
+        v_to_ts = 32472144000
+        if pv and pv.effective_from:
+            from datetime import datetime, time as dt_time
+            v_from_ts = int(datetime.combine(pv.effective_from, dt_time.min).timestamp())
+        if pv and pv.effective_to:
+            from datetime import datetime, time as dt_time
+            v_to_ts = int(datetime.combine(pv.effective_to, dt_time.max).timestamp())
+        t_id = getattr(pol, "tenant_id", None) if pol else None
+
         PolicyChunkV2.query.filter_by(policy_id=job.policy_id, version_id=job.version_id).delete()
         pcs = [
             PolicyChunkV2(
                 chunk_id=c.chunk_id, policy_id=c.policy_id, version_id=c.version_id,
                 section_path=c.section_path, page=c.page, paragraph_num=c.paragraph_num,
-                text=c.text, text_hash=c.text_hash, char_count=c.char_count
+                text=c.text, text_hash=c.text_hash, char_count=c.char_count,
+                valid_from_ts=v_from_ts, valid_to_ts=v_to_ts, is_active=v_active, tenant_id=t_id
             )
             for c in self._chunks
         ]

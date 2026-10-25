@@ -26,13 +26,13 @@ class QAMatcher:
         if len(results) > 1:
             score2, ans2_id, q2_id = results[1][:3]
             meta2 = results[1][3] if len(results[1]) > 3 else {}
-            is_same_policy_diff_version = (
+            is_same_policy = (
                 meta.get("policy_id") is not None and
-                meta.get("policy_id") == meta2.get("policy_id") and
-                meta.get("version_id") != meta2.get("version_id")
+                meta.get("policy_id") == meta2.get("policy_id")
             )
-            if not is_same_policy_diff_version:
-                if (score - score2) < 0.02 and ans2_id != answer_id:
+            if not is_same_policy:
+                ambiguity_gap = min(0.04, threshold * 0.05)
+                if (score - score2) < ambiguity_gap and ans2_id != answer_id:
                     return None
 
         ans = db.session.get(CompiledAnswer, answer_id)

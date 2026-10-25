@@ -10,8 +10,11 @@ Level 4: Local Small LLM Reasoning + Entailment Verification
 import time
 import re
 import logging
+import threading
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any, Set, Tuple
+
+_retrieval_stats_local = threading.local()
 
 from config import Config
 from models import Policy, PolicyVersion, PolicyStatus
@@ -220,6 +223,12 @@ class PipelineResult:
     raw_tokens: Optional[List[str]] = None
     fallback: bool = False
 
+    def __post_init__(self):
+        try:
+            metrics.ROUTE_COUNTER.labels(route=self.route).inc()
+        except Exception:
+            pass
+
 
 class QueryEngine:
     def __init__(self, config: Optional[EngineConfig] = None):
@@ -304,6 +313,9 @@ class QueryEngine:
             elif not has_temporal_cue and not is_diff:
                 filters["is_active"] = True
 
+        if getattr(scope, "tenant_id", None):
+            filters["tenant_id"] = scope.tenant_id
+
         return filters
 
     def _retrieve_and_rank(
@@ -343,7 +355,7 @@ class QueryEngine:
 
         post_filter_count = len(authorized_candidates)
         if not authorized_candidates:
-            self._last_retrieval_stats = {
+            stats_empty = {
                 "pre_filter_count": pre_filter_count,
                 "post_filter_count": 0,
                 "post_rerank_count": 0,
@@ -354,6 +366,8 @@ class QueryEngine:
                 "timing_rerank_ms": 0.0,
                 "timing_confidence_score_ms": 0.0
             }
+            _retrieval_stats_local.stats = stats_empty
+            self._last_retrieval_stats = stats_empty
             return None
 
         # FIX 7: Reduce rerank_top_k from 8 to 5 for Tier-0/Tier-1 fallthrough
@@ -386,7 +400,7 @@ class QueryEngine:
         conf = self.confidence_engine.score(normalized_query, evidence)
         t_conf_ms = (time.perf_counter() - t_conf0) * 1000
 
-        self._last_retrieval_stats = {
+        stats_populated = {
             "pre_filter_count": pre_filter_count,
             "post_filter_count": post_filter_count,
             "post_rerank_count": post_rerank_count,
@@ -397,6 +411,8 @@ class QueryEngine:
             "timing_rerank_ms": t_rerank_ms,
             "timing_confidence_score_ms": t_conf_ms
         }
+        _retrieval_stats_local.stats = stats_populated
+        self._last_retrieval_stats = stats_populated
 
         # Build clean citations deduplicated by (policy_id, section)
         seen_cit_keys = set()
@@ -743,7 +759,8 @@ class QueryEngine:
             )
 
         # 5. Hybrid Retrieval (Dense + Sparse BM25) with Pre-filtering (F3 shared helper)
-        retrieval_query = self.router.expand_acronyms(normalized_query)
+        # Dense search uses raw normalized embedding q_emb; BM25 uses acronym-expanded bm25_query
+        bm25_query = self.router.expand_acronyms(normalized_query)
         filters = self._build_retrieval_filters(scope, temporal_context, has_temporal_cue, is_diff, normalized_query=normalized_query, q_emb=q_emb)
         if filters is None:
             return PipelineResult(
@@ -759,7 +776,7 @@ class QueryEngine:
                 fallback=True
             )
 
-        retrieval_pack = self._retrieve_and_rank(retrieval_query, q_emb, scope, filters, is_fallthrough=True)
+        retrieval_pack = self._retrieve_and_rank(bm25_query, q_emb, scope, filters, is_fallthrough=True)
         if not retrieval_pack:
             return PipelineResult(
                 answer=DEFAULT_REFUSAL_MESSAGE,
@@ -777,7 +794,8 @@ class QueryEngine:
         ranked, score_type, conf, citations = retrieval_pack
 
         is_synthesis_query = getattr(self.config, "use_llm", True) and (
-            "summary" in normalized_query.lower() or "explain" in normalized_query.lower() or "compare" in normalized_query.lower()
+            complexity >= ComplexityLevel.LEVEL_3_COMPARISON or
+            ("summary" in normalized_query.lower() and len(normalized_query.split()) > 3)
         )
         if self.config.use_confidence_gate and conf.abstain and not is_synthesis_query:
             return PipelineResult(
@@ -858,13 +876,16 @@ class QueryEngine:
         if llm_used and final_answer:
             llm_token_count = len(re.findall(r"\w+", final_answer))
 
+        from rag.guardrails import apply_output_guardrails
+        final_answer = apply_output_guardrails(final_answer, ranked)
+
         model_name = self._model_name if llm_used else "deterministic-rag"
 
         # Cache successful verified answer (F8: both query string and embedding always passed)
         if self.config.use_cache:
             self.cache.put(q_emb, final_answer, citations, len(ranked), scope=scope, model=model_name, confidence=conf.value, is_diff_query=is_diff, query=normalized_query)
 
-        retrieval_stats = getattr(self, "_last_retrieval_stats", {})
+        retrieval_stats = getattr(_retrieval_stats_local, "stats", getattr(self, "_last_retrieval_stats", {}))
         usage_data = dict(retrieval_stats)
         usage_data["timing_ms"] = {
             "normalize_scope_ms": round(t_ns_ms, 2),
@@ -938,8 +959,10 @@ class QueryEngine:
                 chunk = word if i == len(words) - 1 else word + " "
                 yield {"type": "token", "token": chunk}
 
+        token_source = "llm" if res.raw_tokens else ("cache" if res.route == "CACHE_HIT" else ("fact" if res.route == "FAST_PATH_FACT" else "deterministic"))
         yield {
             "type": "done",
+            "source": token_source,
             "result": {
                 "answer": res.answer,
                 "citations": res.citations,
@@ -948,7 +971,8 @@ class QueryEngine:
                 "llm_used": res.llm_used,
                 "latency_ms": res.latency_ms,
                 "fallback": res.fallback,
-                "model": res.model
+                "model": res.model,
+                "source": token_source
             }
         }
 

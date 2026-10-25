@@ -70,6 +70,20 @@ def revoke_user_permission(user_id: int) -> int:
 
     return new_epoch
 
+def revoke_policy_permission(policy_id: Optional[int] = None) -> int:
+    """Invalidate cached permissions across all users when policy metadata or access changes."""
+    filter_inst = get_evidence_filter()
+    if filter_inst:
+        filter_inst.clear_cache()
+    try:
+        from rag.cache.semantic_cache import get_cache
+        cache = get_cache()
+        if cache and policy_id:
+            cache.invalidate_policy(policy_id)
+    except Exception as e:
+        logger.warning(f"Semantic cache policy invalidation notice for policy {policy_id}: {e}")
+    return 1
+
 class EvidenceFilter:
     def __init__(self):
         self._allowed_pids_cache: Dict[str, Tuple[float, Optional[List[int]]]] = {}
@@ -92,7 +106,7 @@ class EvidenceFilter:
         if hasattr(user_or_scope, "user_id"):
             role = getattr(user_or_scope, "role", "employee")
             dept_ids = tuple(sorted(getattr(user_or_scope, "department_ids", ()) or []))
-            conf = tuple(sorted(getattr(user_or_scope, "allowed_confidentiality", ()) or []))
+            conf = tuple(sorted(str(c.value if hasattr(c, "value") else c) for c in (getattr(user_or_scope, "allowed_confidentiality", ()) or [])))
             return f"auth:{u_id}:{epoch}:{role}:{dept_ids}:{conf}"
         role = getattr(user_or_scope, "role", "employee")
         if hasattr(role, "value"):
@@ -101,7 +115,7 @@ class EvidenceFilter:
         dept_id = getattr(user_or_scope, "department_id", None)
         dept_ids = (int(dept_id),) if dept_id is not None else ()
         if hasattr(user_or_scope, "allowed_confidentiality"):
-            conf = tuple(sorted(user_or_scope.allowed_confidentiality))
+            conf = tuple(sorted(str(c.value if hasattr(c, "value") else c) for c in user_or_scope.allowed_confidentiality))
         else:
             is_adm = False
             if hasattr(user_or_scope, "is_admin"):

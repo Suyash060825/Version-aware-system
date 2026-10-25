@@ -15,5 +15,5 @@ class EngineConfig:
     use_cache: bool = True
     use_nli: bool = getattr(Config, "USE_NLI", True)
     use_llm: bool = True
-    rerank_top_k: int = getattr(Config, "RERANK_TOP_K", 3)
-    min_evidence_score: float = 2.0
+    rerank_top_k: int = getattr(Config, "RERANK_TOP_K", 5)
+    min_evidence_score: float = getattr(Config, "MIN_EVIDENCE_SCORE", 0.0)

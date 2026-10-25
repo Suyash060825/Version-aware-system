@@ -20,8 +20,8 @@ HEADING_PATTERNS = [
     re.compile(r"^#{1,4}\s+(.+)$", re.MULTILINE),              # Markdown: # Title
     re.compile(r"^\d+\.\s+[A-Z].{2,80}$", re.MULTILINE),       # 1. Purpose
     re.compile(r"^\d+\.\d+\s+[A-Z].{2,60}$", re.MULTILINE),    # 1.1 Eligibility
-    re.compile(r"^[A-Z][A-Z\s]{5,60}$", re.MULTILINE),          # ALL CAPS HEADING
-    re.compile(r"^\[Page \d+[^\]]*\]$", re.MULTILINE),                 # Page markers from parser (including OCR)
+    re.compile(r"^[A-Z][A-Z\s]{4,40}:?$", re.MULTILINE),       # ALL CAPS HEADING
+    re.compile(r"^\[Page \d+[^\]]*\]$", re.MULTILINE),         # Page markers from parser
 ]
 
 # Chunk size limits (in characters, not tokens — simpler, no tokenizer needed)
@@ -142,6 +142,9 @@ def _split_into_sections(text: str) -> list[tuple[str, str]]:
             heading_spans.append((m.start(), m.group(0).strip()))
 
     if not heading_spans:
+        paras = [p.strip() for p in text.split("\n\n") if len(p.strip()) >= MIN_CHUNK_CHARS]
+        if len(paras) > 1:
+            return [(f"Paragraph {i+1}", p) for i, p in enumerate(paras)]
         return [("General", text)]
 
     # Sort by position, deduplicate overlapping
@@ -149,7 +152,7 @@ def _split_into_sections(text: str) -> list[tuple[str, str]]:
     deduped: list[tuple[int, str]] = []
     last_pos = -1
     for pos, heading in heading_spans:
-        if pos > last_pos + 10:
+        if pos >= last_pos + 5:
             deduped.append((pos, heading))
             last_pos = pos
 
@@ -207,6 +210,11 @@ def _split_long_section(text: str) -> list[str]:
         next_start = end - OVERLAP_CHARS  # sliding overlap
         if next_start <= start:
             next_start = end
+        else:
+            # Advance to the start of the next clean word to avoid broken fragments
+            space_pos = text.find(" ", next_start, min(next_start + 40, len(text)))
+            if space_pos != -1:
+                next_start = space_pos + 1
         start = next_start
         if start >= len(text):
             break

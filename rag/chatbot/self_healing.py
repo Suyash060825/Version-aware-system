@@ -36,7 +36,7 @@ def _do_self_healing(msg_id: int):
     embedder = get_embedder()
     q_vec = embedder.embed_query(query)
     
-    hits = store.search(q_vec, query, top_k=10, active_only=True)
+    hits = store.search(q_vec, filters={"is_active": True}, top_k=10)
     if not hits:
         return
     context = "\n\n".join([h.get("text", "") for h in hits[:5]])
@@ -61,21 +61,36 @@ Please write a corrected, highly accurate answer to the user's question based st
     try:
         resp = provider.generate(messages)
         corrected_answer = resp.text if hasattr(resp, "text") else str(resp)
-        if not corrected_answer:
+        if not corrected_answer or "insufficient information" in corrected_answer.lower():
+            return
+
+        from rag.verification.entailment import EntailmentVerifier
+        verifier = EntailmentVerifier()
+        is_grounded, _ = verifier.verify(corrected_answer, hits[:5])
+        if not is_grounded:
+            logger.info(f"[Self-Healing] Corrected answer failed entailment check; aborting cache patch.")
             return
             
         from rag.chatbot.citations import build_citations
-        real_citations = build_citations(hits[:5]) if hits else []
+        from rag.authorization.citation_validator import CitationValidator
+        from rag.engine.query_scope import QueryScope
+
+        raw_citations = build_citations(hits[:5]) if hits else []
+        real_citations = CitationValidator().validate_and_enrich(raw_citations) if raw_citations else []
         
-        # Inject into Semantic Cache only with verified real citations
+        # Inject into Semantic Cache only with verified real citations and scope
         if real_citations:
             cache = get_cache()
+            scope = QueryScope.from_user(getattr(user_msg, "user", None)) if hasattr(user_msg, "user") else None
             cache.put(
                 query_embedding=q_vec,
                 answer=corrected_answer,
                 citations=real_citations,
                 chunks_used=len(real_citations),
-                confidence=0.85
+                scope=scope,
+                model="self-healed",
+                confidence=0.85,
+                query=query
             )
             logger.info(f"[Self-Healing] Successfully patched cache with authoritative evidence for query: {query}")
     except Exception as e:

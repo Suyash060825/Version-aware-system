@@ -32,9 +32,10 @@ class QuestionGenerator:
             generated_prompts = []
 
             # 1. Section-based questions
-            if section_clean and len(section_clean) > 3:
+            if section_clean and len(section_clean) > 3 and section_clean.lower() not in ("general", "introduction", "section", "overview"):
                 generated_prompts.append(f"What is the policy regarding {section_clean}?")
                 generated_prompts.append(f"What are the rules for {section_clean}?")
+                generated_prompts.append(f"Can you explain the {section_clean} guidelines?")
 
             # 2. Eligibility & Application
             if re.search(r"\b(?:eligible|eligibility|applies to|who can|qualify|entitled)\b", text, re.I):
@@ -74,6 +75,9 @@ class QuestionGenerator:
                     continue
                 seen_hashes.add(q_hash)
 
+                is_generic = section_clean.lower() in ("general", "introduction", "overview", "section", "")
+                q_quality = 0.75 if is_generic else 0.95
+
                 questions.append(
                     CanonicalQuestion(
                         policy_id=chunk.policy_id,
@@ -81,7 +85,7 @@ class QuestionGenerator:
                         source_chunk_id=chunk.chunk_id,
                         question=q_clean,
                         question_hash=q_hash,
-                        quality_score=0.95,
+                        quality_score=q_quality,
                         created_at=now_utc()
                     )
                 )

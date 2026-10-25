@@ -4,7 +4,7 @@ Extracts named entities and relationships from policy chunks for graph and struc
 """
 import re
 from typing import List, Tuple
-from models import PolicyEntity, PolicyRelationship, now_utc
+from models import db, PolicyEntity, PolicyRelationship, now_utc
 from rag.compiler.document_ir import ChunkIR
 
 class EntityExtractor:
@@ -48,18 +48,26 @@ class EntityExtractor:
                     entities.append(ent)
                     chunk_entities.append(ent)
 
-            # Extract basic relationships within same chunk
-            for i in range(len(chunk_entities)):
-                for j in range(i + 1, len(chunk_entities)):
-                    e1, e2 = chunk_entities[i], chunk_entities[j]
+        # Flush entities to populate auto-generated primary keys before building relationships
+        if entities:
+            try:
+                db.session.add_all(entities)
+                db.session.flush()
+            except Exception:
+                pass
+
+        # Build relationships between flushed entities
+        for i in range(len(entities)):
+            for j in range(i + 1, len(entities)):
+                e1, e2 = entities[i], entities[j]
+                if e1.source_chunk_id == e2.source_chunk_id and e1.id and e2.id:
                     if e1.entity_type == "ROLE" and e2.entity_type == "BENEFIT":
-                        rel = PolicyRelationship(
-                            policy_id=chunk.policy_id,
-                            version_id=chunk.version_id,
-                            source_entity_id=e1.id or 1,
+                        relationships.append(PolicyRelationship(
+                            policy_id=e1.policy_id,
+                            version_id=e1.version_id,
+                            source_entity_id=e1.id,
                             relation="eligible_for",
-                            target_entity_id=e2.id or 1
-                        )
-                        relationships.append(rel)
+                            target_entity_id=e2.id
+                        ))
 
         return entities, relationships

@@ -39,6 +39,10 @@ def extract_document(filepath: str, max_chars: int = 500000) -> ParserResult:
     try:
         if ext == ".pdf":
             raw_text = _extract_pdf(filepath)
+            import re
+            page_markers = re.findall(r"\[Page (\d+)\]", raw_text)
+            if page_markers:
+                page_count = max(int(p) for p in page_markers)
         elif ext == ".docx":
             raw_text = _extract_docx(filepath)
         elif ext in (".xlsx", ".xls"):

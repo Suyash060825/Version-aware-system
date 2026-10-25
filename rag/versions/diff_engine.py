@@ -72,11 +72,11 @@ class PolicyDiffEngine:
 
     def compute_diff(self, text_a: str, text_b: str, version_a_id: Optional[int] = None, version_b_id: Optional[int] = None) -> Dict[str, Any]:
         """Compute structured diff comparing facts and clauses between two versions."""
+        h_a = hashlib.sha256(text_a.encode("utf-8")).hexdigest()[:16]
+        h_b = hashlib.sha256(text_b.encode("utf-8")).hexdigest()[:16]
         if version_a_id is not None and version_b_id is not None:
             cache_key = (version_a_id, version_b_id)
         else:
-            h_a = hashlib.sha256(text_a.encode("utf-8")).hexdigest()[:16]
-            h_b = hashlib.sha256(text_b.encode("utf-8")).hexdigest()[:16]
             cache_key = (h_a, h_b)
         if cache_key in _DIFF_CACHE:
             cached = _DIFF_CACHE[cache_key]

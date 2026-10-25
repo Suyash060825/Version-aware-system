@@ -1314,5 +1314,9 @@ class PolicyChunkV2(db.Model):
     text_hash = db.Column(db.String(64), index=True)     # SHA256 for dedup
     embedding_hash = db.Column(db.String(64), index=True) # hash(text+model+version)
     char_count = db.Column(db.Integer, default=0)
+    valid_from_ts = db.Column(db.BigInteger, default=0, index=True)
+    valid_to_ts = db.Column(db.BigInteger, default=32472144000, index=True)
+    is_active = db.Column(db.Boolean, default=True, index=True)
+    tenant_id = db.Column(db.String(50), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=now_utc)
 

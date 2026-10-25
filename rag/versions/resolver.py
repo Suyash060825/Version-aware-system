@@ -6,7 +6,7 @@ Supports date intervals (e.g., 'during June 2024', 'before July 2025', 'after Ja
 """
 import re
 import calendar
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional, Tuple
 from dataclasses import dataclass
 from models import PolicyVersion
@@ -48,14 +48,19 @@ class VersionResolver:
     AFTER_DATE_RE = re.compile(r'\bafter\s+(?:the\s+)?(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+)?(\d{4})\b', re.IGNORECASE)
     AS_OF_RE = re.compile(r'\bas of\s+(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+)?(\d{4})\b', re.IGNORECASE)
     VERSION_NUM_RE = re.compile(r'\b(?:version|v)\s*(\d+(?:\.\d+)?)\b', re.IGNORECASE)
-    BETWEEN_VERSIONS_RE = re.compile(r'\b(?:between|compare)\s+(?:version\s+|v)?(\d+(?:\.\d+)?)\s+(?:and|vs|to)\s+(?:version\s+|v)?(\d+(?:\.\d+)?)\b', re.IGNORECASE)
+    BETWEEN_VERSIONS_RE = re.compile(r'\b(?:(?:between|compare)\s+)?(?:version\s+|v)?(\d+(?:\.\d+)?)\s+(?:and|vs|versus|to)\s+(?:version\s+|v)?(\d+(?:\.\d+)?)\b', re.IGNORECASE)
     BETWEEN_DATES_RE = re.compile(r'\b(?:between|from)\s+(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+)?(\d{4})\s+(?:and|to|until|through)\s+(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+)?(\d{4})\b', re.IGNORECASE)
     UNTIL_DATE_RE = re.compile(r'\b(?:until|up to|through)\s+(?:the\s+)?(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+)?(\d{4})\b', re.IGNORECASE)
     SINCE_DATE_RE = re.compile(r'\b(?:since|starting from)\s+(?:the\s+)?(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\s+)?(\d{4})\b', re.IGNORECASE)
 
+    @staticmethod
+    def _today_utc() -> date:
+        return datetime.now(timezone.utc).date()
+
     def parse_temporal_query(self, query: str) -> TemporalQuery:
         q_lower = query.lower().strip()
         tq = TemporalQuery(raw_expression=query)
+        today = self._today_utc()
 
         # 1. Date Range ('between 2023 and 2024', 'from June 2023 to July 2024')
         range_match = self.BETWEEN_DATES_RE.search(q_lower)
@@ -68,24 +73,26 @@ class VersionResolver:
             tq.start_date = date(y1, m1, 1)
             tq.end_date = date(y2, m2, last_day_m2)
             tq.target_date = tq.end_date
-            tq.historical = (tq.end_date < date.today())
+            tq.historical = (tq.end_date < today)
             tq.current = not tq.historical
             return tq
 
         # 2. Version Comparison ('between v1 and v2', 'v1 vs v2')
         cmp_match = self.BETWEEN_VERSIONS_RE.search(q_lower)
         if cmp_match:
-            v1, v2 = cmp_match.group(1), cmp_match.group(2)
-            # Ensure not 4-digit years
-            if len(v1) < 4 and len(v2) < 4:
-                tq.comparison_versions = (v1, v2)
-                tq.historical = True
-                tq.current = False
-                return tq
+            matched_text = cmp_match.group(0).lower()
+            if any(k in matched_text for k in ["between", "compare", "vs", "versus", "v", "version"]):
+                v1, v2 = cmp_match.group(1), cmp_match.group(2)
+                # Ensure not 4-digit years
+                if len(v1) < 4 and len(v2) < 4:
+                    tq.comparison_versions = (v1, v2)
+                    tq.historical = True
+                    tq.current = False
+                    return tq
 
         # 3. Specific requested version ('v1.0', 'version 2')
         ver_match = self.VERSION_NUM_RE.search(q_lower)
-        if ver_match and not ("between" in q_lower or "vs" in q_lower):
+        if ver_match and not ("between" in q_lower or "vs" in q_lower or "versus" in q_lower):
             tq.requested_version = ver_match.group(1)
 
         # 4. Before Date / After Date / As Of Date / Until Date / Since Date
@@ -123,7 +130,7 @@ class VersionResolver:
             else:
                 tq.start_date = date(year + 1, 1, 1)
             tq.target_date = tq.start_date
-            tq.historical = tq.start_date < date.today()
+            tq.historical = tq.start_date < today
             tq.current = not tq.historical
             return tq
 
@@ -135,7 +142,7 @@ class VersionResolver:
             last_day = calendar.monthrange(year, month)[1]
             tq.end_date = date(year, month, last_day)
             tq.target_date = tq.end_date
-            tq.historical = (tq.end_date < date.today())
+            tq.historical = (tq.end_date < today)
             tq.current = not tq.historical
             return tq
 
@@ -146,7 +153,7 @@ class VersionResolver:
             month = self.MONTH_NAMES.get(month_str.lower(), 1) if month_str else 1
             tq.start_date = date(year, month, 1)
             tq.target_date = tq.start_date
-            tq.historical = (tq.start_date < date.today())
+            tq.historical = (tq.start_date < today)
             tq.current = not tq.historical
             return tq
 
@@ -159,7 +166,7 @@ class VersionResolver:
             tq.start_date = date(year, month, 1)
             tq.end_date = date(year, month, last_day)
             tq.target_date = date(year, month, 15)  # Midpoint representing full month
-            tq.historical = (tq.end_date < date.today())
+            tq.historical = (tq.end_date < today)
             tq.current = not tq.historical
             return tq
 
@@ -170,7 +177,7 @@ class VersionResolver:
             tq.start_date = date(year, 1, 1)
             tq.end_date = date(year, 12, 31)
             tq.target_date = date(year, 6, 15)
-            tq.historical = (year < date.today().year)
+            tq.historical = (year < today.year)
             tq.current = not tq.historical
             return tq
 
@@ -186,7 +193,7 @@ class VersionResolver:
 
     def resolve_temporal_context(self, query: str, user=None) -> TemporalContext:
         tq = self.parse_temporal_query(query)
-        is_historic = tq.historical or (tq.target_date is not None and tq.target_date < date.today())
+        is_historic = tq.historical or (tq.target_date is not None and tq.target_date < self._today_utc())
 
         return TemporalContext(
             target_date=tq.target_date,

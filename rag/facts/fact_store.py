@@ -9,9 +9,14 @@ class FactStore:
     def __init__(self):
         pass
 
+    @staticmethod
+    def _escape_like(text: str) -> str:
+        return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
     def get_fact(self, predicate: str, policy_id: Optional[int] = None, version_id: Optional[int] = None) -> Optional[PolicyFact]:
         """Fetch a single fact matching predicate and optional policy/version."""
-        q = PolicyFact.query.filter(PolicyFact.predicate.ilike(f"%{predicate}%"))
+        safe_pred = self._escape_like(predicate)
+        q = PolicyFact.query.filter(PolicyFact.predicate.ilike(f"%{safe_pred}%"))
         if policy_id:
             q = q.filter_by(policy_id=policy_id)
         if version_id:
@@ -20,7 +25,8 @@ class FactStore:
 
     def search_facts(self, query: str, policy_id: Optional[int] = None, version_id: Optional[int] = None, limit: int = 5) -> List[PolicyFact]:
         """Search facts by subject, predicate, or value."""
-        term = f"%{query}%"
+        safe_query = self._escape_like(query)
+        term = f"%{safe_query}%"
         q = PolicyFact.query.filter(
             (PolicyFact.predicate.ilike(term)) |
             (PolicyFact.subject.ilike(term)) |

@@ -3,17 +3,21 @@
 def build_citations(chunks: list[dict]) -> list[dict]:
     seen, citations = set(), []
     for c in chunks:
-        key = (c.get("policy_name"), c.get("version"), c.get("section"))
+        pid = c.get("policy_id")
+        pname = (c.get("policy_name") or "").strip().lower()
+        sec = (c.get("section") or "General").strip().lower()
+        ver = str(c.get("version") or "1.0").strip().lower().lstrip("v")
+        key = (pid if pid else pname, ver, sec)
         if key not in seen:
             seen.add(key)
             citations.append({
-                "policy_name": c.get("policy_name", "Unknown"),
-                "version": c.get("version", "N/A"),
-                "section": c.get("section", "General"),
+                "policy_name": (c.get("policy_name") or "Unknown").strip(),
+                "version": str(c.get("version") or "1.0").strip(),
+                "section": (c.get("section") or "General").strip(),
                 "page": c.get("page", "N/A"),
                 "department": c.get("department", ""),
                 "policy_id": c.get("policy_id", ""),
-                "relevance_score": round(c.get("rerank_score", c.get("score", 0)), 3),
+                "relevance_score": round(float(c.get("rerank_score", c.get("score", 0)) or 0), 3),
             })
     return citations
 

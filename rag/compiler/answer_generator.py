@@ -25,8 +25,12 @@ class AnswerGenerator:
 
             sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', clean_text) if len(s.strip()) > 10]
             
-            # Find the most relevant sentences for the question
-            q_tokens = set(re.findall(r"\b[a-z0-9]+\b", q.question.lower())) - {"what", "is", "the", "policy", "regarding", "for", "are", "rules", "how", "do", "i"}
+            # Find the most relevant sentences for the question using expanded stopwords
+            q_stopwords = {
+                "what", "is", "the", "policy", "regarding", "for", "are", "rules", "how", "do", "i",
+                "can", "we", "an", "a", "to", "in", "of", "and", "under", "per", "company", "employee", "employees"
+            }
+            q_tokens = set(re.findall(r"\b[a-z0-9]+\b", q.question.lower())) - q_stopwords
             
             matched_sentences = []
             for s in sentences:
@@ -38,7 +42,10 @@ class AnswerGenerator:
             matched_sentences.sort(key=lambda x: x[0], reverse=True)
             
             if matched_sentences:
-                best_text = " ".join([item[1] for item in matched_sentences[:2]])
+                best_sentence = matched_sentences[0][1]
+                best_idx = sentences.index(best_sentence) if best_sentence in sentences else 0
+                span = sentences[best_idx:min(len(sentences), best_idx + 2)]
+                best_text = " ".join(span)
             else:
                 best_text = sentences[0] if sentences else clean_text
 
