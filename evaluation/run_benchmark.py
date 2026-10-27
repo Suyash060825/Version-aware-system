@@ -804,7 +804,28 @@ def main():
     parser.add_argument("--queries", type=int, default=1000, help="Number of queries to evaluate")
     parser.add_argument("--categories", type=str, default=None, help="Comma-separated category filter (e.g. A,B,C,D,E)")
     parser.add_argument("--all-steps", action="store_true", help="Run full 10-step master experiment suite")
+    parser.add_argument("--disable-eligibility-predicate", type=bool, default=False, help="Run without temporal/auth filtering for baseline")
+    parser.add_argument("--disable-temporal-filter", type=bool, default=False, help="Run without temporal filtering")
+    parser.add_argument("--disable-authorization-filter", type=bool, default=False, help="Run without authorization filtering")
+    parser.add_argument("--corpus", type=str, default="data/corpus_300/", help="Corpus path")
+    parser.add_argument("--seed", type=int, default=42, help="Seed")
+    parser.add_argument("--run-id", type=str, default="veritas_unrestricted_baseline", help="Run ID")
+    parser.add_argument("--output", type=str, default=None, help="Output path")
+    parser.add_argument("--record-llm-used", type=bool, default=True)
+    parser.add_argument("--record-chunk-ids", type=bool, default=True)
+    parser.add_argument("--record-route", type=bool, default=True)
+    parser.add_argument("--record-version-selected", type=bool, default=True)
     args = parser.parse_args()
+
+    if args.disable_eligibility_predicate or args.disable_authorization_filter:
+        from rag.authorization.evidence_filter import EvidenceFilter
+        EvidenceFilter.filter_chunks = lambda self, chunks, scope: chunks
+        EvidenceFilter.is_authorized_for_policy = lambda self, scope, policy: True
+        EvidenceFilter.get_allowed_policy_ids = lambda self, scope: None
+
+    if args.disable_eligibility_predicate or args.disable_temporal_filter:
+        from rag.versions.resolver import VersionResolver
+        VersionResolver.resolve_temporal_context = lambda self, q, u: None
 
     print("==================================================================")
     print("VERITAS: MASTER RESEARCH EVALUATION & REPRODUCIBILITY HARNESS")

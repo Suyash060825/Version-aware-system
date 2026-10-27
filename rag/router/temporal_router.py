@@ -7,7 +7,7 @@ from typing import Dict, Any
 
 class TemporalRouter:
     VERSION_DIFF_PATTERN = re.compile(
-        r"\b(?:between|compare\s+)?(?:version\s+|v)?(\d+(?:\.\d+)?)\s*(?:and|vs|versus|to|\-)\s*(?:version\s+|v)?(\d+(?:\.\d+)?)\b",
+        r"\b(?:between|compare\s+)?(?:(?:active|current|superseded|original|latest|new|old)\s+)?(?:version\s+|v)?(\d+(?:\.\d+)?)\s*(?:and|vs|versus|to|\-)\s*(?:(?:active|current|superseded|original|latest|new|old)\s+)?(?:version\s+|v)?(\d+(?:\.\d+)?)\b",
         re.I
     )
     SINGLE_VERSION_PATTERN = re.compile(r"\b(?:version\s+|v)(\d+(?:\.\d+)?)\b", re.I)

@@ -18,9 +18,10 @@ class Intent(str, Enum):
 
 class IntentClassifier:
     COMPARISON_PATTERNS = [
-        re.compile(r"\b(?:compare|difference|changed|changes|versus|vs|diff|updated from|between v\d+ and v\d+)\b", re.IGNORECASE),
+        re.compile(r"\b(?:compare|comparison|difference|differ|change|changed|changes|versus|vs|diff|updated from|between .* and .*)\b", re.IGNORECASE),
         re.compile(r"\bwhat changed\b", re.IGNORECASE),
-        re.compile(r"\bhow is .* different from\b", re.IGNORECASE)
+        re.compile(r"\bhow is .* different from\b", re.IGNORECASE),
+        re.compile(r"\bhow did .* change\b", re.IGNORECASE)
     ]
     
     TEMPORAL_PATTERNS = [

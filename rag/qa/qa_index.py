@@ -9,7 +9,7 @@ import pickle
 import logging
 import threading
 import numpy as np
-from typing import List, Tuple, Dict, Any, Set
+from typing import List, Tuple, Dict, Any, Set, Optional
 from models import CanonicalQuestion, CompiledAnswer
 from config import Config
 

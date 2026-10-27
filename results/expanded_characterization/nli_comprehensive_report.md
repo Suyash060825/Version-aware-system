@@ -3,7 +3,7 @@
 **Evaluation Model:** `cross-encoder/nli-deberta-v3-base` with Isotonic Probability Calibration  
 **Dataset Scale:** 1,000 Enterprise NLI Instances (Train=400, Calibration=200, Held-Out Test=400)  
 **Phenomena Coverage:** 16 Enterprise Governance Reasoning Classes  
-**Evaluation Timestamp:** 2026-10-06T08:37:28.671156  
+**Evaluation Timestamp:** 2026-10-27T10:50:28.720981  
 
 ---
 

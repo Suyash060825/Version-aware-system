@@ -40,7 +40,7 @@ def seed_characterization_corpus(ledger_path: str = LEDGER_PATH):
     logger.info(f"Loaded: {len(ledger.policies)} policies, {len(ledger.versions)} versions, "
                 f"{len(ledger.chunks)} chunks, {len(ledger.facts)} facts, {len(ledger.canonical_qas)} QAs.")
 
-    app = create_app("development")
+    app = create_app(os.environ.get("FLASK_ENV", "development"))
     with app.app_context():
         # 1. Seed / Ensure Departments
         logger.info("Ensuring 12 enterprise departments exist...")
@@ -60,16 +60,18 @@ def seed_characterization_corpus(ledger_path: str = LEDGER_PATH):
             dept_map[d["id"]] = dept
         db.session.commit()
 
-        # 2. Ensure Author User
+        # 2. Ensure Author User & Standard Accounts
         admin_user = User.query.filter_by(role=UserRole.ADMIN).first()
         if not admin_user:
             admin_user = User(
                 name="System Administrator",
-                email="admin@veritas.local",
+                email="admin@company.com",
                 role=UserRole.ADMIN,
-                department_id=1
+                department_id=1,
+                email_verified=True,
+                is_active=True
             )
-            admin_user.set_password("AdminPass123!")
+            admin_user.set_password(os.environ.get("DEFAULT_ADMIN_PASSWORD", "AdminPass123!"))
             db.session.add(admin_user)
             db.session.commit()
         author_id = admin_user.id
@@ -85,16 +87,43 @@ def seed_characterization_corpus(ledger_path: str = LEDGER_PATH):
 
         # 3.5 Clear existing policy tables for clean alignment with characterization ledger
         logger.info("Clearing previous policy tables for clean characterization ledger alignment...")
-        from models import policy_tags, saved_policies, ApprovalWorkflow, PolicyAcknowledgement, ContradictionFlag
+        from models import (
+            policy_tags, saved_policies, policy_frameworks, meeting_policies,
+            CompilationJob, IndexingJob, PolicyRelationship, CompiledAnswer,
+            CanonicalQuestion, PolicyFact, PolicyChunkV2, PolicyChunk, PolicyEntity,
+            PolicyAIReview, PolicyAIInsight, PolicyAcknowledgement, ContradictionFlag,
+            Feedback, QuizAttempt, PolicyComment, PolicyLike, OnboardingChecklistItem,
+            WorkflowApprovalAction, WorkflowStageApprover, WorkflowStageInstance,
+            WorkflowStage, ApprovalWorkflow, PolicyVersion, Policy
+        )
         db.session.execute(policy_tags.delete())
         db.session.execute(saved_policies.delete())
-        ApprovalWorkflow.query.delete()
-        PolicyAcknowledgement.query.delete()
-        ContradictionFlag.query.delete()
+        db.session.execute(policy_frameworks.delete())
+        db.session.execute(meeting_policies.delete())
+
+        CompilationJob.query.delete()
+        IndexingJob.query.delete()
+        PolicyRelationship.query.delete()
         CompiledAnswer.query.delete()
         CanonicalQuestion.query.delete()
         PolicyFact.query.delete()
         PolicyChunkV2.query.delete()
+        PolicyChunk.query.delete()
+        PolicyEntity.query.delete()
+        PolicyAIReview.query.delete()
+        PolicyAIInsight.query.delete()
+        PolicyAcknowledgement.query.delete()
+        ContradictionFlag.query.delete()
+        Feedback.query.delete()
+        QuizAttempt.query.delete()
+        PolicyComment.query.delete()
+        PolicyLike.query.delete()
+        OnboardingChecklistItem.query.delete()
+        WorkflowApprovalAction.query.delete()
+        WorkflowStageApprover.query.delete()
+        WorkflowStageInstance.query.delete()
+        WorkflowStage.query.delete()
+        ApprovalWorkflow.query.delete()
         PolicyVersion.query.delete()
         Policy.query.delete()
         db.session.commit()

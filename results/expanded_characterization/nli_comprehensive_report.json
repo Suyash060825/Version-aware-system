@@ -7,7 +7,7 @@
     "train_size": 400,
     "calibration_size": 200,
     "test_size": 400,
-    "timestamp": "2026-10-06T08:37:28.670559",
+    "timestamp": "2026-10-27T10:50:28.720237",
     "random_seed": 42
   },
   "standalone_nli_performance": {

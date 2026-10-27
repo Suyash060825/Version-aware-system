@@ -2,6 +2,7 @@
 rag/compiler/pipeline.py
 Master Knowledge Compiler Pipeline orchestrating end-to-end offline policy compilation.
 """
+import os
 import json
 import logging
 from typing import Callable

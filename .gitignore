@@ -42,3 +42,13 @@ data/huggingface/
 data/chroma_backup/
 experiments/test_clean_run/
 experiments/veritas_eval_clean/
+
+# Binary runtime indices and lock files
+data/*.pkl
+data/*.pkl.bak
+data/*.index
+data/*.index.bak
+data/*.bin
+data/*.lock
+data/chroma/
+data/models_cache/

@@ -1,0 +1,191 @@
+[
+  {
+    "w_ret": 0.0,
+    "w_cov": 1.0,
+    "auroc": 1.0,
+    "raw_ece": 0.0,
+    "raw_brier": 0.0,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.05,
+    "w_cov": 0.95,
+    "auroc": 1.0,
+    "raw_ece": 0.0147,
+    "raw_brier": 0.0003,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.1,
+    "w_cov": 0.9,
+    "auroc": 1.0,
+    "raw_ece": 0.0294,
+    "raw_brier": 0.001,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.15,
+    "w_cov": 0.85,
+    "auroc": 1.0,
+    "raw_ece": 0.0441,
+    "raw_brier": 0.0023,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.2,
+    "w_cov": 0.8,
+    "auroc": 1.0,
+    "raw_ece": 0.0588,
+    "raw_brier": 0.0041,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.25,
+    "w_cov": 0.75,
+    "auroc": 1.0,
+    "raw_ece": 0.0735,
+    "raw_brier": 0.0064,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.3,
+    "w_cov": 0.7,
+    "auroc": 1.0,
+    "raw_ece": 0.0883,
+    "raw_brier": 0.0092,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.35,
+    "w_cov": 0.65,
+    "auroc": 1.0,
+    "raw_ece": 0.103,
+    "raw_brier": 0.0125,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.4,
+    "w_cov": 0.6,
+    "auroc": 1.0,
+    "raw_ece": 0.1177,
+    "raw_brier": 0.0163,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.45,
+    "w_cov": 0.55,
+    "auroc": 1.0,
+    "raw_ece": 0.1324,
+    "raw_brier": 0.0207,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.5,
+    "w_cov": 0.5,
+    "auroc": 1.0,
+    "raw_ece": 0.1471,
+    "raw_brier": 0.0255,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.55,
+    "w_cov": 0.45,
+    "auroc": 1.0,
+    "raw_ece": 0.1618,
+    "raw_brier": 0.0309,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.6,
+    "w_cov": 0.4,
+    "auroc": 1.0,
+    "raw_ece": 0.1765,
+    "raw_brier": 0.0368,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.65,
+    "w_cov": 0.35,
+    "auroc": 1.0,
+    "raw_ece": 0.1912,
+    "raw_brier": 0.0432,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.7,
+    "w_cov": 0.3,
+    "auroc": 1.0,
+    "raw_ece": 0.2059,
+    "raw_brier": 0.0501,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.75,
+    "w_cov": 0.25,
+    "auroc": 1.0,
+    "raw_ece": 0.2206,
+    "raw_brier": 0.0575,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.8,
+    "w_cov": 0.2,
+    "auroc": 1.0,
+    "raw_ece": 0.2353,
+    "raw_brier": 0.0654,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.85,
+    "w_cov": 0.15,
+    "auroc": 1.0,
+    "raw_ece": 0.2501,
+    "raw_brier": 0.0738,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.9,
+    "w_cov": 0.1,
+    "auroc": 1.0,
+    "raw_ece": 0.2648,
+    "raw_brier": 0.0828,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 0.95,
+    "w_cov": 0.05,
+    "auroc": 1.0,
+    "raw_ece": 0.2795,
+    "raw_brier": 0.0922,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  },
+  {
+    "w_ret": 1.0,
+    "w_cov": 0.0,
+    "auroc": 1.0,
+    "raw_ece": 0.2942,
+    "raw_brier": 0.1022,
+    "calib_ece": 0.0,
+    "calib_brier": 0.0
+  }
+]

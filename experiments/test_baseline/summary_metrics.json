@@ -1,0 +1,19 @@
+{
+  "run_id": "veritas_unrestricted_baseline",
+  "timestamp": "2026-10-27T12:51:43.046334+00:00",
+  "total_queries": 5,
+  "overall_accuracy": 0.4,
+  "authorized_answerable_count": 4,
+  "authorized_answerable_accuracy": 0.5,
+  "eligible_queries_count": 4,
+  "policy_recall_at_1_eligible": 0.75,
+  "tier2_chunk_queries_count": 0,
+  "chunk_recall_at_10_tier2": 0.0,
+  "version_error_rate_eligible": 0.5,
+  "negative_control_count": 1,
+  "unauthorized_leak_rate": 1.0,
+  "hallucination_rate": 0.0,
+  "mean_token_f1": 0.3193,
+  "tier0_p50_ms": 9.51,
+  "tier2_p50_ms": 0.0
+}

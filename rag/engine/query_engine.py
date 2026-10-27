@@ -44,11 +44,13 @@ from rag.generation.prompts import STREAMING_POLICY_GROUNDING_PROMPT, build_stre
 logger = logging.getLogger("rag.engine.query_engine")
 
 _IS_DIFF_RE = re.compile(
-    r"\b(?:version\s+|v)?(\d+(?:\.\d+)?)\s*(?:and|vs|versus|to|\-)\s*(?:version\s+|v)?(\d+(?:\.\d+)?)\b",
+    r"\b(?:between|compare\s+)?(?:(?:active|current|superseded|original|latest|new|old)\s+)?(?:version\s+|v)?(\d+(?:\.\d+)?)\s*(?:and|vs|versus|to|\-)\s*(?:(?:active|current|superseded|original|latest|new|old)\s+)?(?:version\s+|v)?(\d+(?:\.\d+)?)\b",
     re.I
 )
 
 def _is_valid_diff_query(query: str) -> bool:
+    if re.search(r"\b(?:diff|difference|compare|comparison|changes between|how did .* change between)\b", query, re.I):
+        return True
     for m in _IS_DIFF_RE.finditer(query):
         v1_raw = m.group(1)
         v2_raw = m.group(2)
@@ -207,6 +209,7 @@ class PipelineResult:
     confidence: float
     citations: List[Dict[str, Any]]
     policy_versions: List[str] = field(default_factory=list)
+    retrieved_chunk_ids: List[str] = field(default_factory=list)
     latency_ms: float = 0.0
     llm_used: bool = False
     retrieval_count: int = 0
@@ -531,18 +534,34 @@ class QueryEngine:
                 v1_label = v1.version_label or f"v{v1.version_num}"
                 v2_label = v2.version_label or f"v{v2.version_num}"
                 diff_summary = f"Comparison of {p.title} {v1_label} vs {v2_label}:\n"
+
+                # Check if specific predicate fact changed between versions
+                from models import PolicyFact, PolicyChunkV2
+                v1_facts = {f.predicate: f for f in PolicyFact.query.filter_by(policy_id=p.id, version_id=v1.id).all()}
+                v2_facts = {f.predicate: f for f in PolicyFact.query.filter_by(policy_id=p.id, version_id=v2.id).all()}
+                for pred, f1 in v1_facts.items():
+                    if pred in v2_facts:
+                        f2 = v2_facts[pred]
+                        if f1.value != f2.value:
+                            diff_summary += f"\n- {pred.replace('_', ' ').capitalize()}: changed from {f1.value} {f1.unit or ''} in {v1_label} to {f2.value} {f2.unit or ''} in {v2_label}."
+
                 if diff_res.get("added_clauses"):
                     diff_summary += f"\n- Added ({len(diff_res['added_clauses'])} clauses): " + "; ".join(diff_res['added_clauses'][:3])
                 if diff_res.get("removed_clauses"):
                     diff_summary += f"\n- Removed ({len(diff_res['removed_clauses'])} clauses): " + "; ".join(diff_res['removed_clauses'][:3])
                 if diff_res.get("changed_clauses"):
                     diff_summary += f"\n- Modified ({len(diff_res['changed_clauses'])} clauses): " + "; ".join(diff_res['changed_clauses'][:3])
-                if not diff_res.get("added_clauses") and not diff_res.get("removed_clauses") and not diff_res.get("changed_clauses"):
+                if not diff_res.get("added_clauses") and not diff_res.get("removed_clauses") and not diff_res.get("changed_clauses") and len(v1_facts) == 0:
                     diff_summary += "\nNo structural text differences detected between these two versions."
 
+                v1_chunk = PolicyChunkV2.query.filter_by(policy_id=p.id, version_id=v1.id).first()
+                v2_chunk = PolicyChunkV2.query.filter_by(policy_id=p.id, version_id=v2.id).first()
+                c1_id = v1_chunk.chunk_id if v1_chunk else f"p{p.id}-v{v1.id}-c1"
+                c2_id = v2_chunk.chunk_id if v2_chunk else f"p{p.id}-v{v2.id}-c1"
+
                 cits = self.citation_validator.enrich_only([
-                    {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1},
-                    {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1},
+                    {"policy_id": p.id, "version_id": v1.id, "policy_name": p.title, "version": str(v1.version_num), "section": "Version Comparison", "page": 1, "chunk_id": c1_id},
+                    {"policy_id": p.id, "version_id": v2.id, "policy_name": p.title, "version": str(v2.version_num), "section": "Version Comparison", "page": 1, "chunk_id": c2_id},
                 ])
 
                 diff_clauses = len(diff_res.get("added_clauses", [])) + len(diff_res.get("removed_clauses", [])) + len(diff_res.get("changed_clauses", []))
@@ -642,7 +661,7 @@ class QueryEngine:
 
         t_fact_ms = 0.0
         # 2. Level 0: Fast Structured Fact Path (Zero embedding needed!)
-        if self.config.use_fact:
+        if self.config.use_fact and not is_diff:
             t_f0 = time.perf_counter()
             fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
             t_fact_ms = (time.perf_counter() - t_f0) * 1000
@@ -662,12 +681,14 @@ class QueryEngine:
                         "llm_generate_ms": 0.0
                     }
                 }
+                retrieved_chunks = [fact_res.source_chunk_id] if getattr(fact_res, "source_chunk_id", None) else [c["chunk_id"] for c in cits if isinstance(c, dict) and c.get("chunk_id")]
                 return PipelineResult(
                     answer=fact_res.answer,
                     route="FAST_PATH_FACT",
                     confidence=fact_res.confidence,
                     citations=cits,
                     policy_versions=[str(cits[0]["version"])] if cits else [],
+                    retrieved_chunk_ids=retrieved_chunks,
                     latency_ms=(time.time() - t_start) * 1000,
                     llm_used=False,
                     retrieval_count=1,
@@ -724,12 +745,14 @@ class QueryEngine:
                     if cits:
                         if self.config.use_cache:
                             self.cache.put(q_emb, qa_match["answer"], cits, 1, scope=scope, confidence=qa_match["confidence"], is_diff_query=is_diff, query=normalized_query)
+                        retrieved_chunks = [c["chunk_id"] for c in cits if isinstance(c, dict) and c.get("chunk_id")]
                         return PipelineResult(
                             answer=qa_match["answer"],
                             route="FAST_PATH_COMPILED_QA",
                             confidence=qa_match["confidence"],
                             citations=cits,
                             policy_versions=[str(cits[0]["version"])],
+                            retrieved_chunk_ids=retrieved_chunks,
                             latency_ms=(time.time() - t_start) * 1000,
                             llm_used=False,
                             retrieval_count=1,
@@ -743,12 +766,14 @@ class QueryEngine:
         comp_res = self._run_version_comparison(normalized_query, meta, temporal_context, scope, q_emb=q_emb)
         if comp_res:
             diff_summary, cits, comp_conf, p_versions = comp_res
+            retrieved_chunks = [c["chunk_id"] for c in cits if isinstance(c, dict) and c.get("chunk_id")]
             return PipelineResult(
                 answer=diff_summary,
                 route="TEMPORAL_COMPARISON",
                 confidence=comp_conf,
                 citations=cits,
                 policy_versions=p_versions,
+                retrieved_chunk_ids=retrieved_chunks,
                 latency_ms=(time.time() - t_start) * 1000,
                 llm_used=False,
                 retrieval_count=2,
@@ -898,12 +923,17 @@ class QueryEngine:
             "llm_generate_ms": round(llm_time_ms, 2)
         }
 
+        retrieved_chunk_ids = [c.get("chunk_id") or c.get("id") for c in ranked if isinstance(c, dict) and (c.get("chunk_id") or c.get("id"))]
+        if not retrieved_chunk_ids:
+            retrieved_chunk_ids = [c["chunk_id"] for c in citations if isinstance(c, dict) and c.get("chunk_id")]
+
         return PipelineResult(
             answer=final_answer,
             route="HYBRID_RAG",
             confidence=conf.value,
             citations=citations,
             policy_versions=[str(citations[0]["version"])] if citations else [],
+            retrieved_chunk_ids=retrieved_chunk_ids,
             latency_ms=(time.time() - t_start) * 1000,
             llm_used=llm_used,
             retrieval_count=len(ranked),
@@ -929,6 +959,7 @@ class QueryEngine:
             confidence=res.confidence,
             citations=res.citations,
             policy_versions=res.policy_versions,
+            retrieved_chunk_ids=res.retrieved_chunk_ids,
             latency_ms=res.latency_ms,
             llm_used=res.llm_used,
             retrieval_count=res.retrieval_count,

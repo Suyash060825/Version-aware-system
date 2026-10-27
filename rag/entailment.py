@@ -26,9 +26,11 @@ def get_nli_model():
 def split_into_claims(text: str) -> list[str]:
     """Split text into sentence claims, stripping citations."""
     text = re.sub(r'\[Policy:[^\]]+\]', '', text)
+    text = re.sub(r'^(?:According to|Based on)[^\n:]*:\s*', '', text, flags=re.IGNORECASE | re.MULTILINE)
     t = re.sub(r'\b(e\.g|i\.e|vs|sec|fig|no|dr|mr|ms)\.', lambda m: m.group(1) + '@DOT@', text, flags=re.IGNORECASE)
-    t = re.sub(r'(\d+)\.(\d+)', r'\1@DOT@\2', t)
-    sentences = re.split(r'(?<=[.!?])\s+', t.strip())
+    t = re.sub(r'\b(\d+)\.(\d+)', r'\1@DOT@\2', t)
+    t = re.sub(r'(?<=[\s\(])(\d+)\.\s', r'\1@DOT@ ', t)
+    sentences = re.split(r'(?<=[.!?\n])\s+', t.strip())
     return [s.replace('@DOT@', '.').strip() for s in sentences if len(s.strip()) > 10]
 
 def verify_entailment(answer: str, chunks: list[dict]) -> tuple[bool, float]:

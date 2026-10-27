@@ -130,11 +130,12 @@ def compute_reliability_diagram_bins(confidences: List[float], correctness: List
 # -----------------------------------------------------------------------------
 
 class ComprehensiveEvaluator:
-    def __init__(self, run_id: str, output_dir: str, target_queries: int = 1000, seed: int = 42):
+    def __init__(self, run_id: str, output_dir: str, target_queries: int = 1000, seed: int = 42, policy_count: int = 300):
         self.run_id = run_id
         self.output_dir = output_dir
         self.target_queries = target_queries
         self.seed = seed
+        self.policy_count = policy_count
         os.makedirs(self.output_dir, exist_ok=True)
 
         self.app = create_app("development")
@@ -156,10 +157,10 @@ class ComprehensiveEvaluator:
     # -------------------------------------------------------------------------
     def prepare_corpus_and_queries(self):
         print("\n=======================================================")
-        print("PHASE 1: Preparing Master 120 Corpus & Multi-Tier Queries")
+        print(f"PHASE 1: Preparing Master {self.policy_count} Corpus & Multi-Tier Queries")
         print("=======================================================")
         gen = ConfigurableCorpusGenerator(seed=self.seed)
-        self.ledger = gen.generate_corpus(120)
+        self.ledger = gen.generate_corpus(self.policy_count)
         v_rep = gen.validate_corpus(self.ledger)
         print(f"Master Corpus: {v_rep['total_policies']} policies, {v_rep['total_versions']} versions, {v_rep['total_chunks']} chunks. Valid={v_rep['valid']}")
 
@@ -288,7 +289,7 @@ class ComprehensiveEvaluator:
                     "intended_policy_id": q.intended_policy_id,
                     "intended_version_num": str(q.intended_version_num) if q.intended_version_num else None,
                     "expected_evidence_chunks": q.expected_evidence_chunks,
-                    "retrieved_chunk_ids": [c["chunk_id"] for c in citations if isinstance(c, dict) and c.get("chunk_id")],
+                    "retrieved_chunk_ids": getattr(res, "retrieved_chunk_ids", None) or [c["chunk_id"] for c in citations if isinstance(c, dict) and c.get("chunk_id")],
                     "retrieved_policy_ids": [c["policy_id"] for c in citations if isinstance(c, dict) and c.get("policy_id")],
                     "pre_filter_chunk_ids": usage_data.get("pre_filter_chunk_ids", []),
                     "authorized_chunk_ids": usage_data.get("authorized_chunk_ids", []),
@@ -986,11 +987,11 @@ class ComprehensiveEvaluator:
             "run_id": self.run_id,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "corpus_stats": {
-                "policies": 120,
-                "versions": 422,
-                "chunks": 2110,
-                "facts": 422,
-                "canonical_qa_pairs": 422
+                "policies": len(self.ledger.policies) if self.ledger else self.policy_count,
+                "versions": len(self.ledger.versions) if self.ledger else 0,
+                "chunks": len(self.ledger.chunks) if self.ledger else 0,
+                "facts": len(self.ledger.facts) if self.ledger else 0,
+                "canonical_qa_pairs": len(self.ledger.canonical_qas) if self.ledger else 0
             },
             "query_distribution": {
                 "total": len(self.query_records),
@@ -1054,10 +1055,13 @@ class ComprehensiveEvaluator:
         t_t0_p50 = d8["by_tier"].get("FAST_PATH_FACT", {}).get("p50_ms", 3.5)
         t_t2_p50 = d8["by_tier"].get("HYBRID_RAG", {}).get("p50_ms", 18.2)
 
+        p_cnt = len(self.ledger.policies) if self.ledger else self.policy_count
+        v_cnt = len(self.ledger.versions) if self.ledger else 0
+        c_cnt = len(self.ledger.chunks) if self.ledger else 0
         md_content = f"""# IEEE Conference Evaluation Report: Veritas Policy Intelligence System
 **Run Identifier:** `{self.run_id}`  
 **Generated At:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}  
-**Evaluated Dataset:** 120 Master Policies | 422 Versions | 2,110 Chunks | {len(self.query_records)} Stratified Queries
+**Evaluated Dataset:** {p_cnt} Master Policies | {v_cnt} Versions | {c_cnt:,} Chunks | {len(self.query_records)} Stratified Queries
 
 ---
 
@@ -1259,6 +1263,7 @@ class ComprehensiveEvaluator:
 def main():
     parser = argparse.ArgumentParser(description="Veritas Comprehensive Research Evaluation Harness")
     parser.add_argument("--queries", type=int, default=1000, help="Target question count to evaluate")
+    parser.add_argument("--policies", type=int, default=300, help="Target policy count in corpus (e.g. 120 or 300)")
     parser.add_argument("--run-id", type=str, default=None, help="Custom run identifier")
     parser.add_argument("--seed", type=int, default=42, help="Deterministic seed")
     parser.add_argument("--output-dir", type=str, default=None, help="Custom output directory")
@@ -1267,7 +1272,7 @@ def main():
     run_id = args.run_id or f"veritas_ieee_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     out_dir = args.output_dir or os.path.join("experiments", run_id)
 
-    evaluator = ComprehensiveEvaluator(run_id=run_id, output_dir=out_dir, target_queries=args.queries, seed=args.seed)
+    evaluator = ComprehensiveEvaluator(run_id=run_id, output_dir=out_dir, target_queries=args.queries, seed=args.seed, policy_count=args.policies)
     evaluator.run_all()
 
 

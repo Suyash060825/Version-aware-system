@@ -11,6 +11,5 @@ worker_class = os.environ.get("GUNICORN_WORKER_CLASS", "gthread")
 timeout = int(os.environ.get("GUNICORN_TIMEOUT", "120"))
 keepalive = int(os.environ.get("GUNICORN_KEEPALIVE", "5"))
 
-# Preload application and models in the master process before worker fork (copy-on-write).
-# This avoids per-worker cold starts and drastically cuts RAM usage.
-preload_app = True
+# Preload disabled to prevent ONNX Runtime thread deadlock across forks.
+preload_app = False

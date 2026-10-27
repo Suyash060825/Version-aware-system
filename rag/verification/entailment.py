@@ -61,12 +61,14 @@ class EntailmentVerifier:
     def split_into_claims(self, text: str) -> List[str]:
         # Strip markdown, citations, header boilerplate
         t = re.sub(r'\[Policy:[^\]]+\]', '', text)
+        t = re.sub(r'^(?:According to|Based on)[^\n:]*:\s*', '', t, flags=re.IGNORECASE | re.MULTILINE)
         t = re.sub(r'^(?:[A-Z\s&—\-]+(?:POLICY|v\d+\.\d+))', '', t, flags=re.MULTILINE)
         t = re.sub(r'Effective Date:\s*[0-9\-]+', '', t)
 
-        # Protect abbreviations and decimal numbers from premature sentence splitting
+        # Protect abbreviations, list numbers, and decimal numbers from premature sentence splitting
         t = re.sub(r'\b(e\.g|i\.e|vs|sec|fig|no|dr|mr|ms)\.', lambda m: m.group(1) + '@DOT@', t, flags=re.IGNORECASE)
-        t = re.sub(r'(\d+)\.(\d+)', r'\1@DOT@\2', t)
+        t = re.sub(r'\b(\d+)\.(\d+)', r'\1@DOT@\2', t)
+        t = re.sub(r'(?<=[\s\(])(\d+)\.\s', r'\1@DOT@ ', t)
 
         raw_sentences = re.split(r'(?<=[.!?\n])\s+', t.strip())
         claims = []

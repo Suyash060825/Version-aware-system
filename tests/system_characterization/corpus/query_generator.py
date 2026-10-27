@@ -287,7 +287,8 @@ def generate_benchmark_queries(ledger: GroundTruthLedger) -> List[QueryGroundTru
         q_text = f"What is the {f_entry.predicate.replace('_', ' ')} in {p.title}?"
 
         # 1. Authorized User
-        auth_user = admin_user if p.confidentiality == "restricted" else [u for u in users if u.department_id == p.department_id and u.clearance == "confidential"][0]
+        dept_match = [u for u in users if u.department_id == p.department_id and u.clearance in ("confidential", "restricted")]
+        auth_user = admin_user if (p.confidentiality == "restricted" or not dept_match) else dept_match[0]
         all_queries.append(QueryGroundTruth(
             query_id=f"Q-CAT-G-AUTH-{q_counter:05d}",
             user_id=auth_user.user_id,

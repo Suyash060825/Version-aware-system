@@ -13,6 +13,7 @@ class QueryResult:
     retrieval_count: int
     reranker_used: bool
     abstained: bool
+    retrieved_chunk_ids: List[str] = field(default_factory=list)
     model: Optional[str] = None
     usage: dict = field(default_factory=dict)
     abstain_reason: str = "none"

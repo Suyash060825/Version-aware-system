@@ -326,7 +326,18 @@ SAMPLE_POLICIES = [
     },
 ]
 
-def seed():
+def seed(mode: str = "ledger"):
+    if mode == "ledger" and os.path.exists(os.path.join(os.path.dirname(__file__), "tests", "system_characterization", "corpus", "ground_truth_ledger.json")):
+        print("[seed.py] Seeding Canonical Enterprise Characterization Ledger Configuration...")
+        from scripts.seed_characterization_ledger import seed_characterization_corpus
+        seed_characterization_corpus()
+        try:
+            from scripts.seed_production_ready import seed_production
+            seed_production()
+        except Exception as e:
+            print(f"[notice] Enterprise production extensions: {e}")
+        return
+
     with app.app_context():
         db.create_all()
 
@@ -470,5 +481,6 @@ def seed():
             print(f"[notice] Enterprise production extensions: {e}")
 
 if __name__ == "__main__":
-    seed()
+    mode = "sample" if "--sample" in sys.argv else "ledger"
+    seed(mode=mode)
 
