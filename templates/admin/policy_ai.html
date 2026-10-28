@@ -163,19 +163,68 @@ async function writerAction(mode) {
   const body = new URLSearchParams({ mode, content });
   if (mode === 'translate') body.set('target_language', document.getElementById('targetLanguage').value || 'Spanish');
   if (mode === 'explain') body.set('clause', document.getElementById('clauseInput').value.trim());
+
   try {
-    const res = await fetch("{{ url_for('policy_ai.writer_action', policy_id=policy.id) }}", { method: 'POST', body });
-    const d = await res.json();
-    if (d.success) {
-      document.getElementById('writerResult').value = d.result;
-      document.getElementById('applyContent').value = d.result;
-      document.getElementById('applyBtn').disabled = (mode === 'explain');
-      status.textContent = 'Done';
-      showToast('AI output ready');
-    } else {
-      status.textContent = d.error || 'Failed';
+    const res = await fetch("{{ url_for('policy_ai.writer_action_stream', policy_id=policy.id) }}", { method: 'POST', body });
+    if (!res.ok || !res.body) {
+      throw new Error('Streaming failed or not supported');
     }
-  } catch (e) { status.textContent = 'Error contacting AI service.'; }
+
+    const resultBox = document.getElementById('writerResult');
+    resultBox.value = '';
+    let accumulated = '';
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'token') {
+              accumulated += data.token;
+              resultBox.value = accumulated;
+            } else if (data.type === 'done') {
+              const finalVal = data.result || accumulated;
+              resultBox.value = finalVal;
+              document.getElementById('applyContent').value = finalVal;
+              document.getElementById('applyBtn').disabled = (mode === 'explain');
+              status.textContent = 'Done';
+              showToast('AI output ready');
+            } else if (data.type === 'error') {
+              status.textContent = data.error || 'Failed';
+            }
+          } catch (e) {
+            console.error('SSE parse error', e);
+          }
+        }
+      }
+    }
+  } catch (streamErr) {
+    // Fallback to synchronous endpoint
+    try {
+      const res = await fetch("{{ url_for('policy_ai.writer_action', policy_id=policy.id) }}", { method: 'POST', body });
+      const d = await res.json();
+      if (d.success) {
+        document.getElementById('writerResult').value = d.result;
+        document.getElementById('applyContent').value = d.result;
+        document.getElementById('applyBtn').disabled = (mode === 'explain');
+        status.textContent = 'Done';
+        showToast('AI output ready');
+      } else {
+        status.textContent = d.error || 'Failed';
+      }
+    } catch (e) {
+      status.textContent = 'Error contacting AI service.';
+    }
+  }
 }
 
 async function runReview() {

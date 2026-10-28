@@ -47,6 +47,14 @@ class LLMProvider(ABC):
         """Helper method returning string content directly for backwards compatibility."""
         return self.generate(prompt, **kwargs).text
 
+    def stream(self, prompt: str | List[Dict[str, str]], **kwargs):
+        """Helper generator yielding text tokens/words for backwards compatibility."""
+        resp = self.generate(prompt, **kwargs)
+        if resp and resp.text:
+            words = resp.text.split(" ")
+            for i, w in enumerate(words):
+                yield w if i == len(words) - 1 else w + " "
+
     @abstractmethod
     def embed(self, texts: List[str]) -> List[List[float]]:
         """

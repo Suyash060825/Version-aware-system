@@ -58,6 +58,27 @@ def _llm_text(system_prompt: str, user_prompt: str) -> str:
     return result
 
 
+def _llm_stream(system_prompt: str, user_prompt: str):
+    llm = get_llm()
+    try:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        if hasattr(llm, "stream"):
+            for token in llm.stream(messages):
+                if token:
+                    yield token
+        else:
+            resp = _llm_text(system_prompt, user_prompt)
+            if resp:
+                words = resp.split(" ")
+                for i, w in enumerate(words):
+                    yield w if i == len(words) - 1 else w + " "
+    except Exception:
+        return
+
+
 def reading_time_minutes(content: str) -> int:
     words = len((content or "").split())
     return max(1, round(words / WORDS_PER_MINUTE))
@@ -117,6 +138,20 @@ def rewrite_text(content: str, mode: str, target_language: str = "") -> str:
     return result
 
 
+def rewrite_text_stream(content: str, mode: str, target_language: str = ""):
+    """Incremental streaming version of rewrite_text."""
+    if not (content or "").strip():
+        return
+    if mode == "translate":
+        instruction = f"Translate the following policy text into {target_language or 'Spanish'}, preserving formatting and section structure."
+    else:
+        instruction = REWRITE_INSTRUCTIONS.get(mode, REWRITE_INSTRUCTIONS["rewrite"])
+
+    system = "You are an expert corporate policy editor. Output ONLY the resulting text — no preamble, no explanation, no markdown fences."
+    user = f"{instruction}\n\n---\n{content}\n---"
+    yield from _llm_stream(system, user)
+
+
 def explain_clause(content: str, clause_text: str) -> str:
     """Module 3 — 'Explain clauses'."""
     system = "You are a helpful compliance assistant. Explain policy clauses in plain, simple language for employees."
@@ -124,6 +159,16 @@ def explain_clause(content: str, clause_text: str) -> str:
            f"Explain this specific clause in plain language, including what it means practically for an employee:\n\n\"{clause_text}\"")
     result = _llm_text(system, user)
     return result or "AI explanation unavailable right now. Please configure an LLM provider or ask HR directly."
+
+
+def explain_clause_stream(content: str, clause_text: str):
+    """Incremental streaming version of explain_clause."""
+    if not (clause_text or "").strip():
+        return
+    system = "You are a helpful compliance assistant. Explain policy clauses in plain, simple language for employees."
+    user = (f"Here is the full policy for context:\n---\n{content[:4000]}\n---\n\n"
+           f"Explain this specific clause in plain language, including what it means practically for an employee:\n\n\"{clause_text}\"")
+    yield from _llm_stream(system, user)
 
 
 # ================================================================

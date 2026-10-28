@@ -1,0 +1,47 @@
+answer,case_type,eval_tokens,generation_ms,latency_seconds,load_ms,model,prompt_eval_ms,proxy_score,question,question_id,tokens_per_second
+[Clause 1],answer,6,2177.35,70.132,26.5,qwen2.5:3b,67924.85,0.0,How many annual-leave days does an eligible full-time employee receive per calendar year?,Q1,2.76
+[Clause 5],answer,6,2201.08,14.758,36.65,qwen2.5:3b,12516.74,0.333,What is the maximum number of unused annual-leave days that can be carried over?,Q2,2.73
+[Clause 3],answer,6,2183.49,13.703,32.77,qwen2.5:3b,11482.12,0.0,How far in advance must an employee submit an annual-leave request?,Q3,2.75
+[Clause 3] A manager must approve or reject a request within 3 business days after submission.,answer,22,9197.63,20.72,32.4,qwen2.5:3b,11485.54,1.0,How long does a manager have to approve or reject a leave request?,Q4,2.39
+[Clause 7],answer,6,2194.23,12.293,30.91,qwen2.5:3b,10063.77,0.0,Are contractors eligible for annual leave under this policy?,Q5,2.73
+[Clause 7],answer,6,2194.65,13.006,31.03,qwen2.5:3b,10775.93,0.0,What is the effective date of Version 3.0?,Q6,2.73
+This policy does not specify sick-leave entitlement. [Clause 6],abstain,16,6534.49,20.137,32.32,qwen2.5:3b,13566.6,1.0,Does this policy state how many sick-leave days employees receive? Answer only from the supplied evidence.,Q7,2.45
+A contractor is not eligible for annual leave under this policy [Clause 6].,answer,17,7009.75,22.045,29.87,qwen2.5:3b,15001.04,1.0,"A contractor requests 20 annual-leave days. According to this policy, are they eligible? Briefly explain.",Q8,2.43
+An eligible full-time employee receives 20 days of annual leave per calendar year [Clause 1].,answer,21,8812.54,76.76,31.28,llama3.2:3b,67914.03,1.0,How many annual-leave days does an eligible full-time employee receive per calendar year?,Q1,2.38
+"The maximum number of unused annual-leave days that can be carried over is 5.
+
+[Clause 2]",answer,24,10118.68,22.896,40.29,llama3.2:3b,12735.57,1.0,What is the maximum number of unused annual-leave days that can be carried over?,Q2,2.37
+"According to policy, an employee must submit an annual leave request at least 7 calendar days before the first day of leave.
+
+[Clause 3]",answer,31,13186.91,24.877,36.33,llama3.2:3b,11651.79,1.0,How far in advance must an employee submit an annual-leave request?,Q3,2.35
+"A manager must approve or reject a leave request within 3 business days after submission, as stated in Clause [4].",answer,25,10545.68,22.25,35.0,llama3.2:3b,11667.02,1.0,How long does a manager have to approve or reject a leave request?,Q4,2.37
+"No, contractors are not eligible for annual leave under this policy [Clause 5].",answer,18,7504.31,17.747,37.76,llama3.2:3b,10202.79,1.0,Are contractors eligible for annual leave under this policy?,Q5,2.4
+"The effective date of Version 3.0 is 1 January 2026, as stated in Clause 7 [Clause 7].",answer,29,12296.52,23.269,38.95,llama3.2:3b,10931.48,1.0,What is the effective date of Version 3.0?,Q6,2.36
+"This policy does not specify sick-leave entitlement.
+
+[Clause 6]",abstain,16,6583.41,20.435,36.54,llama3.2:3b,13812.57,1.0,Does this policy state how many sick-leave days employees receive? Answer only from the supplied evidence.,Q7,2.43
+"No, contractors are not eligible for annual leave under this policy [Clause 5].",answer,18,7475.76,22.39,41.42,llama3.2:3b,14870.44,1.0,"A contractor requests 20 annual-leave days. According to this policy, are they eligible? Briefly explain.",Q8,2.41
+An eligible full-time employee receives 20 annual-leave days per calendar year. This is specified in [Clause 1].,answer,27,6760.8,44.962,30.99,qwen3:1.7b-q4_K_M,38165.88,1.0,How many annual-leave days does an eligible full-time employee receive per calendar year?,Q1,3.99
+The maximum number of unused annual-leave days that can be carried over is 5 [Clause 2].,answer,23,5560.46,13.767,31.92,qwen3:1.7b-q4_K_M,8170.51,1.0,What is the maximum number of unused annual-leave days that can be carried over?,Q2,4.14
+An employee must submit an annual-leave request at least 7 calendar days before the first day of leave [Clause 3].,answer,27,6541.59,14.145,31.15,qwen3:1.7b-q4_K_M,7568.34,1.0,How far in advance must an employee submit an annual-leave request?,Q3,4.13
+A manager must approve or reject a leave request within 3 business days after submission [Clause 4].,answer,22,4556.97,11.147,28.59,qwen3:1.7b-q4_K_M,6557.65,1.0,How long does a manager have to approve or reject a leave request?,Q4,4.83
+"Yes, contractors are eligible for annual leave under this policy [Clause 5].",answer,17,3356.63,9.021,27.43,qwen3:1.7b-q4_K_M,5633.02,0.5,Are contractors eligible for annual leave under this policy?,Q5,5.06
+The effective date of Version 3.0 is 1 January 2026. [Clause 7],answer,25,5009.77,10.948,28.29,qwen3:1.7b-q4_K_M,5906.54,1.0,What is the effective date of Version 3.0?,Q6,4.99
+The policy does not state how many sick-leave days employees receive. [Clause 6],abstain,20,3984.72,11.164,32.64,qwen3:1.7b-q4_K_M,7142.97,0.0,Does this policy state how many sick-leave days employees receive? Answer only from the supplied evidence.,Q7,5.02
+"No, contractors are not eligible for annual leave under this policy [Clause 5].",answer,18,3555.08,11.339,30.03,qwen3:1.7b-q4_K_M,7750.24,1.0,"A contractor requests 20 annual-leave days. According to this policy, are they eligible? Briefly explain.",Q8,5.06
+20 days [Clause 1],answer,8,3026.11,64.046,36.18,phi4-mini:3.8b-q4_K_M,60980.42,0.667,How many annual-leave days does an eligible full-time employee receive per calendar year?,Q1,2.64
+5 days [Clause 2],answer,8,3010.91,13.843,36.27,phi4-mini:3.8b-q4_K_M,10791.8,0.667,What is the maximum number of unused annual-leave days that can be carried over?,Q2,2.66
+An employee must submit their annual leave requests at least 7 calendar days before the first day of intended leave [Clause 3].,answer,27,11242.75,21.086,32.95,phi4-mini:3.8b-q4_K_M,9805.16,1.0,How far in advance must an employee submit an annual-leave request?,Q3,2.4
+A manager has up to 3 business days after submission to either Approve or Reject a Leave Request [Clause 4].,answer,26,10821.09,20.69,35.08,phi4-mini:3.8b-q4_K_M,9830.83,1.0,How long does a manager have to approve or reject a leave request?,Q4,2.4
+"No, Contractors are not eligible for annual leave [Clause 5].",answer,15,6050.26,14.526,35.57,phi4-mini:3.8b-q4_K_M,8437.29,1.0,Are contractors eligible for annual leave under this policy?,Q5,2.48
+"The effective date for Policy EVIDENCE's ACME ANNUAL LEAVE POLICY — Version 3.0 is [Clause 7]. The policy became effective on January 1, 2026.",answer,43,18075.9,27.212,35.06,phi4-mini:3.8b-q4_K_M,9097.18,1.0,What is the effective date of Version 3.0?,Q6,2.38
+"No, it does not specify sick-leave entitlement [Clause 6].",abstain,16,6487.79,18.343,46.82,phi4-mini:3.8b-q4_K_M,11805.12,1.0,Does this policy state how many sick-leave days employees receive? Answer only from the supplied evidence.,Q7,2.47
+"No, contractors are not eligible for annual leave under [Clause 5].",answer,16,6502.8,19.344,33.69,phi4-mini:3.8b-q4_K_M,12803.68,1.0,"A contractor requests 20 annual-leave days. According to this policy, are they eligible? Briefly explain.",Q8,2.46
+An eligible full-time employee receives 20 days of annual leave per calendar year [Clause 1].,answer,22,9753.09,86.914,32.93,qwen3:4b-q4_K_M,77124.35,1.0,How many annual-leave days does an eligible full-time employee receive per calendar year?,Q1,2.26
+The maximum number of unused annual-leave days that can be carried over is 5. This is specified in Clause 2.,answer,27,12103.76,28.851,31.38,qwen3:4b-q4_K_M,16712.2,1.0,What is the maximum number of unused annual-leave days that can be carried over?,Q2,2.23
+An employee must submit an annual-leave request at least 7 calendar days before the first day of leave [Clause 3].,answer,27,12077.23,27.563,26.01,qwen3:4b-q4_K_M,15455.81,1.0,How far in advance must an employee submit an annual-leave request?,Q3,2.24
+A manager must approve or reject a leave request within 3 business days after submission [Clause 4].,answer,22,9792.25,25.364,31.09,qwen3:4b-q4_K_M,15537.5,1.0,How long does a manager have to approve or reject a leave request?,Q4,2.25
+"No, contractors are not eligible for annual leave under this policy [Clause 5].",answer,18,7876.69,21.894,29.95,qwen3:4b-q4_K_M,13984.29,1.0,Are contractors eligible for annual leave under this policy?,Q5,2.29
+The effective date of Version 3.0 is 1 January 2026 [Clause 7].,answer,24,10693.03,25.457,25.77,qwen3:4b-q4_K_M,14734.36,1.0,What is the effective date of Version 3.0?,Q6,2.24
+The policy does not specify sick-leave entitlement. [Clause 6],abstain,16,6971.4,24.964,27.27,qwen3:4b-q4_K_M,17961.76,1.0,Does this policy state how many sick-leave days employees receive? Answer only from the supplied evidence.,Q7,2.3
+"No, contractors are not eligible for annual leave under this policy [Clause 5].",answer,18,7904.81,27.395,27.88,qwen3:4b-q4_K_M,19458.58,1.0,"A contractor requests 20 annual-leave days. According to this policy, are they eligible? Briefly explain.",Q8,2.28

@@ -13,13 +13,14 @@ Routes:
 import json
 from datetime import datetime, timezone
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, abort, Response, stream_with_context
 from flask_login import login_required, current_user
 
 from models import (db, Policy, PolicyVersion, PolicyStatus, PolicyAIReview,
                     PolicyAIInsight)
 from utils import audit, next_version, compute_diff
-from policy_ai import (generate_policy_draft, rewrite_text, explain_clause, review_policy,
+from policy_ai import (generate_policy_draft, rewrite_text, rewrite_text_stream,
+                       explain_clause, explain_clause_stream, review_policy,
                        find_duplicates, find_conflicts, generate_insights, summarize_changes)
 
 policy_ai_bp = Blueprint("policy_ai", __name__, url_prefix="/admin/policies")
@@ -101,6 +102,55 @@ def writer_action(policy_id):
 
     audit("policy_ai.writer", "policy", policy.id, {"mode": mode})
     return jsonify({"success": True, "result": result})
+
+
+@policy_ai_bp.route("/<int:policy_id>/ai/writer/stream", methods=["POST"])
+@login_required
+def writer_action_stream(policy_id):
+    policy = db.get_or_404(Policy, policy_id)
+    _hr_or_admin(policy)
+    mode = request.form.get("mode", "rewrite")
+    content = request.form.get("content", "").strip()
+    target_language = request.form.get("target_language", "").strip()
+    clause = request.form.get("clause", "").strip()
+
+    if not content:
+        return jsonify({"success": False, "error": "No content to work with."}), 400
+
+    if mode == "explain" and not clause:
+        return jsonify({"success": False, "error": "Select or paste a clause to explain."}), 400
+
+    def generate_events():
+        full_tokens = []
+        try:
+            if mode == "explain":
+                stream_gen = explain_clause_stream(content, clause)
+            else:
+                stream_gen = rewrite_text_stream(content, mode, target_language)
+
+            for token in stream_gen:
+                if token:
+                    full_tokens.append(token)
+                    yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n"
+
+            accumulated = "".join(full_tokens).strip()
+            if not accumulated:
+                # Fallback to synchronous method if streaming yielded no tokens
+                if mode == "explain":
+                    accumulated = explain_clause(content, clause)
+                else:
+                    accumulated = rewrite_text(content, mode, target_language)
+                if accumulated:
+                    yield f"data: {json.dumps({'type': 'token', 'token': accumulated})}\n\n"
+
+            audit("policy_ai.writer", "policy", policy.id, {"mode": mode})
+            yield f"data: {json.dumps({'type': 'done', 'result': accumulated})}\n\n"
+        except GeneratorExit:
+            raise
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+
+    return Response(stream_with_context(generate_events()), mimetype="text/event-stream")
 
 
 @policy_ai_bp.route("/<int:policy_id>/ai/apply", methods=["POST"])
