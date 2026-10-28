@@ -35,10 +35,9 @@ class QwenLocalProvider(OllamaProvider):
         if super().health_check():
             return True
         core = self._get_core_provider()
-        if core and core.health_check():
+        if core and core != self and core.health_check():
             return True
-        # Verifiable grounded synthesis engine available in headless/offline execution
-        return True
+        return False
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None, model: Optional[str] = None) -> Optional[str]:
         llm_timeout = timeout or getattr(Config, "LLM_GENERATION_DEADLINE", getattr(Config, "LLM_TIMEOUT", 25.0))
@@ -99,6 +98,9 @@ class QwenLocalProvider(OllamaProvider):
 
             parsed = json.loads(cleaned)
             if isinstance(parsed, dict) and "answer" in parsed:
+                valid_ids = {c.get("chunk_id") or c.get("id") for c in chunks if (c.get("chunk_id") or c.get("id"))}
+                if "used_evidence_ids" in parsed and isinstance(parsed["used_evidence_ids"], list):
+                    parsed["used_evidence_ids"] = [cid for cid in parsed["used_evidence_ids"] if cid in valid_ids]
                 parsed["model"] = target_model
                 return parsed
         except Exception:

@@ -203,6 +203,7 @@ def test_fallback_model_cascade_on_timeout(app_instance):
     }]
 
     with patch.object(engine.evidence_filter, "get_allowed_policy_ids", return_value={10}), \
+         patch.object(engine.llm, "health_check", return_value=True), \
          patch.object(engine.llm, "generate_grounded_answer", side_effect=mock_generate_grounded), \
          patch.object(engine, "_verify_candidate", return_value=(True, "ENTAILMENT", 0.98, 0.01)), \
          patch.object(engine.fact_resolver, "try_resolve", return_value=None), \
@@ -282,3 +283,78 @@ def test_live_ollama_tags_and_installed_models():
     assert provider.is_model_available("qwen3:4b-q4_K_M")
     assert provider.is_model_available("phi4-mini:3.8b-q4_K_M")
     assert provider.is_model_available("qwen3:1.7b-q4_K_M")
+
+
+# ==============================================================================
+# 5. Exact Model Matching, Precedence & Latency Telemetry Tests
+# ==============================================================================
+
+def test_exact_model_tag_matching_prevents_partial_leakage():
+    """Verify that similar model names (e.g. 1.7b vs 4b) are never treated as matches."""
+    from rag.generation.provider import _match_ollama_model
+
+    # Exact tags must match
+    assert _match_ollama_model("qwen3:4b-q4_K_M", "qwen3:4b-q4_K_M") is True
+    assert _match_ollama_model("qwen3:4b-q4_K_M", "registry.ollama.ai/library/qwen3:4b-q4_K_M") is True
+
+    # Partial tags must NEVER match
+    assert _match_ollama_model("qwen3:4b-q4_K_M", "qwen3:1.7b-q4_K_M") is False
+    assert _match_ollama_model("qwen3:1.7b-q4_K_M", "qwen3:4b-q4_K_M") is False
+    assert _match_ollama_model("phi4-mini:3.8b-q4_K_M", "qwen3:4b-q4_K_M") is False
+
+    # Untagged targets match untagged or :latest only
+    assert _match_ollama_model("qwen3", "qwen3:latest") is True
+    assert _match_ollama_model("qwen3", "qwen3:4b-q4_K_M") is False
+
+
+def test_base_url_precedence_and_normalization():
+    """Verify LOCAL_LLM_BASE_URL takes precedence and normalizes slashes without guessing."""
+    with patch.dict(os.environ, {
+        "LOCAL_LLM_BASE_URL": "http://ollama:11434///",
+        "OLLAMA_BASE_URL": "http://legacy-host:11434/"
+    }):
+        provider = OllamaProvider()
+        assert provider.base_url == "http://ollama:11434"
+        assert not provider.base_url.endswith("/")
+
+
+def test_ollama_timing_breakdown_captured():
+    """Verify Ollama duration metrics (load, prompt_eval, eval) are parsed into usage."""
+    provider = OllamaProvider(base_url="http://ollama:11434", model="qwen3:4b-q4_K_M")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "message": {"content": "Verified policy answer."},
+        "prompt_eval_count": 25,
+        "eval_count": 12,
+        "load_duration": 50000000,          # 50ms in ns
+        "prompt_eval_duration": 120000000,  # 120ms in ns
+        "eval_duration": 80000000,          # 80ms in ns
+        "total_duration": 250000000         # 250ms in ns
+    }
+    with patch.object(provider._session, "post", return_value=mock_resp):
+        resp = provider.generate("What is leave policy?")
+        assert resp.usage.get("prompt_tokens") == 25
+        assert resp.usage.get("completion_tokens") == 12
+        assert resp.usage.get("load_duration_ms") == 50.0
+        assert resp.usage.get("prompt_eval_duration_ms") == 120.0
+        assert resp.usage.get("eval_duration_ms") == 80.0
+        assert resp.usage.get("total_duration_ms") == 250.0
+
+
+def test_used_evidence_ids_validated_against_supplied_chunks():
+    """Verify that hallucinations in used_evidence_ids are filtered to actual supplied chunk IDs."""
+    provider = get_qwen_provider()
+    chunks = [
+        {"chunk_id": "chunk-valid-1", "text": "Valid text 1"},
+        {"chunk_id": "chunk-valid-2", "text": "Valid text 2"}
+    ]
+    mock_json = json.dumps({
+        "answer": "Grounded answer citing chunk 1.",
+        "used_evidence_ids": ["chunk-valid-1", "hallucinated-chunk-999"]
+    })
+    with patch.object(provider, "generate", return_value=mock_json):
+        result = provider.generate_grounded_answer("query", chunks)
+        assert result is not None
+        assert "chunk-valid-1" in result["used_evidence_ids"]
+        assert "hallucinated-chunk-999" not in result["used_evidence_ids"]

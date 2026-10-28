@@ -4,12 +4,24 @@ Abstract LocalLLMProvider interface with unified factory.
 """
 import os
 import logging
+import requests
 from abc import ABC, abstractmethod
 from typing import Optional, Iterator, List, Dict, Any
 from config import Config
 from rag.llm_provider import LLMProvider, LLMResponse
 
 logger = logging.getLogger("rag.generation.provider")
+
+def _match_ollama_model(target: str, installed: str) -> bool:
+    """Exact model tag comparison preventing partial name leakage."""
+    if not target or not installed:
+        return False
+    target_clean = target.strip().lower().split("/")[-1]
+    installed_clean = installed.strip().lower().split("/")[-1]
+    if ":" in target_clean:
+        return installed_clean == target_clean
+    return installed_clean == target_clean or installed_clean == f"{target_clean}:latest"
+
 
 def _suppress_think_tags(token_stream: Iterator[str]) -> Iterator[str]:
     """
@@ -86,21 +98,12 @@ class OllamaProvider(LocalLLMProvider):
         api_key: Optional[str] = None,
         timeout: Optional[Any] = None
     ):
-        raw_url = (
+        self.base_url = (
             base_url
             or os.environ.get("LOCAL_LLM_BASE_URL")
             or os.environ.get("OLLAMA_BASE_URL")
-            or Config.OLLAMA_BASE_URL
-        ).rstrip("/")
-        if "://ollama:" in raw_url:
-            import socket
-            try:
-                socket.gethostbyname("ollama")
-                self.base_url = raw_url
-            except Exception:
-                self.base_url = raw_url.replace("://ollama:", "://127.0.0.1:")
-        else:
-            self.base_url = raw_url
+            or getattr(Config, "LOCAL_LLM_BASE_URL", "http://ollama:11434")
+        ).strip().rstrip("/")
         self.model = (
             model
             or os.environ.get("LOCAL_LLM_MODEL")
@@ -116,15 +119,6 @@ class OllamaProvider(LocalLLMProvider):
         self._is_healthy = None
         self.positive_cache_window = 60.0
         self.negative_cache_window = 45.0
-
-        if "://localhost:" in self.base_url or "://127.0.0.1:" in self.base_url:
-            if not self._test_connection():
-                alt_url = self.base_url.replace("://localhost:", "://127.0.0.1:") if "://localhost:" in self.base_url else self.base_url.replace("://127.0.0.1:", "://localhost:")
-                try:
-                    if self._session.get(f"{alt_url}/api/tags", timeout=(0.5, 1.0)).status_code == 200:
-                        self.base_url = alt_url
-                except Exception:
-                    pass
 
     def _test_connection(self) -> bool:
         try:
@@ -226,10 +220,14 @@ class OllamaProvider(LocalLLMProvider):
 
             usage = {
                 "prompt_tokens": data.get("prompt_eval_count", 0),
-                "completion_tokens": data.get("eval_count", 0)
+                "completion_tokens": data.get("eval_count", 0),
+                "load_duration_ms": round(data["load_duration"] / 1e6, 2) if "load_duration" in data else None,
+                "prompt_eval_duration_ms": round(data["prompt_eval_duration"] / 1e6, 2) if "prompt_eval_duration" in data else None,
+                "eval_duration_ms": round(data["eval_duration"] / 1e6, 2) if "eval_duration" in data else None,
+                "total_duration_ms": round(data["total_duration"] / 1e6, 2) if "total_duration" in data else None,
             }
             self._is_healthy = True
-            self._last_health_time = time.time()
+            self._last_health_time = time.monotonic()
             return LLMResponse(
                 text=content,
                 raw_response=data,
@@ -300,52 +298,60 @@ class OllamaProvider(LocalLLMProvider):
             headers["Authorization"] = f"Bearer {self.api_key}"
 
         def raw_token_generator():
-            start_t = time.time()
+            start_t = time.monotonic()
             max_read = effective_timeout[1] if isinstance(effective_timeout, tuple) else float(effective_timeout)
             deadline = start_t + max_read
+            resp = None
             try:
-                with self._session.post(
+                resp = self._session.post(
                     f"{self.base_url}/api/chat",
                     json=payload,
                     headers=headers,
                     timeout=effective_timeout,
                     stream=True
-                ) as resp:
-                    if resp.status_code == 200:
-                        self._is_healthy = True
-                        self._last_health_time = time.time()
-                        for line in resp.iter_lines():
-                            if time.time() > deadline:
-                                resp.close()
-                                raise TimeoutError(f"Streaming token generation exceeded deadline of {max_read}s")
-                            if line:
-                                try:
-                                    chunk = json.loads(line.decode("utf-8"))
-                                    token = ""
-                                    if "message" in chunk and isinstance(chunk["message"], dict):
-                                        token = chunk["message"].get("content", "")
-                                    elif "response" in chunk:
-                                        token = chunk.get("response", "")
-                                    if token:
-                                        yield token
-                                except Exception:
-                                    pass
-            except TimeoutError as te:
+                )
+                if resp.status_code == 200:
+                    self._is_healthy = True
+                    self._last_health_time = time.monotonic()
+                    for line in resp.iter_lines():
+                        if time.monotonic() > deadline:
+                            resp.close()
+                            raise TimeoutError(f"Streaming token generation exceeded deadline of {max_read:.1f}s")
+                        if line:
+                            try:
+                                chunk = json.loads(line.decode("utf-8"))
+                                token = ""
+                                if "message" in chunk and isinstance(chunk["message"], dict):
+                                    token = chunk["message"].get("content", "")
+                                elif "response" in chunk:
+                                    token = chunk.get("response", "")
+                                if token:
+                                    yield token
+                            except Exception:
+                                pass
+            except (TimeoutError, requests.exceptions.Timeout) as te:
                 self._is_healthy = True  # Model is online, merely hit the allocated deadline
                 logger.warning(f"[OllamaProvider] Generation deadline exceeded for {target_model}: {te}")
-                raise
+                if resp is not None:
+                    resp.close()
+                raise TimeoutError(f"Streaming token generation exceeded deadline of {max_read:.1f}s")
             except Exception as e:
                 self._is_healthy = False
-                self._last_health_time = time.time()
+                self._last_health_time = time.monotonic()
                 logger.warning(f"[OllamaProvider] Streaming failed for {target_model}: {e}")
+                if resp is not None:
+                    resp.close()
                 raise
+            finally:
+                if resp is not None:
+                    resp.close()
 
         for clean_token in _suppress_think_tags(raw_token_generator()):
             yield clean_token
 
     def health_check(self) -> bool:
         import time
-        now = time.time()
+        now = time.monotonic()
         if self._is_healthy is True and (now - self._last_health_time < self.positive_cache_window):
             return True
         if self._is_healthy is False and (now - self._last_health_time < self.negative_cache_window):
@@ -360,35 +366,18 @@ class OllamaProvider(LocalLLMProvider):
             if resp.status_code == 200:
                 data = resp.json()
                 models = [m.get("name", "") for m in data.get("models", [])]
-                model_base = self.model.split(":")[0].lower().replace("_", "-")
-                has_model = any(model_base in m.lower().replace("_", "-") for m in models)
+                has_model = any(_match_ollama_model(self.model, m) for m in models)
                 self._is_healthy = has_model
                 self._last_health_time = now
                 if not has_model:
-                    logger.warning(f"[OllamaProvider] Ollama online but model '{self.model}' not in {models}")
+                    logger.warning(f"[OllamaProvider] Ollama online but exact model '{self.model}' not in {models}")
                 return has_model
         except Exception as e:
-            for docker_host in ("ollama:11434", "host.docker.internal"):
-                if docker_host in self.base_url:
-                    alt_url = self.base_url.replace(docker_host, "localhost:11434")
-                    try:
-                        alt_resp = self._session.get(f"{alt_url}/api/tags", headers=headers, timeout=(1.0, 2.0))
-                        if alt_resp.status_code == 200:
-                            data = alt_resp.json()
-                            models = [m.get("name", "") for m in data.get("models", [])]
-                            model_base = self.model.split(":")[0].lower().replace("_", "-")
-                            has_model = any(model_base in m.lower().replace("_", "-") for m in models)
-                            if has_model:
-                                self.base_url = alt_url
-                                self._is_healthy = True
-                                self._last_health_time = now
-                                return True
-                    except Exception:
-                        pass
             self._is_healthy = False
             self._last_health_time = now
-            logger.debug(f"[OllamaProvider] Health check failed: {e}")
+            logger.debug(f"[OllamaProvider] Health check failed for {self.base_url}: {e}")
             return False
+        return False
 
     def is_model_available(self, model_name: str) -> bool:
         """Check if a specific model tag exists in Ollama's local registry."""
@@ -399,8 +388,7 @@ class OllamaProvider(LocalLLMProvider):
             resp = self._session.get(f"{self.base_url}/api/tags", headers=headers, timeout=(1.0, 2.0))
             if resp.status_code == 200:
                 models = [m.get("name", "") for m in resp.json().get("models", [])]
-                model_base = model_name.split(":")[0].lower().replace("_", "-")
-                return any(model_name == m or model_base in m.lower().replace("_", "-") for m in models)
+                return any(_match_ollama_model(model_name, m) for m in models)
         except Exception:
             pass
         return False

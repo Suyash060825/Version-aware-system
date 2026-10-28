@@ -68,22 +68,8 @@ class Config:
     LOCAL_LLM_SECONDARY_MODEL = os.environ.get("LOCAL_LLM_SECONDARY_MODEL", "phi4-mini:3.8b-q4_K_M")
     LOCAL_LLM_FAST_FALLBACK_MODEL = os.environ.get("LOCAL_LLM_FAST_FALLBACK_MODEL", "qwen3:1.7b-q4_K_M")
 
-    # Authoritative base URL resolution: prioritize explicit env, fallback to native host if container unresolvable
-    _raw_llm_url = os.environ.get("LOCAL_LLM_BASE_URL", os.environ.get("OLLAMA_BASE_URL", "")).rstrip("/")
-    if not _raw_llm_url:
-        import socket
-        try:
-            socket.gethostbyname("ollama")
-            _raw_llm_url = "http://ollama:11434"
-        except Exception:
-            _raw_llm_url = "http://127.0.0.1:11434"
-    elif "://ollama:" in _raw_llm_url:
-        import socket
-        try:
-            socket.gethostbyname("ollama")
-        except Exception:
-            _raw_llm_url = _raw_llm_url.replace("://ollama:", "://127.0.0.1:")
-
+    # Authoritative base URL resolution: prioritize explicit LOCAL_LLM_BASE_URL, then legacy OLLAMA_BASE_URL, default to http://ollama:11434
+    _raw_llm_url = (os.environ.get("LOCAL_LLM_BASE_URL") or os.environ.get("OLLAMA_BASE_URL") or "http://ollama:11434").strip().rstrip("/")
     LOCAL_LLM_BASE_URL = _raw_llm_url
     OLLAMA_BASE_URL = LOCAL_LLM_BASE_URL
 

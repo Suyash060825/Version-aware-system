@@ -102,6 +102,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
 
   # ============================================================================
   # PostgreSQL 16 with pgvector extension
@@ -146,10 +148,10 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: policy_ledger_ollama
-    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 3 && ollama pull ${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M} && wait"]
+    entrypoint: ["/bin/sh", "-c", "ollama serve & pid=$$! ; sleep 3 ; if ! ollama list 2>/dev/null | grep -E \"^$${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}( |$$)\"; then ollama pull \"$${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}\"; fi ; wait $$pid"]
     restart: unless-stopped
     ports:
-      - "127.0.0.1:11434:11434"
+      - "${OLLAMA_HOST_PORT:-127.0.0.1:11435}:11434"
     volumes:
       - ollama_data:/root/.ollama
     environment:
@@ -162,7 +164,7 @@ services:
               count: all
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "sh", "-c", "ollama list 2>/dev/null | grep -q ${LOCAL_LLM_MODEL:-qwen3}"]
+      test: ["CMD", "sh", "-c", "ollama list 2>/dev/null | grep -E \"^$${LOCAL_LLM_MODEL:-qwen3:4b-q4_K_M}( |$$)\""]
       interval: 15s
       timeout: 10s
       retries: 20

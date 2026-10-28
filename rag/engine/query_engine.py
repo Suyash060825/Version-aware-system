@@ -856,7 +856,7 @@ class QueryEngine:
 
         if llm_available:
             max_tokens = 200
-            t_llm = time.time()
+            t_llm = time.monotonic()
             primary_deadline = getattr(Config, "LLM_GENERATION_DEADLINE", 25.0)
             total_budget = getattr(Config, "LLM_TOTAL_GENERATION_BUDGET", 30.0)
 
@@ -872,7 +872,7 @@ class QueryEngine:
                 candidates.append((fast_m, None, 3.0))
 
             for idx, (cand_model, max_alloc, min_req) in enumerate(candidates):
-                elapsed_gen = time.time() - t_llm
+                elapsed_gen = time.monotonic() - t_llm
                 remaining_budget = total_budget - elapsed_gen
                 if remaining_budget < min_req:
                     logger.info(f"[QueryEngine] Insufficient budget ({remaining_budget:.1f}s < {min_req:.1f}s) to attempt candidate {cand_model}")
@@ -936,12 +936,22 @@ class QueryEngine:
                     fallback_occurred = True
                     fallback_reason = f"Model {cand_model} exceeded deadline of {cand_timeout:.1f}s: {te}"
                     logger.warning(f"[QueryEngine] {fallback_reason}")
+                except (ConnectionRefusedError, ConnectionError) as ce:
+                    fallback_occurred = True
+                    fallback_reason = f"Inference engine unreachable ({ce}). Aborting candidate cascade."
+                    logger.error(f"[QueryEngine] {fallback_reason}")
+                    break
                 except Exception as e:
+                    if "connection" in str(e).lower() or "connect" in str(e).lower():
+                        fallback_occurred = True
+                        fallback_reason = f"Inference engine connection failed ({e}). Aborting candidate cascade."
+                        logger.error(f"[QueryEngine] {fallback_reason}")
+                        break
                     fallback_occurred = True
                     fallback_reason = f"Model {cand_model} encountered error: {e}"
                     logger.warning(f"[QueryEngine] {fallback_reason}")
 
-            llm_time_ms = (time.time() - t_llm) * 1000
+            llm_time_ms = (time.monotonic() - t_llm) * 1000
 
         if not final_answer:
             final_answer = _extract_best_evidence_context(normalized_query, ranked, citations)
