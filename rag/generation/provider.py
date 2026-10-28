@@ -98,7 +98,7 @@ class OllamaProvider(LocalLLMProvider):
                 socket.gethostbyname("ollama")
                 self.base_url = raw_url
             except Exception:
-                self.base_url = raw_url.replace("://ollama:", "://localhost:")
+                self.base_url = raw_url.replace("://ollama:", "://127.0.0.1:")
         else:
             self.base_url = raw_url
         self.model = (
@@ -108,7 +108,7 @@ class OllamaProvider(LocalLLMProvider):
             or Config.LOCAL_LLM_MODEL
         )
         self.api_key = api_key or os.environ.get("OLLAMA_API_KEY", "")
-        read_timeout = float(os.environ.get("LLM_TIMEOUT", str(Config.LLM_TIMEOUT)))
+        read_timeout = float(os.environ.get("LLM_TIMEOUT", os.environ.get("LLM_GENERATION_DEADLINE", str(getattr(Config, "LLM_GENERATION_DEADLINE", Config.LLM_TIMEOUT)))))
         self.timeout = timeout if timeout is not None else (3.0, read_timeout)
         import requests
         self._session = requests.Session()
@@ -161,12 +161,20 @@ class OllamaProvider(LocalLLMProvider):
         temperature: float = 0.1,
         stream: bool = False,
         timeout: Optional[Any] = None,
+        model: Optional[str] = None,
         **kwargs
     ) -> LLMResponse:
         import time, re
         effective_system = system or system_prompt
         effective_tokens = max_tokens or num_predict
-        effective_timeout = timeout or self.timeout
+        target_model = model or self.model
+        if timeout is not None:
+            if isinstance(timeout, (int, float)):
+                effective_timeout = (min(3.0, float(timeout)), float(timeout))
+            else:
+                effective_timeout = timeout
+        else:
+            effective_timeout = self.timeout
 
         if isinstance(prompt, str):
             messages = []
@@ -180,7 +188,7 @@ class OllamaProvider(LocalLLMProvider):
 
         options = self._ollama_options(num_predict=effective_tokens, temperature=temperature)
         payload = {
-            "model": self.model,
+            "model": target_model,
             "messages": messages,
             "stream": False,
             "think": False,
@@ -225,12 +233,15 @@ class OllamaProvider(LocalLLMProvider):
             return LLMResponse(
                 text=content,
                 raw_response=data,
-                model=self.model,
+                model=target_model,
                 usage=usage,
                 fallback=False
             )
         except Exception as e:
-            logger.error(f"[OllamaProvider] Error generating completion: {e}")
+            if "timed out" in str(e).lower() or isinstance(e, TimeoutError):
+                logger.warning(f"[OllamaProvider] Generation deadline exceeded for {target_model}: {e}")
+                raise TimeoutError(f"Generation deadline exceeded for {target_model}: {e}")
+            logger.error(f"[OllamaProvider] Error generating completion with {target_model}: {e}")
             from rag.llm_provider import ExtractiveProvider
             fallback_resp = ExtractiveProvider().generate(prompt, system=effective_system)
             fallback_resp.error = f"Ollama error: {str(e)}"
@@ -247,6 +258,7 @@ class OllamaProvider(LocalLLMProvider):
         num_predict: Optional[int] = None,
         temperature: float = 0.1,
         timeout: Optional[Any] = None,
+        model: Optional[str] = None,
         **kwargs
     ):
         import json, time
@@ -256,7 +268,14 @@ class OllamaProvider(LocalLLMProvider):
 
         effective_system = system or system_prompt
         effective_tokens = max_tokens or num_predict
-        effective_timeout = timeout or self.timeout
+        target_model = model or self.model
+        if timeout is not None:
+            if isinstance(timeout, (int, float)):
+                effective_timeout = (min(3.0, float(timeout)), float(timeout))
+            else:
+                effective_timeout = timeout
+        else:
+            effective_timeout = self.timeout
 
         if isinstance(prompt, str):
             messages = []
@@ -270,7 +289,7 @@ class OllamaProvider(LocalLLMProvider):
 
         options = self._ollama_options(num_predict=effective_tokens, temperature=temperature)
         payload = {
-            "model": self.model,
+            "model": target_model,
             "messages": messages,
             "stream": True,
             "think": False,
@@ -281,6 +300,9 @@ class OllamaProvider(LocalLLMProvider):
             headers["Authorization"] = f"Bearer {self.api_key}"
 
         def raw_token_generator():
+            start_t = time.time()
+            max_read = effective_timeout[1] if isinstance(effective_timeout, tuple) else float(effective_timeout)
+            deadline = start_t + max_read
             try:
                 with self._session.post(
                     f"{self.base_url}/api/chat",
@@ -293,6 +315,9 @@ class OllamaProvider(LocalLLMProvider):
                         self._is_healthy = True
                         self._last_health_time = time.time()
                         for line in resp.iter_lines():
+                            if time.time() > deadline:
+                                resp.close()
+                                raise TimeoutError(f"Streaming token generation exceeded deadline of {max_read}s")
                             if line:
                                 try:
                                     chunk = json.loads(line.decode("utf-8"))
@@ -305,10 +330,15 @@ class OllamaProvider(LocalLLMProvider):
                                         yield token
                                 except Exception:
                                     pass
+            except TimeoutError as te:
+                self._is_healthy = True  # Model is online, merely hit the allocated deadline
+                logger.warning(f"[OllamaProvider] Generation deadline exceeded for {target_model}: {te}")
+                raise
             except Exception as e:
                 self._is_healthy = False
                 self._last_health_time = time.time()
-                logger.warning(f"[OllamaProvider] Streaming failed: {e}")
+                logger.warning(f"[OllamaProvider] Streaming failed for {target_model}: {e}")
+                raise
 
         for clean_token in _suppress_think_tags(raw_token_generator()):
             yield clean_token
@@ -360,6 +390,21 @@ class OllamaProvider(LocalLLMProvider):
             logger.debug(f"[OllamaProvider] Health check failed: {e}")
             return False
 
+    def is_model_available(self, model_name: str) -> bool:
+        """Check if a specific model tag exists in Ollama's local registry."""
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        try:
+            resp = self._session.get(f"{self.base_url}/api/tags", headers=headers, timeout=(1.0, 2.0))
+            if resp.status_code == 200:
+                models = [m.get("name", "") for m in resp.json().get("models", [])]
+                model_base = model_name.split(":")[0].lower().replace("_", "-")
+                return any(model_name == m or model_base in m.lower().replace("_", "-") for m in models)
+        except Exception:
+            pass
+        return False
+
     def embed(self, texts: List[str]) -> List[List[float]]:
         from rag.embeddings.embedder import get_embedder
         try:
@@ -376,7 +421,14 @@ class OllamaProvider(LocalLLMProvider):
             "backend": "ollama",
             "model": self.model,
             "base_url": self.base_url,
+            "generation_endpoint": f"{self.base_url}/api/chat",
+            "tags_endpoint": f"{self.base_url}/api/tags",
             "healthy": healthy,
+            "primary_model": getattr(Config, "LOCAL_LLM_MODEL", "qwen3:4b-q4_K_M"),
+            "secondary_model": getattr(Config, "LOCAL_LLM_SECONDARY_MODEL", "phi4-mini:3.8b-q4_K_M"),
+            "fast_fallback_model": getattr(Config, "LOCAL_LLM_FAST_FALLBACK_MODEL", "qwen3:1.7b-q4_K_M"),
+            "generation_deadline": getattr(Config, "LLM_GENERATION_DEADLINE", 25.0),
+            "total_budget": getattr(Config, "LLM_TOTAL_GENERATION_BUDGET", 30.0),
         }
 
 

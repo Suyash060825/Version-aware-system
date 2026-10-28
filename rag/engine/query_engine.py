@@ -666,7 +666,7 @@ class QueryEngine:
             t_f0 = time.perf_counter()
             fact_res = self.fact_resolver.try_resolve(normalized_query, scope=scope, temporal=temporal_context, user=user)
             t_fact_ms = (time.perf_counter() - t_f0) * 1000
-            if fact_res.found and fact_res.answer:
+            if fact_res and getattr(fact_res, "found", False) and getattr(fact_res, "answer", None):
                 cits = self.citation_validator.enrich_only(fact_res.citations)
                 if self.config.use_cache:
                     self.cache.put(None, fact_res.answer, cits, 1, scope=scope, confidence=fact_res.confidence, is_diff_query=is_diff, query=normalized_query)
@@ -847,42 +847,101 @@ class QueryEngine:
         nli_contra_score = 0.0
         llm_time_ms = 0.0
         llm_token_count = 0
+        actual_model = "deterministic-rag"
+        fallback_occurred = False
+        fallback_reason = None
+        attempted_models = []
 
         llm_available = getattr(self.config, "use_llm", True) and (complexity >= ComplexityLevel.LEVEL_2_RETRIEVAL or is_synthesis_query) and self.llm.health_check()
 
         if llm_available:
             max_tokens = 200
             t_llm = time.time()
-            try:
-                if is_streaming:
-                    prompt = build_streaming_qa_prompt(normalized_query, ranked[:5])
-                    token_buffer = []
-                    for token in self.llm.stream(prompt, system_prompt=STREAMING_POLICY_GROUNDING_PROMPT):
-                        if token:
-                            token_buffer.append(token)
-                            if token_callback:
-                                token_callback(token)
-                    candidate_text = "".join(token_buffer).strip()
-                    llm_time_ms = (time.time() - t_llm) * 1000
-                    if candidate_text and candidate_text != "INSUFFICIENT_EVIDENCE" and not candidate_text.startswith("INSUFFICIENT_EVIDENCE"):
-                        is_grounded, nli_verdict, nli_entail_score, nli_contra_score = self._verify_candidate(candidate_text, ranked[:5])
-                        if is_grounded:
-                            final_answer = candidate_text
-                            llm_used = True
-                            raw_tokens = token_buffer
-                else:
-                    llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:5], max_tokens=max_tokens)
-                    llm_time_ms = (time.time() - t_llm) * 1000
-                    ans_text = llm_output.get("answer", "").strip() if llm_output else ""
-                    if llm_output and ans_text and ans_text != "INSUFFICIENT_EVIDENCE" and not ans_text.startswith("INSUFFICIENT_EVIDENCE"):
-                        is_grounded, nli_verdict, nli_entail_score, nli_contra_score = self._verify_candidate(ans_text, ranked[:5])
-                        if is_grounded:
-                            final_answer = ans_text
-                            llm_used = True
-            except TimeoutError as te:
-                logger.warning(f"Local LLM inference timeout: {te}. Falling back to deterministic grounded extraction.")
-            except Exception as e:
-                logger.warning(f"Local LLM inference encountered error: {e}. Falling back to deterministic grounded extraction.")
+            primary_deadline = getattr(Config, "LLM_GENERATION_DEADLINE", 25.0)
+            total_budget = getattr(Config, "LLM_TOTAL_GENERATION_BUDGET", 30.0)
+
+            # Candidate cascade: (model_name, max_timeout_alloc, min_remaining_required)
+            candidates = [
+                (getattr(Config, "LOCAL_LLM_MODEL", "qwen3:4b-q4_K_M"), primary_deadline, 0.0)
+            ]
+            sec_m = getattr(Config, "LOCAL_LLM_SECONDARY_MODEL", "phi4-mini:3.8b-q4_K_M")
+            if sec_m and sec_m != candidates[0][0]:
+                candidates.append((sec_m, None, 5.0))
+            fast_m = getattr(Config, "LOCAL_LLM_FAST_FALLBACK_MODEL", "qwen3:1.7b-q4_K_M")
+            if fast_m and fast_m not in (candidates[0][0], sec_m):
+                candidates.append((fast_m, None, 3.0))
+
+            for idx, (cand_model, max_alloc, min_req) in enumerate(candidates):
+                elapsed_gen = time.time() - t_llm
+                remaining_budget = total_budget - elapsed_gen
+                if remaining_budget < min_req:
+                    logger.info(f"[QueryEngine] Insufficient budget ({remaining_budget:.1f}s < {min_req:.1f}s) to attempt candidate {cand_model}")
+                    break
+
+                cand_timeout = min(remaining_budget, max_alloc) if max_alloc else remaining_budget
+                attempted_models.append(cand_model)
+                logger.info(f"[QueryEngine] Attempting generation attempt {idx+1}/{len(candidates)} with model={cand_model}, timeout={cand_timeout:.1f}s")
+
+                try:
+                    if is_streaming:
+                        prompt = build_streaming_qa_prompt(normalized_query, ranked[:5])
+                        token_buffer = []
+                        for token in self.llm.stream(prompt, system_prompt=STREAMING_POLICY_GROUNDING_PROMPT, timeout=cand_timeout, model=cand_model):
+                            if token:
+                                token_buffer.append(token)
+                        candidate_text = "".join(token_buffer).strip()
+                        if candidate_text and candidate_text != "INSUFFICIENT_EVIDENCE" and not candidate_text.startswith("INSUFFICIENT_EVIDENCE"):
+                            is_grounded, v_verdict, v_entail, v_contra = self._verify_candidate(candidate_text, ranked[:5])
+                            if is_grounded:
+                                final_answer = candidate_text
+                                llm_used = True
+                                actual_model = cand_model
+                                nli_verdict = v_verdict
+                                nli_entail_score = v_entail
+                                nli_contra_score = v_contra
+                                raw_tokens = token_buffer
+                                # Safely emit verified tokens now that the candidate is validated
+                                if token_callback:
+                                    for tok in token_buffer:
+                                        token_callback(tok)
+                                break
+                            else:
+                                fallback_occurred = True
+                                fallback_reason = f"Candidate {cand_model} failed grounding/NLI verification"
+                                logger.warning(f"[QueryEngine] {fallback_reason}")
+                        else:
+                            fallback_occurred = True
+                            fallback_reason = f"Candidate {cand_model} returned empty or insufficient evidence"
+                    else:
+                        llm_output = self.llm.generate_grounded_answer(normalized_query, ranked[:5], max_tokens=max_tokens, timeout=cand_timeout, model=cand_model)
+                        ans_text = llm_output.get("answer", "").strip() if llm_output else ""
+                        if llm_output and ans_text and ans_text != "INSUFFICIENT_EVIDENCE" and not ans_text.startswith("INSUFFICIENT_EVIDENCE"):
+                            is_grounded, v_verdict, v_entail, v_contra = self._verify_candidate(ans_text, ranked[:5])
+                            if is_grounded:
+                                final_answer = ans_text
+                                llm_used = True
+                                actual_model = cand_model
+                                nli_verdict = v_verdict
+                                nli_entail_score = v_entail
+                                nli_contra_score = v_contra
+                                break
+                            else:
+                                fallback_occurred = True
+                                fallback_reason = f"Candidate {cand_model} failed grounding/NLI verification"
+                                logger.warning(f"[QueryEngine] {fallback_reason}")
+                        else:
+                            fallback_occurred = True
+                            fallback_reason = f"Candidate {cand_model} returned empty or insufficient evidence"
+                except TimeoutError as te:
+                    fallback_occurred = True
+                    fallback_reason = f"Model {cand_model} exceeded deadline of {cand_timeout:.1f}s: {te}"
+                    logger.warning(f"[QueryEngine] {fallback_reason}")
+                except Exception as e:
+                    fallback_occurred = True
+                    fallback_reason = f"Model {cand_model} encountered error: {e}"
+                    logger.warning(f"[QueryEngine] {fallback_reason}")
+
+            llm_time_ms = (time.time() - t_llm) * 1000
 
         if not final_answer:
             final_answer = _extract_best_evidence_context(normalized_query, ranked, citations)
@@ -907,7 +966,7 @@ class QueryEngine:
         from rag.guardrails import apply_output_guardrails
         final_answer = apply_output_guardrails(final_answer, ranked)
 
-        model_name = self._model_name if llm_used else "deterministic-rag"
+        model_name = actual_model if llm_used else "deterministic-rag"
 
         # Cache successful verified answer (F8: both query string and embedding always passed)
         if self.config.use_cache:
@@ -924,6 +983,13 @@ class QueryEngine:
             "rerank_ms": round(retrieval_stats.get("timing_rerank_ms", 0.0), 2),
             "confidence_score_ms": round(retrieval_stats.get("timing_confidence_score_ms", 0.0), 2),
             "llm_generate_ms": round(llm_time_ms, 2)
+        }
+        usage_data["llm_routing"] = {
+            "primary_model": getattr(Config, "LOCAL_LLM_MODEL", "qwen3:4b-q4_K_M"),
+            "actual_model": model_name,
+            "fallback_used": fallback_occurred,
+            "fallback_reason": fallback_reason,
+            "attempted_models": attempted_models
         }
 
         retrieved_chunk_ids = [c.get("chunk_id") or c.get("id") for c in ranked if isinstance(c, dict) and (c.get("chunk_id") or c.get("id"))]
@@ -988,15 +1054,27 @@ class QueryEngine:
         pipeline_res = [None]
         pipeline_err = [None]
 
+        try:
+            from flask import current_app
+            flask_app = current_app._get_current_object() if current_app else None
+        except Exception:
+            flask_app = None
+
         def runner():
             try:
                 def on_token(tok: str):
                     token_q.put(("token", tok))
 
-                res = self._execute_pipeline(
-                    query, user=user, session_id=session_id, is_streaming=True, token_callback=on_token
-                )
-                pipeline_res[0] = res
+                def run_inner():
+                    return self._execute_pipeline(
+                        query, user=user, session_id=session_id, is_streaming=True, token_callback=on_token
+                    )
+
+                if flask_app is not None:
+                    with flask_app.app_context():
+                        pipeline_res[0] = run_inner()
+                else:
+                    pipeline_res[0] = run_inner()
             except Exception as e:
                 pipeline_err[0] = e
             finally:

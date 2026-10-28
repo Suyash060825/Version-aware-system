@@ -65,9 +65,32 @@ class Config:
     LLM_BACKEND = os.environ.get("LLM_BACKEND", "ollama")
     LOCAL_LLM_MODEL = os.environ.get("LOCAL_LLM_MODEL", os.environ.get("OLLAMA_MODEL", "qwen3:4b-q4_K_M"))
     OLLAMA_MODEL = LOCAL_LLM_MODEL
-    LOCAL_LLM_BASE_URL = os.environ.get("LOCAL_LLM_BASE_URL", os.environ.get("OLLAMA_BASE_URL", "http://ollama:11434")).rstrip("/")
+    LOCAL_LLM_SECONDARY_MODEL = os.environ.get("LOCAL_LLM_SECONDARY_MODEL", "phi4-mini:3.8b-q4_K_M")
+    LOCAL_LLM_FAST_FALLBACK_MODEL = os.environ.get("LOCAL_LLM_FAST_FALLBACK_MODEL", "qwen3:1.7b-q4_K_M")
+
+    # Authoritative base URL resolution: prioritize explicit env, fallback to native host if container unresolvable
+    _raw_llm_url = os.environ.get("LOCAL_LLM_BASE_URL", os.environ.get("OLLAMA_BASE_URL", "")).rstrip("/")
+    if not _raw_llm_url:
+        import socket
+        try:
+            socket.gethostbyname("ollama")
+            _raw_llm_url = "http://ollama:11434"
+        except Exception:
+            _raw_llm_url = "http://127.0.0.1:11434"
+    elif "://ollama:" in _raw_llm_url:
+        import socket
+        try:
+            socket.gethostbyname("ollama")
+        except Exception:
+            _raw_llm_url = _raw_llm_url.replace("://ollama:", "://127.0.0.1:")
+
+    LOCAL_LLM_BASE_URL = _raw_llm_url
     OLLAMA_BASE_URL = LOCAL_LLM_BASE_URL
-    LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", "45.0"))
+
+    # Generation deadlines and budgets
+    LLM_GENERATION_DEADLINE = float(os.environ.get("LLM_GENERATION_DEADLINE", os.environ.get("LLM_TIMEOUT", "25.0")))
+    LLM_TIMEOUT = LLM_GENERATION_DEADLINE
+    LLM_TOTAL_GENERATION_BUDGET = float(os.environ.get("LLM_TOTAL_GENERATION_BUDGET", "30.0"))
     LLM_MAX_NEW_TOKENS = int(os.environ.get("LLM_MAX_NEW_TOKENS", "512"))
     OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "8192"))
     PROMPT_CHUNK_MAX_CHARS = int(os.environ.get("PROMPT_CHUNK_MAX_CHARS", "700"))
@@ -130,6 +153,10 @@ class Config:
             raise ValueError(f"SEMANTIC_CACHE_THRESHOLD must be between 0.0 and 1.0, got {cls.SEMANTIC_CACHE_THRESHOLD}")
         if cls.LLM_TIMEOUT <= 0:
             raise ValueError(f"LLM_TIMEOUT must be positive, got {cls.LLM_TIMEOUT}")
+        if cls.LLM_GENERATION_DEADLINE <= 0:
+            raise ValueError(f"LLM_GENERATION_DEADLINE must be positive, got {cls.LLM_GENERATION_DEADLINE}")
+        if cls.LLM_TOTAL_GENERATION_BUDGET <= 0:
+            raise ValueError(f"LLM_TOTAL_GENERATION_BUDGET must be positive, got {cls.LLM_TOTAL_GENERATION_BUDGET}")
         if cls.MAX_CONTENT_LENGTH <= 0:
             raise ValueError(f"MAX_CONTENT_LENGTH must be positive, got {cls.MAX_CONTENT_LENGTH}")
 
@@ -145,8 +172,12 @@ class Config:
             "redis_url": cls.REDIS_URL,
             "llm_backend": cls.LLM_BACKEND,
             "local_llm_model": cls.LOCAL_LLM_MODEL,
+            "secondary_model": cls.LOCAL_LLM_SECONDARY_MODEL,
+            "fast_fallback_model": cls.LOCAL_LLM_FAST_FALLBACK_MODEL,
             "ollama_base_url": cls.OLLAMA_BASE_URL,
             "llm_timeout": cls.LLM_TIMEOUT,
+            "llm_generation_deadline": cls.LLM_GENERATION_DEADLINE,
+            "llm_total_budget": cls.LLM_TOTAL_GENERATION_BUDGET,
             "embedding_engine": cls.EMBEDDING_ENGINE,
             "embedding_model": cls.EMBEDDING_MODEL,
             "embedding_dimension": cls.EMBEDDING_DIMENSION,

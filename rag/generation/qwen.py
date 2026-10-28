@@ -40,10 +40,10 @@ class QwenLocalProvider(OllamaProvider):
         # Verifiable grounded synthesis engine available in headless/offline execution
         return True
 
-    def generate(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> Optional[str]:
-        llm_timeout = timeout or getattr(Config, "LLM_TIMEOUT", 45.0)
+    def generate(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None, model: Optional[str] = None) -> Optional[str]:
+        llm_timeout = timeout or getattr(Config, "LLM_GENERATION_DEADLINE", getattr(Config, "LLM_TIMEOUT", 25.0))
         if super().health_check():
-            res = super().generate(prompt, system=system_prompt, max_tokens=num_predict, timeout=llm_timeout)
+            res = super().generate(prompt, system=system_prompt, max_tokens=num_predict, timeout=llm_timeout, model=model)
             if res:
                 if hasattr(res, "text"):
                     return res.text if not (getattr(res, "fallback", False) or getattr(res, "error", None)) else None
@@ -58,11 +58,11 @@ class QwenLocalProvider(OllamaProvider):
                 logger.debug(f"Core LLM provider generation failed: {e}")
         return None
 
-    def stream(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None):
-        llm_timeout = timeout or getattr(Config, "LLM_TIMEOUT", 45.0)
+    def stream(self, prompt: str, system_prompt: Optional[str] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None, model: Optional[str] = None):
+        llm_timeout = timeout or getattr(Config, "LLM_GENERATION_DEADLINE", getattr(Config, "LLM_TIMEOUT", 25.0))
         if super().health_check():
             has_tokens = False
-            for tok in super().stream(prompt, system=system_prompt, max_tokens=num_predict, timeout=llm_timeout):
+            for tok in super().stream(prompt, system=system_prompt, max_tokens=num_predict, timeout=llm_timeout, model=model):
                 has_tokens = True
                 yield tok
             if has_tokens:
@@ -78,39 +78,13 @@ class QwenLocalProvider(OllamaProvider):
             except Exception as e:
                 logger.debug(f"Core LLM provider streaming failed: {e}")
 
-    def generate_grounded_answer(self, query: str, chunks: list, max_tokens: int = 500) -> Optional[Dict[str, Any]]:
+    def generate_grounded_answer(self, query: str, chunks: list, max_tokens: int = 500, timeout: Optional[float] = None, model: Optional[str] = None) -> Optional[Dict[str, Any]]:
         prompt = build_grounded_qa_prompt(query, chunks)
-        llm_timeout = getattr(Config, "LLM_TIMEOUT", 45.0)
-        raw_output = self.generate(prompt, system_prompt=SYSTEM_POLICY_GROUNDING_PROMPT, num_predict=max_tokens, timeout=llm_timeout)
+        llm_timeout = timeout or getattr(Config, "LLM_GENERATION_DEADLINE", getattr(Config, "LLM_TIMEOUT", 25.0))
+        target_model = model or self.model
+        raw_output = self.generate(prompt, system_prompt=SYSTEM_POLICY_GROUNDING_PROMPT, num_predict=max_tokens, timeout=llm_timeout, model=target_model)
         if not raw_output:
-            if not chunks:
-                return None
-            import re
-            top_c = chunks[0]
-            top_text = top_c.get("text", "").strip()
-            pol_title = top_c.get("policy_title") or top_c.get("policy_name") or "Policy"
-            v_num = str(top_c.get("version_label") or top_c.get("version") or "1.0").lstrip("v")
-            ver_label = f"v{v_num}"
-            sec_name = top_c.get("section_path") or top_c.get("section", "Core Provisions")
-
-            # Extract highest-overlap sentence matching query
-            q_words = set(re.findall(r"\b[a-z0-9]+\b", query.lower()))
-            best_sentence = top_text.split("\n")[0]
-            best_score = 0
-            for s in re.split(r"(?<=[.!?])\s+", top_text):
-                s_words = set(re.findall(r"\b[a-z0-9]+\b", s.lower()))
-                sc = len(q_words & s_words)
-                if sc > best_score:
-                    best_score = sc
-                    best_sentence = s.strip()
-
-            clean_ans = f"According to the {pol_title} ({ver_label}, {sec_name}):\n{best_sentence}"
-            return {
-                "answer": clean_ans,
-                "reasoning_summary": f"Directly grounded from {sec_name}.",
-                "used_evidence_ids": [c.get("chunk_id") for c in chunks if c.get("chunk_id")],
-                "needs_clarification": False
-            }
+            return None
 
         # Attempt to parse structured JSON
         try:
@@ -125,6 +99,7 @@ class QwenLocalProvider(OllamaProvider):
 
             parsed = json.loads(cleaned)
             if isinstance(parsed, dict) and "answer" in parsed:
+                parsed["model"] = target_model
                 return parsed
         except Exception:
             pass
@@ -139,7 +114,8 @@ class QwenLocalProvider(OllamaProvider):
             "answer": clean_raw,
             "reasoning_summary": "Extracted from local LLM response.",
             "used_evidence_ids": [c.get("chunk_id") for c in chunks if c.get("chunk_id")],
-            "needs_clarification": False
+            "needs_clarification": False,
+            "model": target_model
         }
 
 _QWEN_PROVIDER = None
